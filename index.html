@@ -89,8 +89,8 @@ img.dv-logo{max-width:200px;max-height:60px}
 .toolbar .grow{flex:1}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--silver);border-radius:12px}
 table{width:100%;border-collapse:collapse;font-size:14px}
-th{background:var(--blue);color:#fff;text-align:left;font:700 12.5px var(--display);padding:12px 16px;white-space:nowrap}
-td{padding:12px 16px;border-top:1px solid var(--silver);vertical-align:top}
+th{background:var(--blue);color:#fff;text-align:left;font:700 12.5px var(--display);padding:9px 16px;white-space:nowrap}
+td{padding:7px 16px;border-top:1px solid var(--silver);vertical-align:top}
 tbody tr:nth-child(even) td{background:var(--mist)}
 tfoot td{font-weight:700;background:var(--blue05);border-top:2px solid var(--blue1)}
 tr.void td{color:var(--muted)}
@@ -936,7 +936,7 @@ function docForm(kind, v0, mode = 'new') {
   const today = defaultDate();
   const blankLine = () => ({ accountId: '', desc: '', amount: '' });
   const base = { payeeId: '', payeeName: '', tin: '', particulars: '', lines: [blankLine()], vatable: true, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '' };
-  const v = v0 ? JSON.parse(JSON.stringify(v0)) : isBill ? { ...base, ref: '', date: today, dueDate: '' } : { ...base, cv: '', date: today, checkDate: today, checkNo: '', bills: [], earlierCv: '' };
+  const v = v0 ? JSON.parse(JSON.stringify(v0)) : isBill ? { ...base, ref: '', date: today, dueDate: '' } : { ...base, cv: '', date: today, checkDate: today, checkNo: '', bills: [] };
   if (!isBill) { v.bills = (v.bills || []).map(p => ({ billId: p.billId, amount: p.amount })); if (!edit) { v.cv = suggestCv(v.date); v.checkNo = v.checkNo || suggestCheckNo(); } }
   if (!v.lines.length && (isBill || !v.bills.length)) v.lines.push(blankLine());
   const self = edit ? v0.id : null;
@@ -956,7 +956,6 @@ function docForm(kind, v0, mode = 'new') {
       ${F('f-payee', 'Payee', inp('f-payee', v.payeeName, 'text', 'list="dl-payees" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-payees">${D.contacts.filter(isPayee).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>`, 'span2')}
       <div class="field" id="f-ptype-wrap" hidden><label for="f-ptype">Payee type</label><select id="f-ptype">${ROLES.filter(r => PAYEE_ROLES.includes(r[0])).map(([k, l]) => opt(k, l, '')).join('')}</select></div>
       ${F('f-tin', 'Payee TIN', inp('f-tin', v.tin || (p0 ? p0.tin : ''), 'text', 'placeholder="000-000-000-000"'))}
-      ${isBill ? '' : F('f-earlier', 'Earlier CV (optional)', inp('f-earlier', v.earlierCv || ''))}
       ${F('f-part', 'Particulars', inp('f-part', v.particulars, 'text', 'placeholder="e.g. Internet and telephone for September 2026"'), 'full')}
     </div><p class="hint" id="f-payee-note" style="margin-top:8px"></p></div>
     ${isBill ? '' : '<div class="section"><h3>Bills this check pays</h3><div id="f-bills"></div></div>'}
@@ -979,7 +978,7 @@ function docForm(kind, v0, mode = 'new') {
     v.date = val('f-date'); v.payeeName = val('f-payee'); v.tin = val('f-tin'); v.particulars = val('f-part'); v.notes = document.getElementById('f-notes').value.trim();
     if (isBill) { v.ref = val('f-ref'); v.dueDate = val('f-due'); }
     else {
-      v.cv = val('f-cv'); v.checkNo = val('f-checkno'); v.checkDate = val('f-checkdate'); v.earlierCv = val('f-earlier');
+      v.cv = val('f-cv'); v.checkNo = val('f-checkno'); v.checkDate = val('f-checkdate');
       v.bills = [...document.querySelectorAll('#f-bills tbody tr')].filter(tr => tr.querySelector('.b-pick').checked).map(tr => ({ billId: tr.dataset.id, amount: tr.querySelector('.b-amt').value.trim() }));
     }
     v.vatable = document.getElementById('f-vatable').checked; v.atc = val('f-atc');
@@ -1176,7 +1175,7 @@ function docForm(kind, v0, mode = 'new') {
       const p = savePayee(c);
       const rec = { cv: v.cv, date: v.date, checkDate: v.checkDate, checkNo: v.checkNo, payeeId: p.id, payeeName: p.name, tin: v.tin || p.tin || '', particulars: v.particulars,
         bills: c.pays.map(x => ({ billId: x.billId, amount: x.amount, acct: x.acct })), ...taxRec(c), checkAmount: c.check, entry: c.entry.filter(x => x.dr || x.cr),
-        earlierCv: v.earlierCv, notes: v.notes };
+        notes: v.notes };
       if (edit) Object.assign(voucher(self), rec);
       else { id = nextId('v'); D.vouchers.push({ id, ...rec, status: 'active', clearedOn: '', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' }); }
     }, map => {
@@ -1699,10 +1698,10 @@ const TABLES = [
   { name: 'Vouchers', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'One row per check voucher. Status and Cleared on are what Check Monitoring shows.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15], ['Voucher date', 'd', 13], ['Check no.', 's', 16], ['Check date', 'd', 13], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Bills paid', 'n', 15, 'derived'], ['Check amount', 'n', 15],
-      ['Status', 's', 12], ['Cleared on', 'd', 13], ['Carried from', 'i', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Earlier CV', 's', 15], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
+      ['Status', 's', 12], ['Cleared on', 'd', 13], ['Carried from', 'i', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
     rows: () => D.vouchers.filter(v => !v.foreign).sort(byDateCv).map(v => [v.id, v.cv, v.date, v.checkNo, v.checkDate, v.payeeId, v.payeeName, v.tin || null, v.particulars,
       yn(v.vatable), vGross(v), v.vat, yn(v.vatManual), v.atc || null, v.atc ? v.ewt : null, yn(v.ewtManual), sum((v.bills || []).map(p => p.amount)), v.checkAmount,
-      vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.earlierCv || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null]) },
+      vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null]) },
   { name: 'Voucher lines', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'What each voucher pays for, one row per account line, as typed from the invoice.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16]],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount)])) },
@@ -1878,7 +1877,7 @@ function dataFromTables(sheets, ctx = {}) {
     tableRows({ [vn]: sheetOf(g.vouchers) }, { ...tableOf('Vouchers'), name: vn }, errs).forEach(o => {
       const p = cById[o['Payee ID']];
       foreignVouchers.push({ id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'], payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-        bills: [], lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, checkAmount: o['Check amount'] || 0, earlierCv: o['Earlier CV'] || '', notes: o.Notes || '',
+        bills: [], lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, checkAmount: o['Check amount'] || 0, notes: o.Notes || '',
         status: 'active', voidReason: '', voidedOn: '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', from: g.year, foreign: true });
     });
   });
@@ -1899,7 +1898,7 @@ function dataFromTables(sheets, ctx = {}) {
       if (o.Status === 'Outstanding' && o['Cleared on']) E(o, 'Cleared on is filled in but Status is Outstanding.');
       const p2 = cById[o['Payee ID']];
       return { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'], payeeId: o['Payee ID'], payeeName: p2 ? p2.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-        bills: [], lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, checkAmount: o['Check amount'] || 0, earlierCv: o['Earlier CV'] || '', notes: o.Notes || '',
+        bills: [], lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, checkAmount: o['Check amount'] || 0, notes: o.Notes || '',
         status: 'active', voidReason: '', voidedOn: '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '', from };
     }
     inThisYear(o, 'Voucher date');
@@ -1927,7 +1926,7 @@ function dataFromTables(sheets, ctx = {}) {
     if (o.Status === 'Void' && !o['Void reason']) E(o, 'Status is Void but Void reason is blank.');
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     const v = { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'], payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-      bills: pays, lines, ...tax, checkAmount: o['Check amount'], earlierCv: o['Earlier CV'] || '', notes: o.Notes || '',
+      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     readEntry('cv', v, o, round2(gross + billsPaid), () => calc({ ...v, vatManual: true, ewtManual: true }, control, id => bById[id]));
     return v;

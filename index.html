@@ -29,6 +29,8 @@ h1,h2,h3{font-family:var(--display);color:var(--ink);margin:0}
 .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .hint{font-size:13px;color:var(--muted);margin:0}
 .sub{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+tr.more td{text-align:center;color:var(--muted);font-size:12.5px;padding:14px}
+.logpart+.logpart{margin-top:8px}.logtab{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.logchg{white-space:pre-line;font-size:13px;overflow-wrap:anywhere}
 .mt{margin:32px 0 12px;font-size:17px}
 .btn{border:0;border-radius:8px;padding:11px 20px;font:700 14px/1.2 var(--display);cursor:pointer;background:var(--blue);color:#fff;transition:background .2s,transform .2s,box-shadow .2s;white-space:nowrap}
 .btn:hover{background:var(--blue7);transform:translateY(-1px);box-shadow:0 8px 20px rgba(27,77,160,.18)}
@@ -267,11 +269,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-10-08';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 2;
+const API_NEEDED = 3;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -340,8 +342,9 @@ const parseD = s => { const [y, m, d] = s.split('-').map(Number); return new Dat
 const TODAY = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const todayIso = () => iso(TODAY());
 const daysBetween = (a, b) => Math.round((parseD(b) - parseD(a)) / 864e5);
-const fdate = s => s ? parseD(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-const money = n => (n < -0.004 ? '(' : '') + Math.abs(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (n < -0.004 ? ')' : '');
+const DATE_FMT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), MONEY_FMT = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fdate = s => s ? DATE_FMT.format(parseD(s)) : '';
+const money = n => (n < -0.004 ? '(' : '') + MONEY_FMT.format(Math.abs(Number(n) || 0)) + (n < -0.004 ? ')' : '');
 const peso = n => '₱' + money(n);
 const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 const eom = ym => { const [y, m] = ym.split('-').map(Number); return iso(new Date(y, m, 0)); };
@@ -483,6 +486,7 @@ function applyLoad(res) {
   const r = dataFromTables(toSheets(res.tabs), { year: YEAR, foreign: res.foreign || [], closedThrough: res.closedThrough || 0, years: res.years || [] });
   if (r.errs) { S0.screen = 'problems'; S0.errs = r.errs; return; }
   D = r.data; RAW = rawFrom(res.tabs, res.foreign); S0.screen = 'app';
+  warmSigs();
 }
 const loadReq = () => ({ year: YEAR, load: TABLES.map(t => tabName(t)) });
 async function loadBooks(quiet) {
@@ -507,13 +511,21 @@ function switchYear(y) {
 const rowsWith = (d, t) => { const keep = D; D = d; try { return t.rows(); } finally { D = keep; } };
 const NEW_ID_TABS = [['bills', 'Bills', 'Bill ID'], ['vouchers', 'Vouchers', 'Voucher ID'], ['contacts', 'Contacts', 'Contact ID'], ['accounts', 'Accounts', 'Account ID']];
 const groupRows = (t, rows) => { const k = t.cols.findIndex(c => c[0] === t.key), g = {}; rows.forEach(r => { const o = norm(r[k]); (g[o] = g[o] || []).push(r); }); return g; };
+/* The books as rows, grouped by owner, worked out once per version of the books (D is never changed in place;
+   a save works on a copy). Built while the screen is idle after a load, so the first save doesn't wait for it. */
+const ROWSIG = new WeakMap();
+function rowSigs(d) {
+  let m = ROWSIG.get(d);
+  if (!m) { m = {}; TABLES.forEach(t => { const g = groupRows(t, rowsWith(d, t)), s = {}; Object.keys(g).forEach(o => { s[o] = JSON.stringify(g[o]); }); m[t.name] = s; }); ROWSIG.set(d, m); }
+  return m;
+}
+const warmSigs = () => { const d = D; setTimeout(() => { if (d === D && S0.screen === 'app') rowSigs(d); }, 400); };
 function diffBooks(before, after) {
-  const changes = [];
+  const changes = [], sigs = rowSigs(before);
   TABLES.forEach(t => {
-    const B = groupRows(t, rowsWith(before, t)), A = groupRows(t, rowsWith(after, t)), name = tabName(t);
-    const sig = rows => (rows || []).map(r => JSON.stringify(r.map(norm))).join('\n');
+    const B = sigs[t.name], A = groupRows(t, rowsWith(after, t)), name = tabName(t);
     [...new Set([...Object.keys(B), ...Object.keys(A)])].forEach(o => {
-      if (sig(B[o]) === sig(A[o])) return;
+      if (B[o] === (A[o] ? JSON.stringify(A[o]) : undefined)) return;
       changes.push({ tab: name, owner: o, before: (RAW[name] && RAW[name][o]) || [], after: (A[o] || []).map(r => r.map(v => v === undefined ? null : v)) });
     });
   });
@@ -568,10 +580,25 @@ const contact = id => D.contacts.find(p => p.id === id);
 const contactByName = n => D.contacts.find(p => p.name.trim().toLowerCase() === String(n).trim().toLowerCase());
 const voucher = id => D.vouchers.find(v => v.id === id);
 const live = v => v.status !== 'void';
+/* Live on a given date: a document voided later still counted on that date (its reversal is dated when it was voided). */
+const liveAt = (x, d) => x.status !== 'void' || (!x.legacyVoid && !!(x.voidedOn && d && x.voidedOn > d));
+/* A voucher's accounting date is its check date: the day it hits the bank. The voucher date is when it was prepared. */
+const entryDate = v => v.checkDate || v.date;
 const billOf = id => D.bills.find(b => b.id === id);
 /* What's been paid on a bill: the live vouchers that pay it, optionally leaving one voucher out or stopping at a date. */
 /* paidBefore: paid on a bill in earlier years' books (carried in, or still open in an earlier year). */
-const billPaid = (id, exceptVoucher, asOf) => round2(((billOf(id) || {}).paidBefore || 0) + sum(D.vouchers.filter(v => live(v) && v.id !== exceptVoucher && (!asOf || v.date <= asOf)).flatMap(v => (v.bills || []).filter(p => p.billId === id).map(p => p.amount))));
+/* Payments by bill, built once per version of the books instead of scanning every voucher for every bill. */
+let PAY_IX = { d: null };
+const payIndex = () => {
+  if (PAY_IX.d !== D || PAY_IX.v !== D.vouchers || PAY_IX.n !== D.vouchers.length) {
+    const by = {}; D.vouchers.forEach(v => (v.bills || []).forEach(p => (by[p.billId] = by[p.billId] || []).push([v, p.amount])));
+    PAY_IX = { d: D, v: D.vouchers, n: D.vouchers.length, by };
+  }
+  return PAY_IX.by;
+};
+/* With a date: what checks dated by then had paid, counting a check voided later as paid until its void date. */
+const billPaid = (id, exceptVoucher, asOf) => round2(((billOf(id) || {}).paidBefore || 0) + sum((payIndex()[id] || [])
+  .filter(([v]) => v.id !== exceptVoucher && (asOf ? liveAt(v, asOf) && entryDate(v) <= asOf : live(v))).map(x => x[1])));
 const billBalance = (b, exceptVoucher, asOf) => round2(b.payable - billPaid(b.id, exceptVoucher, asOf));
 const bStatus = b => { if (b.status === 'void') return 'Void'; const p = billPaid(b.id); return p <= 0 ? 'Pending' : p >= b.payable ? 'Paid' : 'Partly paid'; };
 /* A document of this year's own, not one carried in or open from an earlier year. */
@@ -581,6 +608,8 @@ const billPayers = id => D.vouchers.filter(v => live(v) && (v.bills || []).some(
 const apFor = roles => roles.includes('supplier') ? D.control.apTrade : D.control.apOther;
 /* Month lock: entries dated on or before lockedThrough can't be added, edited or voided. */
 const isLocked = date => !!(D.lockedThrough && date && date <= D.lockedThrough);
+/* Voiding posts a reversal dated the day of the void, so it needs an open day left in this year's books. */
+const canVoid = () => !yearClosed() && (D.lockedThrough || '') < `${YEAR}-12-31`;
 const lockedMsg = () => `Books are locked through ${fdate(D.lockedThrough)}. Use a date after that.`;
 const vStatus = v => v.status === 'void' ? 'Void' : v.clearedOn ? 'Cleared' : 'Outstanding';
 const controlIds = () => [D.control.bank, D.control.inputVat, D.control.ewt, D.control.apTrade, D.control.apOther];
@@ -633,6 +662,11 @@ function calcBill(b, ctl = D.control) {
 }
 const vGross = v => sum((v.lines || []).map(l => l.amount));
 
+/* A void document keeps its entry, dated as it was, and gets a reversal dated the day it was voided:
+   the month it was booked in never changes. Voids from before reversals existed (legacyVoid) have neither. */
+const posted = x => x.status !== 'void' || !x.legacyVoid;
+const reversed = x => x.status === 'void' && !x.legacyVoid;
+const reverse = lines => (lines || []).map(l => ({ acct: l.acct, memo: l.memo || '', dr: l.cr || 0, cr: l.dr || 0 }));
 /* ---------- Journal sources ----------
    Every module that posts adds itself here. Each document: { src, id, ref, date, contact, memo, lines:[{acct,memo,dr,cr}] }. */
 const SOURCES = {
@@ -642,11 +676,19 @@ const SOURCES = {
   },
   bill: {
     label: 'Supplier bill',
-    docs: () => D.bills.filter(b => live(b) && own(b)).map(b => ({ src: 'bill', id: b.id, ref: b.ref, date: b.date, contact: b.payeeName, memo: b.particulars, lines: b.entry || [] }))
+    docs: () => D.bills.filter(b => posted(b) && own(b)).map(b => ({ src: 'bill', id: b.id, ref: b.ref, date: b.date, contact: b.payeeName, memo: b.particulars, lines: b.entry || [] }))
+  },
+  billVoid: {
+    label: 'Supplier bill void',
+    docs: () => D.bills.filter(b => reversed(b) && own(b)).map(b => ({ src: 'billVoid', id: b.id, ref: `${b.ref} void`, date: b.voidedOn, contact: b.payeeName, memo: `Void: ${b.voidReason}`, lines: reverse(b.entry) }))
   },
   cv: {
     label: 'Check voucher',
-    docs: () => D.vouchers.filter(v => live(v) && own(v)).map(v => ({ src: 'cv', id: v.id, ref: v.cv, date: v.date, contact: v.payeeName, memo: v.particulars, lines: v.entry || [] }))
+    docs: () => D.vouchers.filter(v => posted(v) && own(v)).map(v => ({ src: 'cv', id: v.id, ref: v.cv, date: entryDate(v), contact: v.payeeName, memo: v.particulars, lines: v.entry || [] }))
+  },
+  cvVoid: {
+    label: 'Check voucher void',
+    docs: () => D.vouchers.filter(v => reversed(v) && own(v)).map(v => ({ src: 'cvVoid', id: v.id, ref: `${v.cv} void`, date: v.voidedOn, contact: v.payeeName, memo: `Void: ${v.voidReason}`, lines: reverse(v.entry) }))
   }
 };
 const journal = (ym, src) => Object.entries(SOURCES).filter(([k]) => !src || k === src).flatMap(([, s]) => s.docs())
@@ -695,20 +737,27 @@ function trialBalance(asOf) {
 // should equal the hub's bank balance. Deposits in transit join here once collections exist.
 function bankReconciliation(asOf, statementBalance) {
   const book = round2(balances('', asOf)[D.control.bank] || 0);
-  const outstanding = D.vouchers.filter(v => live(v) && v.checkDate <= asOf && (!v.clearedOn || v.clearedOn > asOf))
+  const outstanding = D.vouchers.filter(v => liveAt(v, asOf) && v.checkDate <= asOf && (!v.clearedOn || v.clearedOn > asOf))
     .sort((a, b) => a.checkDate.localeCompare(b.checkDate)).map(v => ({ id: v.id, cv: v.cv, checkNo: v.checkNo, checkDate: v.checkDate, payee: v.payeeName, amount: v.checkAmount }));
   const outstandingTotal = sum(outstanding.map(o => o.amount));
   const adjustedBank = round2(Number(statementBalance) - outstandingTotal);
   return { asOf, bankAccount: acctName(D.control.bank), statementBalance: round2(Number(statementBalance)), outstanding, outstandingTotal, depositsInTransit: [], adjustedBank, bookBalance: book, difference: round2(adjustedBank - book) };
 }
+/* Documents booked in a period, each with a sign: +1 for its entry, -1 for its reversal when it was voided in the period. */
+const signedDocs = (list, from, to) => list.filter(own).flatMap(d => {
+  const out = [], inP = x => x && x >= from && x <= to;
+  if (posted(d) && inP(entryDate(d))) out.push({ d, s: 1 });
+  if (reversed(d) && inP(d.voidedOn)) out.push({ d, s: -1 });
+  return out;
+});
 // Tax summary for a period: VAT payable (output less input) and withholding to remit, by ATC and by payee
 // (the payee list is what the 2307 certificates and the quarterly withholding report need).
 const outputVatAccount = () => D.accounts.find(a => a.name === 'Output VAT');
 function taxSummary(from, to) {
   const b = balances(from, to), ov = outputVatAccount();
   const outputVat = ov ? round2(-(b[ov.id] || 0)) : 0, inputVat = round2(b[D.control.inputVat] || 0);
-  const vs = [...D.bills, ...D.vouchers].filter(v => live(v) && own(v) && v.atc && v.date >= from && v.date <= to);
-  const group = key => { const g = {}; vs.forEach(v => { const k = key(v); const x = g[k] || (g[k] = { base: 0, ewt: 0, count: 0 }); x.base = round2(x.base + round2(vGross(v) - v.vat)); x.ewt = round2(x.ewt + v.ewt); x.count++; }); return g; };
+  const vs = signedDocs([...D.bills, ...D.vouchers].filter(v => v.atc), from, to);
+  const group = key => { const g = {}; vs.forEach(({ d: v, s }) => { const k = key(v); const x = g[k] || (g[k] = { base: 0, ewt: 0, count: 0 }); x.base = round2(x.base + s * round2(vGross(v) - v.vat)); x.ewt = round2(x.ewt + s * v.ewt); x.count += s; }); return g; };
   const byAtc = Object.entries(group(v => v.atc)).map(([atc, x]) => ({ atc, rate: (atcOf(atc) || {}).rate || 0, ...x }));
   const byPayee = Object.entries(group(v => v.payeeId)).map(([id, x]) => { const c = contact(id) || {}; return { contactId: id, name: c.name || '', tin: c.tin || '', ...x }; });
   return { from, to, vat: { output: outputVat, input: inputVat, payable: round2(outputVat - inputVat) }, ewt: { total: round2(-(b[D.control.ewt] || 0)), byAtc, byPayee } };
@@ -717,7 +766,7 @@ function taxSummary(from, to) {
 // register here: receivables when sales invoices and collections are built, payables with supplier bills.
 // Each item: { contactId, ref, date, dueDate, amount, paid }.
 const OPEN_ITEMS = { receivable: [], payable: [
-  asOf => D.bills.filter(live).map(b => ({ contactId: b.payeeId, ref: b.ref, date: b.date, dueDate: b.dueDate || '', amount: b.payable, paid: billPaid(b.id, null, asOf) }))
+  asOf => D.bills.filter(b => liveAt(b, asOf)).map(b => ({ contactId: b.payeeId, ref: b.ref, date: b.date, dueDate: b.dueDate || '', amount: b.payable, paid: billPaid(b.id, null, asOf) }))
 ] };
 const AGING_BUCKETS = [['Current', -Infinity, 0], ['1–30 days', 1, 30], ['31–60 days', 31, 60], ['61–90 days', 61, 90], ['Over 90 days', 91, Infinity]];
 function aging(kind, asOf) {
@@ -779,7 +828,7 @@ function monthOptions(cur, extra = [], all = '') {
   const months = [...new Set([todayIso().slice(0, 7), ...extra, ...(cur ? [cur] : [])])].sort().reverse();
   return (all ? `<option value="">${all}</option>` : '') + months.map(m => opt(m, monthLabel(m), cur)).join('');
 }
-const voucherMonths = () => D.vouchers.filter(own).map(v => v.date.slice(0, 7));
+const voucherMonths = () => D.vouchers.filter(own).map(v => entryDate(v).slice(0, 7));
 function toast(msg, err) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
@@ -787,8 +836,37 @@ function toast(msg, err) {
 }
 function table(cols, rows, emptyHtml, foot = '', rowCls = () => '') {
   if (!rows.length) return `<div class="empty">${emptyHtml}</div>`;
-  return `<div class="tbl-wrap"><table><thead><tr>${cols.map(c => `<th class="${c.num ? 'num' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr class="${rowCls(r)}">${cols.map(c => `<td class="${c.num ? 'num' : ''}">${c.k(r)}</td>`).join('')}</tr>`).join('')}</tbody>${foot}</table></div>`;
+  const tr = r => `<tr class="${rowCls(r)}">${cols.map(c => `<td class="${c.num ? 'num' : ''}">${c.k(r)}</td>`).join('')}</tr>`;
+  return `<div class="tbl-wrap"><table><thead><tr>${cols.map(c => `<th class="${c.num ? 'num' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>${chunked(rows, tr, cols.length)}</tbody>${foot}</table></div>`;
 }
+/* Long lists draw their first rows at once and the rest as they scroll into view, so a year of vouchers
+   opens as fast as a week of them. Totals are worked out from every row, drawn or not. Without
+   IntersectionObserver (old browsers) everything draws at once. */
+const CHUNK = 120, MORE = new Map();
+let moreSeq = 0, moreObs = null;
+function chunked(items, draw, colspan) {
+  if (items.length <= CHUNK || !('IntersectionObserver' in window)) return items.map(draw).join('');
+  const id = 'm' + (++moreSeq);
+  MORE.set(id, { items, draw, at: CHUNK, colspan });
+  if (MORE.size > 40) MORE.delete(MORE.keys().next().value);
+  return items.slice(0, CHUNK).map(draw).join('') + moreRow(id);
+}
+const moreRow = id => { const m = MORE.get(id); return `<tr class="more" data-more="${id}"><td colspan="${m.colspan}">Showing ${m.at.toLocaleString('en-US')} of ${m.items.length.toLocaleString('en-US')}. Scroll for more.</td></tr>`; };
+function drawMore(el) {
+  const m = MORE.get(el.dataset.more);
+  if (!m) { el.remove(); return; }
+  const next = m.items.slice(m.at, m.at + CHUNK * 2);
+  m.at += next.length;
+  el.insertAdjacentHTML('beforebegin', next.map(m.draw).join(''));
+  if (m.at >= m.items.length) { moreObs.unobserve(el); el.remove(); MORE.delete(el.dataset.more); }
+  else el.firstElementChild.textContent = `Showing ${m.at.toLocaleString('en-US')} of ${m.items.length.toLocaleString('en-US')}. Scroll for more.`;
+}
+function armMore() {
+  if (!('IntersectionObserver' in window)) return;
+  if (!moreObs) moreObs = new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) drawMore(x.target); }), { rootMargin: '1200px 0px' });
+  document.querySelectorAll('tr[data-more]:not([data-armed])').forEach(el => { el.dataset.armed = '1'; moreObs.observe(el); });
+}
+if ('MutationObserver' in window) new MutationObserver(() => { if (MORE.size) armMore(); }).observe(document.documentElement, { childList: true, subtree: true });
 const balLine = (dr, cr) => `<p class="balcheck ${dr === cr ? 'ok' : 'bad'}">${dr === cr ? 'Balanced. Total debits equal total credits.' : `Out of balance by ${peso(Math.abs(dr - cr))}. Report it before saving anything else.`}</p>`;
 
 /* ---------- Logo ---------- */
@@ -849,7 +927,7 @@ const NAV = [
   { group: 'Inventory', items: [{ label: 'Deliveries', soon: true }] },
   { group: 'Books', items: [{ id: 'journal', label: 'Journal' }, { id: 'summary', label: 'Monthly Summary' }] },
   { group: 'Lists', items: [{ id: 'contacts', label: 'Contacts' }, { id: 'accounts', label: 'Chart of Accounts' }] },
-  { group: 'Settings', items: [{ id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }] }
+  { group: 'Settings', items: [{ id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] }
 ];
 const allowed = n => !n.soon && (!n.need || can(n.need));
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
@@ -912,7 +990,7 @@ function hit(v) {
 }
 function voucherList() {
   if (!D.vouchers.some(own)) return `<div class="empty"><b>No vouchers in ${YEAR}</b>${canBooks('vouchers.edit') ? `Start with this week’s checks. ${btn('new-voucher', 'New voucher', 'sm')}` : ''}</div>`;
-  const rows = D.vouchers.filter(v => own(v) && hit(v) && (S.vf === 'all' || vStatus(v) === S.vf) && (!S.vm || v.date.startsWith(S.vm)))
+  const rows = D.vouchers.filter(v => own(v) && hit(v) && (S.vf === 'all' || vStatus(v) === S.vf) && (!S.vm || entryDate(v).startsWith(S.vm)))
     .sort((a, b) => b.date.localeCompare(a.date) || b.cv.localeCompare(a.cv));
   const cols = [
     { h: 'CV no.', k: v => `<b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span>` },
@@ -920,7 +998,7 @@ function voucherList() {
     { h: 'Check', k: v => `${esc(v.checkNo)}<span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Check amount', num: 1, k: v => `<span class="amt">${peso(v.checkAmount)}</span>${v.ewt ? `<span class="sub">${money(v.ewt)} withheld</span>` : ''}` },
     { h: 'Status', k: v => pill(vStatus(v)) + (v.status === 'void' ? `<span class="sub">${esc(v.voidReason || '')}</span>` : v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
-    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], live(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(v.date) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
+    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], live(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
   ];
   const lv = rows.filter(live);
   return table(cols, rows, 'No vouchers match.', `<tfoot><tr><td>${lv.length} voucher${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => v.status === 'void' ? 'void' : '');
@@ -971,7 +1049,7 @@ function docForm(kind, v0, mode = 'new') {
       <div class="checkamt"><span class="label">${isBill ? 'Amount payable' : 'Check amount'}</span><span class="big" id="f-check">₱0.00</span></div>
       <p class="hint" style="margin-top:8px" id="f-words"></p></div>
     <div class="section"><h3>Accounting entry</h3><div class="entry"><div id="f-entry"></div><p class="balcheck" id="f-bal"></p></div>
-      <p class="hint" style="margin-top:8px">Written from the details above. The account lines are yours to choose; ${isBill ? 'VAT, withholding and the payables line' : 'bills paid, VAT, withholding and the bank line'} follow the details. Review it, then save.</p></div>
+      <p class="hint" style="margin-top:8px">Written from the details above. The account lines are yours to choose; ${isBill ? 'VAT, withholding and the payables line' : 'bills paid, VAT, withholding and the bank line'} follow the details.${isBill ? '' : ' It’s booked on the check date.'} Review it, then save.</p></div>
     <div class="section" style="margin-bottom:0">${F('f-notes', `Notes (optional${isBill ? '' : ', not printed'})`, `<textarea id="f-notes">${esc(v.notes || '')}</textarea>`)}</div>
   </div>`;
   const read = () => {
@@ -1151,8 +1229,9 @@ function docForm(kind, v0, mode = 'new') {
     if (!v.cv) return 'Enter the CV no.';
     if (D.vouchers.some(x => x.cv.toLowerCase() === v.cv.toLowerCase() && x.id !== self)) return `${v.cv} is already used. Each voucher needs its own CV no.`;
     if (!v.date) return 'Enter the voucher date.';
-    if (!inYear(v.date)) return yearMsg(v.date);
-    if (isLocked(v.date) || (edit && isLocked(v0.date))) return lockedMsg();
+    if (!v.checkDate) return 'Enter the check date.';
+    if (!inYear(v.checkDate)) return yearMsg(v.checkDate);
+    if (isLocked(v.checkDate) || (edit && isLocked(entryDate(v0)))) return lockedMsg();
     if (!v.checkNo) return 'Enter the check no.';
     const dupChk = D.vouchers.find(x => x.checkNo.toLowerCase() === v.checkNo.toLowerCase() && x.id !== self);
     if (dupChk) return `Check ${v.checkNo} is already on ${dupChk.cv}${live(dupChk) ? '' : ' (void)'}. Each check number is used once.`;
@@ -1267,17 +1346,30 @@ function viewVoucher(id) {
         <dl class="dv-amt"><dt>Amount</dt><dd class="big">${peso(v.checkAmount)}</dd></dl></div></div>`, null, '', { size: 'mid' });
     return;
   }
-  const open = live(v) && !isLocked(v.date);
-  const extra = [open && canBooks('vouchers.void') && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks('vouchers.edit') && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, live(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
-  openModal(`Voucher ${esc(v.cv)}`, `${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(v.date) ? `<p class="lead">In a locked month. It can be printed but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+  const open = live(v) && !isLocked(entryDate(v));
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks('vouchers.void') && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks('vouchers.edit') && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, live(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
+  openModal(`Voucher ${esc(v.cv)}`, `${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
 }
+/* Void date: in this year's books, on or after the day the document was booked, in an open month. */
+const nextDay = d => { const x = parseD(d); x.setDate(x.getDate() + 1); return iso(x); };
+const voidFloor = from => [from, D.lockedThrough ? nextDay(D.lockedThrough) : ''].sort().pop();
+const voidDefault = from => { const t = todayIso(), lo = voidFloor(from); return t < lo ? lo : t > `${YEAR}-12-31` ? `${YEAR}-12-31` : t; };
+const voidDateErr = (d, from, why = 'the day it was booked') => !d ? 'Enter the void date.' : !inYear(d) ? `The void date must be in ${YEAR}, the year these books are for.`
+  : d < from ? `The void date can’t be before ${fdate(from)}, ${why}.` : isLocked(d) ? lockedMsg() : '';
+const voidBlocked = () => yearClosed() ? `The ${YEAR} books are closed.` : !canVoid() ? lockedMsg() : '';
+const voidFields = from => `${F('m-vdate', 'Void date', inp('m-vdate', voidDefault(from), 'date', `min="${voidFloor(from)}" max="${YEAR}-12-31"`))}`;
 function voidVoucher(id) {
   const v = voucher(id);
-  if (isLocked(v.date)) { toast(lockedMsg(), true); return; }
-  openModal(`Void ${esc(v.cv)}`, `<p class="lead">Use this for a cancelled or spoiled check. The voucher stays on record, marked void, and drops out of every total. Check ${esc(v.checkNo)} can’t be reused.</p>${F('m-reason', 'Reason', inp('m-reason', '', 'text', 'placeholder="e.g. Spoiled check, wrong amount"'))}`, () => {
-    const reason = val('m-reason');
+  if (!v || !own(v) || !live(v)) return;
+  const from = entryDate(v);
+  const blocked = voidBlocked(); if (blocked) { toast(blocked, true); return; }
+  const pdc = from > todayIso();
+  openModal(`Void ${esc(v.cv)}`, `<p class="lead">Use this for a cancelled or spoiled check. The voucher stays on record, marked void. ${pdc ? `The check is dated ${fdate(from)}, so voiding it on that date means it never touches the books.` : `Its entry stays in ${monthLabel(from.slice(0, 7))} and is reversed on the void date.`} Check ${esc(v.checkNo)} can’t be reused.</p>
+    <div class="fields" style="grid-template-columns:minmax(150px,1fr) 2fr">${voidFields(from)}${F('m-reason', 'Reason', inp('m-reason', '', 'text', 'placeholder="e.g. Spoiled check, wrong amount"'))}</div>`, () => {
+    const reason = val('m-reason'), d = val('m-vdate'), err = voidDateErr(d, from);
+    if (err) return err;
     if (!reason) return 'Enter the reason. It’s kept on the voucher.';
-    return save('voidVoucher', () => { Object.assign(voucher(id), { status: 'void', voidReason: reason, voidedOn: todayIso() }); }, () => toast(`${v.cv} voided`));
+    return save('voidVoucher', () => { Object.assign(voucher(id), { status: 'void', voidReason: reason, voidedOn: d }); }, () => toast(`${v.cv} voided on ${fdate(d)}`));
   }, 'Void voucher', { danger: true });
 }
 
@@ -1309,9 +1401,9 @@ function billList() {
 function viewBill(id) {
   const b = billOf(id), st = bStatus(b), paid = billPaid(id), payers = billPayers(id);
   const open = live(b) && own(b) && !isLocked(b.date);
-  const extra = [open && !paid && canBooks('bills.void') && `<button class="btn ghost" data-act="void-bill" data-id="${id}">Void</button>`, open && canBooks('bills.edit') && `<button class="btn" data-act="edit-bill" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+  const extra = [own(b) && `<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(b) && own(b) && canVoid() && !paid && canBooks('bills.void') && `<button class="btn ghost" data-act="void-bill" data-id="${id}">Void</button>`, open && canBooks('bills.edit') && `<button class="btn" data-act="edit-bill" data-id="${id}">Edit</button>`].filter(Boolean).join('');
   const lines = b.entry || [], dr = sum(lines.map(e => e.dr)), cr = sum(lines.map(e => e.cr));
-  const body = `${b.status === 'void' ? `<p class="lead">Voided ${fdate(b.voidedOn)}: ${esc(b.voidReason)}</p>` : ''}${b.from ? `<p class="lead">${esc(fromNote(b))}. ${peso(b.paidBefore || 0)} was paid on it before ${YEAR}. Its lines and entry are in the ${b.from} books. It can be paid here, but not changed.</p>` : live(b) && isLocked(b.date) ? '<p class="lead">In a locked month. It can still be paid, but not changed.</p>' : ''}
+  const body = `${b.status === 'void' ? `<p class="lead">Voided ${fdate(b.voidedOn)}: ${esc(b.voidReason)}</p>` : ''}${b.from ? `<p class="lead">${esc(fromNote(b))}. ${peso(b.paidBefore || 0)} was paid on it before ${YEAR}. Its lines and entry are in the ${b.from} books. It can be paid here, but not changed.</p>` : live(b) && isLocked(b.date) ? '<p class="lead">In a locked month. It can still be paid, or voided on an open date, but not changed.</p>' : ''}
     <div class="preview-wrap"><div class="dv">${b.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid">
         <dt>Payee</dt><dd class="payee">${esc(b.payeeName)}</dd><dt>Invoice no.</dt><dd>${esc(b.ref)}</dd>
@@ -1328,13 +1420,18 @@ function viewBill(id) {
 }
 function voidBill(id) {
   const b = billOf(id);
-  if (isLocked(b.date)) { toast(lockedMsg(), true); return; }
+  if (!b || !own(b) || !live(b)) return;
+  const blocked = voidBlocked(); if (blocked) { toast(blocked, true); return; }
   const payers = billPayers(id);
   if (payers.length) { toast(`${payers.map(v => v.cv).join(', ')} pays this bill. Void that voucher, or take the bill off it, first.`, true); return; }
-  openModal(`Void Invoice ${esc(b.ref)}`, `<p class="lead">Use this for a bill entered by mistake or cancelled by the supplier. The bill stays on record, marked void, and drops out of every total.</p>${F('m-reason', 'Reason', inp('m-reason', '', 'text', 'placeholder="e.g. Entered twice, supplier cancelled"'))}`, () => {
-    const reason = val('m-reason');
+  // a check that paid it until it was voided keeps it paid until then, so the bill's void comes after
+  const from = [b.date, ...D.vouchers.filter(v => reversed(v) && (v.bills || []).some(p => p.billId === id)).map(v => v.voidedOn)].sort().pop();
+  openModal(`Void Invoice ${esc(b.ref)}`, `<p class="lead">Use this for a bill entered by mistake or cancelled by the supplier. The bill stays on record, marked void. Its entry stays in ${monthLabel(b.date.slice(0, 7))} and is reversed on the void date.</p>
+    <div class="fields" style="grid-template-columns:minmax(150px,1fr) 2fr">${voidFields(from)}${F('m-reason', 'Reason', inp('m-reason', '', 'text', 'placeholder="e.g. Entered twice, supplier cancelled"'))}</div>`, () => {
+    const reason = val('m-reason'), d = val('m-vdate'), err = voidDateErr(d, from, from === b.date ? undefined : 'when the last check paying it was voided');
+    if (err) return err;
     if (!reason) return 'Enter the reason. It’s kept on the bill.';
-    return save('voidBill', () => { Object.assign(billOf(id), { status: 'void', voidReason: reason, voidedOn: todayIso() }); }, () => toast(`Invoice ${b.ref} voided`));
+    return save('voidBill', () => { Object.assign(billOf(id), { status: 'void', voidReason: reason, voidedOn: d }); }, () => toast(`Invoice ${b.ref} voided on ${fdate(d)}`));
   }, 'Void bill', { danger: true });
 }
 
@@ -1364,13 +1461,13 @@ const markCleared = (id, date) => save('clearCheck', () => { voucher(id).cleared
 function journalPage() {
   const docs = journal();
   const dr = sum(docs.flatMap(d => d.lines.map(l => l.dr))), cr = sum(docs.flatMap(d => d.lines.map(l => l.cr)));
-  const body = docs.map((d, di) => d.lines.map((l, i) => `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
+  const body = chunked(docs.map((d, di) => [d, di]), ([d, di]) => d.lines.map((l, i) => `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
       <td>${i === 0 ? fdate(d.date) : ''}</td>
       <td>${i === 0 ? `<b>${esc(d.ref)}</b>` : ''}</td>
       <td>${i === 0 ? `${esc(d.contact)}<span class="sub">${esc(d.memo)}</span>` : ''}</td>
       <td class="${l.cr ? 'cr' : ''}">${esc(acctName(l.acct))}${l.memo ? `<span class="sub">${esc(l.memo)}</span>` : ''}</td>
-      <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')).join('');
-  return pageHead('journal', 'Every accounting entry the hub has written, oldest first. Void documents are left out.')
+      <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join(''), 6);
+  return pageHead('journal', 'Every accounting entry the hub has written, oldest first. A voided document’s entry stays where it was, reversed on the day it was voided.')
     + (docs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ref.</th><th>Payee and particulars</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${body}</tbody>
     <tfoot><tr><td colspan="4">${docs.length} entr${docs.length === 1 ? 'y' : 'ies'}</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table></div>`
       : '<div class="empty"><b>No entries yet</b>An entry appears here as soon as a bill or voucher is saved.</div>');
@@ -1379,7 +1476,7 @@ function journalPage() {
 /* ---------- Books: monthly summary ---------- */
 function summaryPage() {
   return pageHead('summary', 'Totals for the month by account, followed by bills, checks and taxes.')
-    + `<div class="toolbar"><select id="sm" aria-label="Month">${yearMonths().map(m => opt(m, monthLabel(m), S.sm)).join('')}</select><span class="hint">By entry date. Void documents are left out.</span><span class="grow"></span>
+    + `<div class="toolbar"><select id="sm" aria-label="Month">${yearMonths().map(m => opt(m, monthLabel(m), S.sm)).join('')}</select><span class="hint">By entry date: bills on the invoice date, checks on the check date. A void is reversed in the month it’s voided.</span><span class="grow"></span>
       <span class="hint">${D.lockedThrough ? `Books locked through ${fdate(D.lockedThrough)}.` : 'No months locked.'}</span>
       ${can('months.lock') && D.lockedThrough && D.lockedThrough > `${D.closedThrough}-12-31` ? btn('unlock-month', `Unlock ${monthLabel(D.lockedThrough.slice(0, 7))}`, 'ghost') : ''}${canBooks('months.lock') && eom(S.sm) > (D.lockedThrough || '') ? btn('lock-month', `Lock ${monthLabel(S.sm)}`, 'ghost') : ''}${canCloseYear() ? btn('close-year', `Close the ${YEAR} books`, 'dark') : ''}</div><div id="list">${summaryBody()}</div>`;
 }
@@ -1390,27 +1487,33 @@ function accountTotals(ym) {
   journal(ym).forEach(d => d.lines.forEach(l => { const x = t[l.acct] || (t[l.acct] = { dr: 0, cr: 0 }); x.dr = round2(x.dr + l.dr); x.cr = round2(x.cr + l.cr); }));
   return Object.entries(t).map(([id, x]) => ({ id, a: acct(id) || { name: '(missing account)', type: '' }, ...x })).sort((p, q) => typeRank(p.a.type) - typeRank(q.a.type) || p.a.name.localeCompare(q.a.name));
 }
+/* A month's documents as booked: each entry dated in the month counts, and a void in the month takes it back out. */
+const signedSum = (xs, f) => round2(sum(xs.map(({ d, s }) => s * f(d))));
 function checksSummary(ym) {
-  const vs = D.vouchers.filter(v => live(v) && own(v) && v.date.startsWith(ym));
-  const end = eom(ym);
-  const outstanding = D.vouchers.filter(v => live(v) && v.checkDate <= end && (!v.clearedOn || v.clearedOn > end));
-  return { vs, gross: sum(vs.map(vGross)), vat: sum(vs.map(v => v.vat)), ewt: sum(vs.map(v => v.ewt)), billsPaid: sum(vs.flatMap(v => (v.bills || []).map(p => p.amount))), checks: sum(vs.map(v => v.checkAmount)), outstanding, outTotal: sum(outstanding.map(v => v.checkAmount)) };
+  const end = eom(ym), xs = signedDocs(D.vouchers, `${ym}-01`, end);
+  const outstanding = D.vouchers.filter(v => liveAt(v, end) && v.checkDate <= end && (!v.clearedOn || v.clearedOn > end));
+  return { count: sum(xs.map(x => x.s)), voids: xs.filter(x => x.s < 0).length, gross: signedSum(xs, vGross), ewt: signedSum(xs, v => v.ewt),
+    billsPaid: signedSum(xs, v => sum((v.bills || []).map(p => p.amount))), checks: signedSum(xs, v => v.checkAmount), outstanding, outTotal: sum(outstanding.map(v => v.checkAmount)) };
 }
 function billsSummary(ym) {
-  const bs = D.bills.filter(b => live(b) && own(b) && b.date.startsWith(ym)), end = eom(ym);
-  const unpaid = D.bills.filter(b => live(b) && b.date <= end).map(b => billBalance(b, null, end)).filter(x => x > 0);
-  return { bs, gross: sum(bs.map(vGross)), vat: sum(bs.map(b => b.vat)), ewt: sum(bs.map(b => b.ewt)), payable: sum(bs.map(b => b.payable)), unpaid: unpaid.length, unpaidTotal: sum(unpaid) };
+  const end = eom(ym), xs = signedDocs(D.bills, `${ym}-01`, end);
+  const unpaid = D.bills.filter(b => liveAt(b, end) && b.date <= end).map(b => billBalance(b, null, end)).filter(x => x > 0);
+  return { count: sum(xs.map(x => x.s)), voids: xs.filter(x => x.s < 0).length, gross: signedSum(xs, vGross), ewt: signedSum(xs, b => b.ewt), payable: signedSum(xs, b => b.payable), unpaid: unpaid.length, unpaidTotal: sum(unpaid) };
 }
+const voidNote = n => n ? `<span class="sub">Net of ${n} voided this month, reversed on the day ${n === 1 ? 'it was' : 'they were'} voided.</span>` : '';
 function summaryBody() {
   const rows = accountTotals(S.sm), s = checksSummary(S.sm), bs = billsSummary(S.sm);
   if (!rows.length && !s.outstanding.length && !bs.unpaid) return `<div class="empty"><b>Nothing in ${monthLabel(S.sm)}</b>Entries dated this month will show here.</div>`;
   const dr = sum(rows.map(r => r.dr)), cr = sum(rows.map(r => r.cr));
   const tie = round2(s.billsPaid + s.gross - s.ewt - s.checks) === 0;
+  // taxes straight from the month's bill and check entries and their reversals, so they always match the journal
+  const docs = journal(S.sm).filter(d => ['bill', 'billVoid', 'cv', 'cvVoid'].includes(d.src));
+  const net = id => round2(sum(docs.flatMap(d => d.lines.filter(l => l.acct === id).map(l => (l.dr || 0) - (l.cr || 0)))));
   return `${rows.length ? `<div class="tbl-wrap"><table><thead><tr><th>Account</th><th>Type</th><th class="num">Debits</th><th class="num">Credits</th><th class="num">Net</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.a.name)}</td><td>${esc(r.a.type)}</td><td class="num">${r.dr ? money(r.dr) : ''}</td><td class="num">${r.cr ? money(r.cr) : ''}</td><td class="num">${money(r.dr - r.cr)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="2">Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td><td class="num">${money(dr - cr)}</td></tr></tfoot></table></div>${balLine(dr, cr)}` : ''}
     <h2 class="mt">Supplier Bills</h2>
     <div class="tbl-wrap"><table><tbody>
-      <tr><td>Bills entered this month (${bs.bs.length}), invoice totals</td><td class="num">${money(bs.gross)}</td></tr>
+      <tr><td>Bills entered this month (${bs.count}), invoice totals${voidNote(bs.voids)}</td><td class="num">${money(bs.gross)}</td></tr>
       <tr><td>Withheld on those bills</td><td class="num">${money(bs.ewt)}</td></tr>
       <tr><td><b>Amount payable</b></td><td class="num"><b>${money(bs.payable)}</b></td></tr>
       <tr><td>Unpaid at month end (${bs.unpaid})<span class="sub">Every bill dated on or before ${fdate(eom(S.sm))}, less what checks dated by then paid. Compare with QuickBooks’ unpaid bills on that date.</span></td><td class="num">${money(bs.unpaidTotal)}</td></tr>
@@ -1420,14 +1523,14 @@ function summaryBody() {
       <tr><td>Bills paid by check</td><td class="num">${money(s.billsPaid)}</td></tr>
       <tr><td>Items without a bill, invoice totals</td><td class="num">${money(s.gross)}</td></tr>
       <tr><td>Withheld on items without a bill</td><td class="num">${money(s.ewt)}</td></tr>
-      <tr><td><b>Checks issued</b> (${s.vs.length})</td><td class="num"><b>${money(s.checks)}</b></td></tr>
+      <tr><td><b>Checks issued</b> (${s.count})${voidNote(s.voids)}</td><td class="num"><b>${money(s.checks)}</b></td></tr>
       <tr><td>Outstanding at month end, not yet cleared (${s.outstanding.length})<span class="sub">The difference between the books and the ${esc(D.bankName)} statement on ${fdate(eom(S.sm))}.</span></td><td class="num">${money(s.outTotal)}</td></tr>
     </tbody></table></div>
     <p class="balcheck ${tie ? 'ok' : 'bad'}">${tie ? 'Ties out: bills paid, plus items less withholding, equal checks issued.' : 'Doesn’t tie out. Report it before saving anything else.'}</p>
     <h2 class="mt">Taxes</h2>
     <div class="tbl-wrap"><table><tbody>
-      <tr><td>Input VAT, bills and checks</td><td class="num">${money(round2(bs.vat + s.vat))}</td></tr>
-      <tr><td>EWT withheld, bills and checks, to remit with the 0619-E or 1601-EQ</td><td class="num">${money(round2(bs.ewt + s.ewt))}</td></tr>
+      <tr><td>Input VAT, bills and checks</td><td class="num">${money(net(D.control.inputVat))}</td></tr>
+      <tr><td>EWT withheld, bills and checks, to remit with the 0619-E or 1601-EQ</td><td class="num">${money(-net(D.control.ewt))}</td></tr>
     </tbody></table></div>`;
 }
 
@@ -1708,7 +1811,7 @@ const TABLES = [
   { name: 'Bill payments', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'Which bills each check voucher pays, and how much. A bill from an earlier year can be paid here.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Amount', 'n', 15]],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => (v.bills || []).map(p => [v.id, v.cv, p.billId, (billOf(p.billId) || {}).ref || null, p.amount])) },
-  { name: 'Journal', key: 'Document ID', yearly: true, optional: true, subtitle: 'Every accounting entry line from the hub’s sections. Void documents are left out. Opening balances are on their own tab.',
+  { name: 'Journal', key: 'Document ID', yearly: true, optional: true, subtitle: 'Every accounting entry line from the hub’s sections. Checks are dated on the check date. A void document keeps its lines and gets a reversal dated the day it was voided. Opening balances are on their own tab.',
     cols: [['Date', 'd', 13], ['Section', 's', 16], ['Document ID', 's', 12], ['Ref.', 's', 15, 'derived'], ['Line', 'i', 6], ['Name', 's', 30, 'derived'], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Account type', 's', 22, 'derived'], ['Debit', 'n', 15], ['Credit', 'n', 15], ['Memo', 's', 34]],
     rows: () => journal().filter(d => d.src !== 'ob').flatMap(d => d.lines.map((l, i) => [d.date, SOURCES[d.src].label, d.id, d.ref, i + 1, d.contact, l.acct, acctName(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.memo || null])) },
   { name: 'Year opening', key: 'Account ID', yearly: true, optional: true, subtitle: 'Each account’s balance on January 1, written when the year before was closed. Income and expenses are closed to retained earnings.',
@@ -1810,19 +1913,34 @@ function dataFromTables(sheets, ctx = {}) {
   // a carried row came in when the year before was closed; anything else must be dated in this year
   const carriedFrom = o => { const f = o['Carried from']; if (f == null) return 0; if (f !== year - 1) E(o, `Carried from must be ${year - 1}, the year before these books.`); return f; };
   const inThisYear = (o, h) => { if (o[h] && o[h].slice(0, 4) !== String(year)) E(o, `${h} ${o[h]} is in ${o[h].slice(0, 4)}, so this row belongs in that year’s tabs, not ${year}’s.`); };
-  // a live document's journal lines must balance and total its debits; a void one has none
-  const readEntry = (src, d, o, total, recompute) => {
-    const j = (jBy[src + '|' + d.id] || []).sort((a, b) => (a.Line || 0) - (b.Line || 0)), name = src === 'bill' ? `invoice ${d.ref}` : d.cv;
-    if (d.status === 'active') {
-      if (!j.length) E(o, `${name} has no lines on the Journal tab.`);
-      j.forEach(l => { if (!aid.has(l['Account ID'])) E(l, `Account ID ${l['Account ID']} isn’t on the Accounts tab.`); });
-      d.entry = j.map(l => ({ acct: l['Account ID'], memo: l.Memo || '', dr: l.Debit || 0, cr: l.Credit || 0 }));
-      const dr = sum(d.entry.map(x => x.dr)), cr = sum(d.entry.map(x => x.cr));
-      if (j.length && (dr !== cr || Math.abs(dr - total) >= 0.005)) E(j[0], `the entry for ${name} must balance and its debits must total ${money(total)}. Debits ${money(dr)}, credits ${money(cr)}.`);
-    } else {
-      if (j.length) E(j[0], `${name} is void, so it can’t have journal lines.`);
-      d.entry = recompute().entry.filter(x => x.dr || x.cr);
-    }
+  // A document's journal lines balance, total its debits and carry its accounting date. A void one keeps them
+  // and adds the same lines reversed, dated the day it was voided. Voids saved before reversals existed have neither.
+  const readEntry = (src, d, o, total, recompute, date, dateWhat) => {
+    const rows = k => (jBy[k + '|' + d.id] || []).sort((a, b) => (a.Line || 0) - (b.Line || 0));
+    const j = rows(src), jv = rows(src + 'Void'), name = src === 'bill' ? `invoice ${d.ref}` : d.cv, vLabel = SOURCES[src + 'Void'].label;
+    const toLines = rs => rs.map(l => ({ acct: l['Account ID'], memo: l.Memo || '', dr: l.Debit || 0, cr: l.Credit || 0 }));
+    const sig = ls => ls.map(l => `${l.acct}|${round2(l.dr)}|${round2(l.cr)}`).sort().join(',');
+    j.concat(jv).forEach(l => { if (!aid.has(l['Account ID'])) E(l, `Account ID ${l['Account ID']} isn’t on the Accounts tab.`); });
+    if (d.status === 'void' && !j.length && !jv.length) { d.legacyVoid = true; d.entry = recompute().entry.filter(x => x.dr || x.cr); return; }
+    if (!j.length) E(o, `${name} has no lines on the Journal tab.`);
+    d.entry = toLines(j);
+    const dr = sum(d.entry.map(x => x.dr)), cr = sum(d.entry.map(x => x.cr));
+    if (j.length && (dr !== cr || Math.abs(dr - total) >= 0.005)) E(j[0], `the entry for ${name} must balance and its debits must total ${money(total)}. Debits ${money(dr)}, credits ${money(cr)}.`);
+    // vouchers saved before check-date accounting have their lines on the voucher date; the next save of the voucher re-dates them
+    if (date) j.forEach(l => { if (l.Date !== date && !(src === 'cv' && l.Date === d.date)) E(l, `Date should be ${date}, ${dateWhat}.`); });
+    if (d.status === 'void') {
+      if (!d.voidedOn) { E(o, 'Status is Void but Voided on is blank.'); return; }
+      if (sig(toLines(jv)) !== sig(reverse(d.entry))) E(jv[0] || o, `${name} is void, so the Journal tab needs its reversal: the same lines with debits and credits swapped, Section “${vLabel}”, dated ${d.voidedOn}.`);
+      jv.forEach(l => { if (l.Date !== d.voidedOn) E(l, `Date should be ${d.voidedOn}, the day ${name} was voided.`); });
+    } else if (jv.length) E(jv[0], `${name} isn’t void, so it can’t have “${vLabel}” lines.`);
+  };
+  // when a void happened: in this year, not before the document was booked
+  const hasEntry = (src, id) => !!((jBy[src + '|' + id] || []).length || (jBy[src + 'Void|' + id] || []).length);
+  const readVoid = (o, booked, src, id) => {
+    if (o.Status !== 'Void') { if (o['Voided on']) E(o, 'Voided on is filled in but Status isn’t Void.'); return; }
+    if (!o['Voided on'] || !hasEntry(src, id)) return; // voided before reversals existed: nothing was posted, so its dates don't matter
+    inThisYear(o, 'Voided on');
+    if (booked && o['Voided on'] < booked) E(o, `Voided on is before ${booked}, the day it was booked.`);
   };
   // bills and their lines
   uniq(T.Bills, 'Bill ID', 'Bill ID');
@@ -1859,7 +1977,7 @@ function dataFromTables(sheets, ctx = {}) {
       lines, ...tax, payable: o['Amount payable'], apAccount: o['Payables account ID'], notes: o.Notes || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     if (from) { Object.assign(b, { from, paidBefore: o['Paid before'] || 0, entry: [] }); if ((jBy['bill|' + b.id] || []).length) E(o, 'was carried in from the year before, so its entry stays in that year’s tabs.'); }
-    else readEntry('bill', b, o, sum(lines.map(l => l.amount)), () => calcBill({ ...b, vatManual: true, ewtManual: true }, control));
+    else { readVoid(o, b.date, 'bill', b.id); readEntry('bill', b, o, sum(lines.map(l => l.amount)), () => calcBill({ ...b, vatManual: true, ewtManual: true }, control), b.date, 'the invoice date'); }
     return b;
   });
   // bills still open in earlier years that aren't closed, with what was paid on them before this year
@@ -1887,7 +2005,7 @@ function dataFromTables(sheets, ctx = {}) {
   const vids = new Set(T.Vouchers.map(o => o['Voucher ID']));
   const linesBy = group(T['Voucher lines'], 'Voucher ID'), payBy = group(T['Bill payments'], 'Voucher ID');
   orphans(linesBy, vids, 'Voucher ID', 'Vouchers'); orphans(payBy, vids, 'Voucher ID', 'Vouchers');
-  Object.keys(jBy).forEach(k => { const [src, id] = k.split('|'); if (!(src === 'bill' ? bids : vids).has(id)) E(jBy[k][0], `Document ID ${id} isn’t on the ${src === 'bill' ? 'Bills' : 'Vouchers'} tab.`); });
+  Object.keys(jBy).forEach(k => { const [src, id] = k.split('|'), isB = src.startsWith('bill'); if (!(isB ? bids : vids).has(id)) E(jBy[k][0], `Document ID ${id} isn’t on the ${isB ? 'Bills' : 'Vouchers'} tab.`); });
   const vouchers = T.Vouchers.map(o => {
     for (const h of ['CV no.', 'Voucher date', 'Check no.', 'Check date', 'Particulars', 'Check amount', 'Status']) if (o[h] == null) E(o, `${h} is blank.`);
     const from = carriedFrom(o), p = readPayee(o), lines = readLines(linesBy[o['Voucher ID']]);
@@ -1901,7 +2019,7 @@ function dataFromTables(sheets, ctx = {}) {
         bills: [], lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, checkAmount: o['Check amount'] || 0, notes: o.Notes || '',
         status: 'active', voidReason: '', voidedOn: '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '', from };
     }
-    inThisYear(o, 'Voucher date');
+    inThisYear(o, 'Check date');
     if (o['Invoice total'] == null) E(o, 'Invoice total is blank.');
     const status = STATUS[o.Status];
     if (!status || !['Outstanding', 'Cleared', 'Void'].includes(o.Status)) E(o, 'Status must be Outstanding, Cleared or Void.');
@@ -1928,12 +2046,14 @@ function dataFromTables(sheets, ctx = {}) {
     const v = { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'], payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
       bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
-    readEntry('cv', v, o, round2(gross + billsPaid), () => calc({ ...v, vatManual: true, ewtManual: true }, control, id => bById[id]));
+    readVoid(o, v.checkDate, 'cv', v.id);
+    readEntry('cv', v, o, round2(gross + billsPaid), () => calc({ ...v, vatManual: true, ewtManual: true }, control, id => bById[id]), v.checkDate, 'the check date');
     return v;
   });
   // no bill paid past its amount, counting what was paid before this year
+  const paidBy = {}; vouchers.forEach(v => { if (v.status === 'active') v.bills.forEach(x => { (paidBy[x.billId] = paidBy[x.billId] || []).push(x.amount); }); });
   bills.concat(foreignBills).forEach(b => {
-    const paid = round2((b.paidBefore || 0) + sum(vouchers.filter(v => v.status === 'active').flatMap(v => v.bills.filter(x => x.billId === b.id).map(x => x.amount))));
+    const paid = round2((b.paidBefore || 0) + sum(paidBy[b.id] || []));
     if (paid - b.payable >= 0.005) errs.push(`Bill payments tab: invoice ${b.ref} (${b.payeeName}) is paid ${money(paid)}, more than its amount payable of ${money(b.payable)}.`);
     if (paid && b.status === 'void') errs.push(`Bills tab: invoice ${b.ref} is void but a live voucher pays it.`);
   });
@@ -1981,10 +2101,57 @@ function dataFromTables(sheets, ctx = {}) {
     closedThrough: Math.max(closedThrough, ctx.closedThrough || 0), years: ctx.years || [] } };
 }
 
+/* ---------- Change log ----------
+   Code.gs adds a row to the Change log tab for every record a save changes. The hub only reads it:
+   the newest 200 changes, a search through the latest 3,000, or every change to one bill or voucher. */
+const LOG = { q: '', rows: null, err: '', busy: false, total: 0, scanned: 0, n: 0 };
+/* Rows written by one save to one record read as one entry, its tabs listed under it. */
+function logEntries(rows) {
+  const out = [];
+  rows.forEach(r => {
+    const last = out[out.length - 1];
+    if (last && last.time === r.time && last.user === r.user && last.action === r.action && last.record === r.record) last.parts.push(r);
+    else out.push({ time: r.time, user: r.user, action: r.action, record: r.record, ref: r.ref, parts: [r] });
+  });
+  out.forEach(x => x.parts.reverse()); // the document's own tab first, as it was saved
+  return out;
+}
+const logParts = parts => parts.map(p => `<div class="logpart"><span class="logtab">${esc(p.tab.replace(/ \d{4}$/, '') || 'Books')}</span><div class="logchg">${esc(p.changes)}</div></div>`).join('');
+function logTable(rows) {
+  return table([
+    { h: 'When', k: x => `${fstamp(x.time)}<span class="sub">${esc(x.user)}</span>` },
+    { h: 'What', k: x => `<b>${esc(x.action)}</b>${x.ref ? `<span class="sub">${esc(x.ref)}</span>` : ''}` },
+    { h: 'Changes', k: x => logParts(x.parts) }
+  ], logEntries(rows), 'Nothing logged yet.');
+}
+async function loadLog() {
+  const n = ++LOG.n;
+  LOG.busy = true; LOG.err = ''; if (S.page === 'log') refreshMain();
+  try { const r = await api('history', LOG.q ? { q: LOG.q } : {}); if (n !== LOG.n) return; Object.assign(LOG, { rows: r.rows, total: r.total, scanned: r.scanned || 0 }); }
+  catch (e) { if (e.code === 'auth') return signedOut(e.message); if (n === LOG.n) LOG.err = e.message; }
+  finally { if (n === LOG.n) { LOG.busy = false; if (S.page === 'log') refreshMain(); } }
+}
+function logPage() {
+  if (!LOG.rows && !LOG.busy && !LOG.err) setTimeout(loadLog, 0);
+  const note = LOG.busy ? 'Loading…' : LOG.err ? '' : LOG.q ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
+  return pageHead('log', 'Every save, who made it and what changed, newest first. It’s kept on the Change log tab of the Google Sheet, and the hub can only add to it.')
+    + `<div class="toolbar"><input id="lq" type="search" placeholder="Search name, CV no., invoice, check no." value="${esc(LOG.q)}" aria-label="Search the change log">${btn('log-search', 'Search', 'ghost')}${btn('log-refresh', 'Refresh', 'link')}<span class="grow"></span><span class="hint">${note}</span></div>`
+    + (LOG.err ? `<div class="empty"><b>Couldn’t load the change log</b>${esc(LOG.err)}</div>` : LOG.rows ? logTable(LOG.rows) : '');
+}
+async function historyOf(id) {
+  const d = billOf(id) || voucher(id), n = historyOf.n = (historyOf.n || 0) + 1;
+  openModal(d.cv ? `History of ${esc(d.cv)}` : `History of Invoice ${esc(d.ref)}`, `<div id="hist" data-n="${n}"><p class="hint">Loading…</p></div>`, null, '', { size: 'wide' });
+  let body;
+  try { const r = await api('history', { record: id }); body = r.rows.length ? logTable(r.rows) : '<div class="empty">No changes logged for it yet. Saves from before the change log began aren’t listed.</div>'; }
+  catch (e) { if (e.code === 'auth') { closeModal(); return signedOut(e.message); } body = `<p class="form-err">${esc(e.message)}</p>`; }
+  const box = document.getElementById('hist');
+  if (box && box.dataset.n === String(n)) box.innerHTML = body;
+}
+
 /* ---------- Wiring ---------- */
-const PAGES = { bills: billsPage, vouchers: vouchersPage, checks: checksPage, journal: journalPage, summary: summaryPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage };
+const PAGES = { bills: billsPage, vouchers: vouchersPage, checks: checksPage, journal: journalPage, summary: summaryPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
 const LISTS = { bills: billList, vouchers: voucherList, checks: checkList, summary: summaryBody };
-const go = page => { S.page = page; S.q = ''; S.cr = ''; render(); window.scrollTo(0, 0); };
+const go = page => { S.page = page; S.q = ''; S.cr = ''; if (page === 'log' && LOG.rows) LOG.rows = null; render(); window.scrollTo(0, 0); };
 const ACT = {
   nav: id => go(id),
   'close-modal': closeModal,
@@ -1995,9 +2162,9 @@ const ACT = {
   'edit-bill': id => { const b = billOf(id); if (b.from) return; if (isLocked(b.date)) { toast(lockedMsg(), true); return; } billForm(b, 'edit'); },
   'void-bill': id => voidBill(id),
   'new-voucher': () => voucherForm(),
-  'edit-voucher': id => { const v = voucher(id); if (v.from) return; if (isLocked(v.date)) { toast(lockedMsg(), true); return; } if (v.clearedOn && !window.confirm(`${v.cv}’s check already cleared on ${fdate(v.clearedOn)}. Edit it anyway?`)) return; voucherForm(v, 'edit'); },
+  'edit-voucher': id => { const v = voucher(id); if (v.from) return; if (isLocked(entryDate(v))) { toast(lockedMsg(), true); return; } if (v.clearedOn && !window.confirm(`${v.cv}’s check already cleared on ${fdate(v.clearedOn)}. Edit it anyway?`)) return; voucherForm(v, 'edit'); },
   'view-voucher': id => viewVoucher(id),
-  'lock-month': () => { const end = eom(S.sm); openModal(`Lock ${monthLabel(S.sm)}?`, `<p class="lead">Everything dated on or before ${fdate(end)} will be locked${D.lockedThrough ? '' : ', including earlier months'}. Bills and vouchers in those months can’t be added, edited or voided. Vouchers can still be printed, checks can still be marked cleared, and bills can still be paid by a later check.</p>`, () => {
+  'lock-month': () => { const end = eom(S.sm); openModal(`Lock ${monthLabel(S.sm)}?`, `<p class="lead">Everything dated on or before ${fdate(end)} will be locked${D.lockedThrough ? '' : ', including earlier months'}. Bills and vouchers in those months can’t be added or edited, and a void must be dated after the lock. Vouchers can still be printed, checks can still be marked cleared, and bills can still be paid by a later check.</p>`, () => {
     return save('lock', () => { D.lockedThrough = end; }, () => toast(`Locked through ${fdate(end)}`)); }, 'Lock'); },
   'unlock-month': () => { const ym = D.lockedThrough.slice(0, 7), [y, m] = ym.split('-').map(Number), prev = eom(`${m === 1 ? y - 1 : y}-${pad(m === 1 ? 12 : m - 1, 2)}`); openModal(`Unlock ${monthLabel(ym)}?`, `<p class="lead">Bills and vouchers in ${monthLabel(ym)} can be changed again. Earlier months stay locked.</p>`, () => {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
@@ -2015,6 +2182,9 @@ const ACT = {
   'edit-role': id => roleForm(id),
   'delete-role': id => { modalSave = () => usersCall('saveRole', { role: { name: id, delete: true } }, `${id} deleted`); saveModal(); },
   'close-year': () => closeYearForm(),
+  'log-search': () => { LOG.q = val('lq'); loadLog(); },
+  'log-refresh': () => loadLog(),
+  history: id => historyOf(id),
   'edit-user': id => userForm(id),
   'change-password': passwordForm,
   'sign-in': signIn,
@@ -2032,6 +2202,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && S0.screen === 'login' && (e.target.id === 'l-user' || e.target.id === 'l-pass')) { e.preventDefault(); signIn(); return; }
+  if (e.key === 'Enter' && e.target.id === 'lq') { e.preventDefault(); LOG.q = e.target.value.trim(); loadLog(); return; }
   if (e.key !== 'Escape' || !document.querySelector('.overlay')) return;
   const m = modalEl();
   if (m && m.dataset.dirty) { toast('Unsaved changes. Click Cancel to close without saving.'); return; }

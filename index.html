@@ -428,9 +428,13 @@ async function api(action, payload = {}, timeoutMs = 90000) {
   } catch (e) {
     throw Object.assign(new Error(e && e.name === 'AbortError' ? 'Google didn’t answer in time. Check the internet connection and try again.' : 'Couldn’t reach Google. Check the internet connection and try again.'), { code: 'network' });
   } finally { clearTimeout(timer); }
-  let data;
-  try { data = await resp.json(); }
-  catch (e) { throw Object.assign(new Error('Apps Script sent back something the hub can’t read. Check the web app URL and that it’s deployed for Anyone.'), { code: 'network' }); }
+  let data, body = '';
+  try { body = await resp.text(); data = JSON.parse(body); }
+  catch (e) {
+    // Google answered with a page, not data. Say what the page says, so the cause is visible.
+    const doc = new DOMParser().parseFromString(body || '', 'text/html'), said = ((doc.title || '') + ' ' + (doc.body ? doc.body.textContent : '')).replace(/\s+/g, ' ').trim().slice(0, 160);
+    throw Object.assign(new Error(`Google sent back a page instead of the books${said ? `: “${said}”` : ''}. Open the web app URL in Safari to see the whole message.`), { code: 'network' });
+  }
   if (data.api != null && data.api < API_NEEDED) banner('The Code.gs in the Google Sheet is older than this hub. Paste the latest Code.gs and deploy a new version.');
   if (!data.ok) throw Object.assign(new Error(data.error || 'Apps Script error.'), { code: data.code || 'error' });
   return data.data;

@@ -1,0 +1,15 @@
+{
+  "name": "ACACIA HBC - Accounting Hub",
+  "short_name": "Accounting Hub",
+  "description": "Bills, check vouchers and books for Acacia Home Builders Corporation",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#10213B",
+  "theme_color": "#10213B",
+  "icons": [
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "favicon.png", "sizes": "64x64", "type": "image/png", "purpose": "any" }
+  ],
+  "categories": ["business", "finance", "productivity"]
+}

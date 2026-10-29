@@ -334,11 +334,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.5';
+const APP_VERSION = '3.6';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
-const HUB_BUILD = '2026-10-12';
+const HUB_BUILD = '2026-10-29';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 6;
+const API_NEEDED = 7;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -572,6 +572,8 @@ function rawFrom(tabs, foreign) {
 }
 /* The last full load. A save sends back only the tabs it changed; they're merged in here. */
 let LAST = null;
+/* When the report tabs in the Google Sheet were last rebuilt, and why not, if they couldn't be. */
+let REPORTS_ST = null;
 /* Takes what Apps Script sent back, checks every row, and shows the books or what's wrong. */
 function applyLoad(res) {
   if (res.partial && LAST) res = { ...LAST, ...res, tabs: { ...LAST.tabs, ...res.tabs }, foreign: res.foreign || LAST.foreign };
@@ -581,6 +583,7 @@ function applyLoad(res) {
   if (res.user) { SESSION.user = res.user; saveSession(); }
   if (res.users !== undefined && !res.partial) USERS = res.users;
   if (res.roles !== undefined && !res.partial) ROLE_LIST = res.roles;
+  if (res.reports) REPORTS_ST = res.reports;
   LOADED_AT = Date.now();
   if (res.needsSetup) { D = emptyData(); RAW = {}; S0.screen = 'setup'; return; }
   const r = dataFromTables(toSheets(res.tabs), { year: YEAR, foreign: res.foreign || [], closedThrough: res.closedThrough || 0, years: res.years || [] });
@@ -2309,7 +2312,17 @@ function companyPage() {
       ${F('s-prep', 'Prepared by', inp('s-prep', D.signers.prepared, 'text', x), 'span2')}
       ${F('s-chk', 'Checked by', inp('s-chk', D.signers.checked, 'text', x), 'span2')}${F('s-appr', 'Approved by', inp('s-appr', D.signers.approved, 'text', x), 'span2')}
     </div></section>
-    ${ro ? '' : `<p>${btn('save-settings', 'Save')}</p>`}`;
+    ${ro ? '' : `<p>${btn('save-settings', 'Save')}</p>`}
+    ${reportsCard()}`;
+}
+const atStamp = at => { const d = new Date(at); return isNaN(d) ? at : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
+function reportsCard() {
+  const st = REPORTS_ST || {};
+  const line = st.error ? `<p class="balcheck bad">${esc(st.error)}</p>` : st.at ? `<p class="hint">Last rebuilt ${esc(atStamp(st.at))}.${st.pending ? ' Another rebuild is set for the latest saves.' : ''}</p>` : `<p class="hint">Not built yet. ${st.pending ? 'The first build is set for the next few minutes.' : ''}</p>`;
+  return `<section class="card" style="margin-top:28px"><h2>Books for the Accounting Firm</h2>
+    <p style="margin-bottom:10px">The Google Sheet holds the complete books. Its green tabs, in front, are the reports: financial statements, trial balance, general ledger, the books of accounts, unpaid bills and invoices, open checks, and the VAT and withholding lists. They rebuild themselves within about twenty minutes of a save, and every night. Before sending them, press Rebuild to be sure they’re current.</p>
+    <p class="hint" style="margin-bottom:10px">To send the books, open the Sheet and choose File, Download, Microsoft Excel. Send the file as it is. Users, passwords and the change log are kept in a separate file and never go with it.</p>
+    ${line}${can('company.edit') ? `<p style="margin-top:14px">${btn('rebuild-reports', 'Rebuild the reports now', 'ghost')}</p>` : ''}</section>`;
 }
 function saveSettings() {
   const tin = val('s-tin');
@@ -4484,7 +4497,7 @@ function finishUpdate() {
 const updateLine = () => needsUpdate() && isAdmin() && !yearClosed() ? `<div class="lockline"><span><b>One step left in this update.</b> Departments and accounts for exchange differences and bank charges need adding.</span>${btn('finish-update', 'Finish the update', 'sm')}</div>` : '';
 
 /* ---------- Change log ----------
-   Code.gs adds a row to the Change log tab for every record a save changes. The hub only reads it:
+   Code.gs adds a row to the Change log tab of the users file for every record a save changes. The hub only reads it:
    the newest 200 changes, a search through the latest 3,000, or every change to one bill or voucher. */
 const LOG = { q: '', rows: null, err: '', busy: false, total: 0, scanned: 0, n: 0 };
 /* Rows written by one save to one record read as one entry, its tabs listed under it. */
@@ -4516,7 +4529,7 @@ async function loadLog() {
 function logPage() {
   if (!LOG.rows && !LOG.busy && !LOG.err) setTimeout(loadLog, 0);
   const note = LOG.busy ? 'Loading…' : LOG.err ? '' : LOG.q ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
-  return pageHead('log', 'Every save, who made it and what changed, newest first. It’s kept on the Change log tab of the Google Sheet, and the hub can only add to it.')
+  return pageHead('log', 'Every save, who made it and what changed, newest first. It’s kept in the hub’s users file in Google Drive, apart from the books, and the hub can only add to it.')
     + `<div class="toolbar"><input id="lq" type="search" placeholder="Search name, CV no., invoice, check no." value="${esc(LOG.q)}" aria-label="Search the change log">${btn('log-search', 'Search', 'ghost')}${btn('log-refresh', 'Refresh', 'link')}<span class="grow"></span><span class="hint">${note}</span></div>`
     + (LOG.err ? `<div class="empty"><b>Couldn’t load the change log</b>${esc(LOG.err)}</div>` : LOG.rows ? logTable(LOG.rows) : '');
 }
@@ -4627,6 +4640,13 @@ const ACT = {
   'setup-books': setupBooks,
   reload: () => loadBooks()
 };
+ACT['rebuild-reports'] = async () => {
+  const b = document.querySelector('[data-act="rebuild-reports"]'); if (b) { b.disabled = true; b.textContent = 'Rebuilding, this can take a minute…'; }
+  try { const r = await api('refreshReports', {}, 360000); REPORTS_ST = r.reports || REPORTS_ST; toast(r.busy ? 'A rebuild is already running. Check back in a few minutes.' : REPORTS_ST && REPORTS_ST.error ? REPORTS_ST.error : 'Reports rebuilt', !!(r.busy || (REPORTS_ST && REPORTS_ST.error))); }
+  catch (e) { toast(e.message, true); }
+  if (S.page === 'company') refreshMain();
+};
+
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;

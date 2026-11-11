@@ -448,11 +448,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.14';
+const APP_VERSION = '3.15';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 11;
+const API_NEEDED = 12;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -2951,7 +2951,7 @@ function companyPage() {
       ${F('s-chk', 'Checked by', inp('s-chk', D.signers.checked, 'text', x), 'span2')}${F('s-appr', 'Approved by', inp('s-appr', D.signers.approved, 'text', x), 'span2')}
     </div></section>
     ${ro ? '' : `<p>${btn('save-settings', 'Save')}</p>`}
-    ${reportsCard()}`;
+    ${reportsCard()}${backupCard()}`;
 }
 const atStamp = at => { const d = new Date(at); return isNaN(d) ? at : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
 function reportsCard() {
@@ -2961,6 +2961,15 @@ function reportsCard() {
     <p style="margin-bottom:10px">The Google Sheet holds the complete books. Its green tabs, in front, are the reports: financial statements, trial balance, general ledger, the books of accounts, unpaid bills and invoices, open checks, and the VAT and withholding lists. They rebuild themselves within about twenty minutes of a save, and every night. Before sending them, press Rebuild to be sure they’re current.</p>
     <p class="hint" style="margin-bottom:10px">To send the books, open the Sheet and choose File, Download, Microsoft Excel. Send the file as it is. Users, passwords and the change log are kept in a separate file and never go with it.</p>
     ${line}${can('company.edit') ? `<p style="margin-top:14px">${btn('rebuild-reports', 'Rebuild the reports now', 'ghost')}</p>` : ''}</section>`;
+}
+/* The nightly backup: when it last ran, where the copies are, and a failure in red. */
+function backupCard() {
+  const b = (REPORTS_ST || {}).backup || {};
+  const line = b.error ? `<p class="balcheck bad">${esc(b.error)}</p>` : b.at ? `<p class="balcheck ok">Last backed up ${esc(atStamp(b.at))}.</p>` : '<p class="hint">No backup yet. The first runs tonight at about 2 AM, or now with the button.</p>';
+  return `<section class="card" style="margin-top:28px"><h2>Daily Backup</h2>
+    <p style="margin-bottom:10px">Every night at about 2 AM, after a day with saves, a full copy of the books and of the users file goes into the “Accounting Hub Backups” folder in the Sheet owner’s Google Drive, named by date. The last 30 days are kept, plus the first copy of each month for a year. If one fails, the owner gets an email and it shows here.</p>
+    <p class="hint" style="margin-bottom:10px">To restore, open the copy from the day you need and copy the damaged tabs back into the live Sheet. The hub’s link doesn’t change.</p>
+    ${line}${can('company.edit') ? `<p style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap">${btn('backup-now', 'Back up now', 'ghost')}${b.folder ? `<a class="btn link" style="text-decoration:none;align-self:center" href="${esc(b.folder)}" target="_blank" rel="noopener">Open the Backups folder</a>` : ''}</p>` : ''}</section>`;
 }
 function saveSettings() {
   const tin = val('s-tin');
@@ -5461,6 +5470,12 @@ const ACT = {
   'sign-out': signOut,
   'setup-books': setupBooks,
   reload: () => loadBooks()
+};
+ACT['backup-now'] = async () => {
+  const b = document.querySelector('[data-act="backup-now"]'); if (b) { b.disabled = true; b.textContent = 'Backing up, this can take a minute…'; }
+  try { const r = await api('backupNow', {}, 360000); REPORTS_ST = r.reports || REPORTS_ST; const e = ((REPORTS_ST || {}).backup || {}).error; toast(e || 'Backed up', !!e); }
+  catch (e) { toast(e.message, true); }
+  if (S.page === 'company') refreshMain();
 };
 ACT['rebuild-reports'] = async () => {
   const b = document.querySelector('[data-act="rebuild-reports"]'); if (b) { b.disabled = true; b.textContent = 'Rebuilding, this can take a minute…'; }

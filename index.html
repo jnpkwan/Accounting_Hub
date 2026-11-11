@@ -161,6 +161,8 @@ table.compact input,table.compact select{height:38px;padding:0 10px;font-size:14
 .p-pending,.p-unpaid,.p-open-credit{background:var(--blue05);color:var(--blue7)}
 .p-partly-paid,.p-partly-applied{background:var(--sky);color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue3)}
 .p-paid,.p-applied{background:var(--green05);color:var(--green7)}
+.p-fully-depreciated{background:var(--blue05);color:var(--blue7)}.p-disposed{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
+.p-tie-off{background:#FCEBEA;color:#A52A24}.p-tie-todo{background:#FFF6D9;color:#8A5A00}
 .card{border-radius:16px;padding:28px 32px;margin-bottom:24px;background:#fff;box-shadow:var(--rest)}
 .card h2{font-size:18px;margin-bottom:16px}
 tr.jfirst td{border-top:2px solid var(--blue1)}
@@ -324,6 +326,14 @@ table.rp tr.rp-note td{color:#A52A24;background:#FCEBEA!important;font-weight:70
 .rpd table.rp tr{break-inside:avoid;page-break-inside:avoid}
 .rpd-foot{display:flex;justify-content:space-between;margin-top:18px;padding-top:8px;border-top:1px solid var(--silver);font-size:8.5px;color:var(--muted)}
 .rpd-foot span:first-child{font:700 8px var(--display);letter-spacing:.18em;color:var(--carbon)}
+/* Books Health */
+.hc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;margin-top:16px;align-items:start}
+.hc{padding:20px 22px;margin:0;border-top:4px solid var(--silver)}
+.hc.hc-off{border-top-color:#D63C34}.hc.hc-todo{border-top-color:#FFC62E}.hc.hc-ok{border-top-color:var(--green)}
+.hc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.hc-top h3{margin:0;font:700 15px var(--display);color:var(--carbon)}
+.hc .tbl-wrap{box-shadow:inset 0 0 0 1px var(--silver)}
+table.rec-sum td{padding:8px 14px}table.rec-sum tr:nth-child(4) td{border-top:1px solid var(--ink)}
+@media (max-width:760px){.hc-grid{grid-template-columns:1fr}}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
 #print-area{display:none}
@@ -448,11 +458,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.15';
+const APP_VERSION = '3.16';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 12;
+const API_NEEDED = 13;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -476,7 +486,7 @@ const PERMISSIONS = [
   ['Bank Transfers', [['transfers.edit', 'Enter and edit'], ['transfers.void', 'Void']]],
   ['Sales Invoices', [['sales.edit', 'Enter and edit'], ['sales.void', 'Void']]],
   ['Collections', [['collections.edit', 'Enter, edit and deposit'], ['collections.void', 'Void']]],
-  ['Check Monitoring', [['checks.clear', 'Mark cleared']]],
+  ['Check Monitoring', [['checks.clear', 'Mark cleared and reconcile the bank']]],
   ['Petty Cash and Cash Advances', [['staff.edit', 'Petty cash vouchers and liquidations'], ['staff.void', 'Void']]],
   ['Shipments and Stock Count', [['inventory.edit', 'Shipments, receipts and counts'], ['inventory.void', 'Void']]],
   ['General Journal', [['journal.edit', 'Enter, edit and void']]],
@@ -598,7 +608,7 @@ function freshData() {
     bankName: 'Metrobank',
     control,
     signers: { prepared: '', checked: '', approved: '' },
-    accounts, contacts: [], bills: [], vouchers: [], journals: [], banks: {}, invoices: [], collections: [], deposits: [], shipments: [], pettyCash: [], liquidations: [], tagsBefore: {}, tagAcctsBefore: {},
+    accounts, contacts: [], bills: [], vouchers: [], journals: [], banks: {}, invoices: [], collections: [], deposits: [], shipments: [], pettyCash: [], liquidations: [], recons: [], assets: [], tagsBefore: {}, tagAcctsBefore: {},
     departments: DEPARTMENTS_START.map(name => ({ name, active: true })), hasDepartments: true, budgets: [],
     switchOpening: { date: '', lines: [] },   // the balances typed in at the switch from QuickBooks (Opening balances tab)
     yearOpening: { date: '', lines: [] },     // this year's opening, written when the year before was closed (Year opening tab)
@@ -736,7 +746,7 @@ function switchYear(y) {
    changed go to Apps Script; the books come back fresh. Returns an error message, or nothing. */
 const rowsWith = (d, t) => { const keep = D; D = d; try { return t.rows(); } finally { D = keep; } };
 const NEW_ID_TABS = [['bills', 'Bills', 'Bill ID'], ['vouchers', 'Vouchers', 'Voucher ID'], ['journals', 'Journal entries', 'JE ID'], ['invoices', 'Sales invoices', 'Invoice ID'], ['collections', 'Collections', 'Collection ID'], ['deposits', 'Deposits', 'Deposit ID'],
-  ['pettyCash', 'Petty cash vouchers', 'PCV ID'], ['liquidations', 'Liquidations', 'Liquidation ID'], ['shipments', 'Shipments', 'Shipment ID'], ['contacts', 'Contacts', 'Contact ID'], ['accounts', 'Accounts', 'Account ID']];
+  ['pettyCash', 'Petty cash vouchers', 'PCV ID'], ['liquidations', 'Liquidations', 'Liquidation ID'], ['shipments', 'Shipments', 'Shipment ID'], ['contacts', 'Contacts', 'Contact ID'], ['accounts', 'Accounts', 'Account ID'], ['recons', 'Bank reconciliations', 'Recon ID'], ['assets', 'Fixed assets', 'Asset ID']];
 const groupRows = (t, rows) => { const k = t.cols.findIndex(c => c[0] === t.key), g = {}; rows.forEach(r => { const o = norm(r[k]); (g[o] = g[o] || []).push(r); }); return g; };
 /* The books as rows, grouped by owner, worked out once per version of the books (D is never changed in place;
    a save works on a copy). Built while the screen is idle after a load, so the first save doesn't wait for it. */
@@ -1482,9 +1492,9 @@ const NAV = [
     { id: 'vouchers', label: 'Check Vouchers' },
     { id: 'transfers', label: 'Bank Transfers' }] },
   { group: 'Receivables', items: [{ id: 'invoices', label: 'Sales Invoices' }, { id: 'collections', label: 'Collections' }] },
-  { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
+  { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
-  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
+  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }, { id: 'health', label: 'Books Health' }] },
   { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] }
 ];
 const allowed = n => !n.soon && (!n.need || can(n.need));
@@ -2209,10 +2219,133 @@ function checkList() {
     { h: 'Payee', k: v => `${esc(v.payeeName)}<span class="sub">${esc(v.cv)}, ${esc(v.particulars)}</span>${v.from ? `<span class="sub">${esc(fromNote(v))}</span>` : ''}` },
     { h: 'Amount', num: 1, k: v => peso(v.checkAmount) },
     { h: 'Status', k: v => pill(vStatus(v)) + (v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
-    { h: '', k: v => rowActs([canBooks('checks.clear') && (v.clearedOn ? ['unclear', v.id, 'Undo cleared'] : ['clear-one', v.id, 'Cleared…']), ['view-voucher', v.id, 'Voucher']]) }
+    { h: '', k: v => { const lr = lastRecon(vBank(v)), rec = v.clearedOn && lr && v.clearedOn <= lr.date; return rowActs([canBooks('checks.clear') && !rec && (v.clearedOn ? ['unclear', v.id, 'Undo cleared'] : ['clear-one', v.id, 'Cleared…']), ['view-voucher', v.id, 'Voucher']]) + (rec ? '<span class="sub" style="text-align:right">Reconciled</span>' : ''); } }
   ];
   return table(cols, rows, '', `<tfoot><tr><td>${rows.length} check${rows.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(rows.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`);
 }
+/* ---------- Cash and bank: bank reconciliation ----------
+   Each month, each bank statement against the books: the statement's ending balance, less the checks written but not
+   on it yet, plus the deposits made but not on it yet, must equal the books' balance that day. Ticking what's on the
+   statement marks it cleared on the statement date. Transfers, collections into the bank and entries are on the
+   statement the day they're dated, so only checks and deposit slips wait. A saved reconciliation is final for the
+   items on it; the latest one for an account can be undone. Petty cash funds are counted, not reconciled. */
+const vBank = v => v.bankAcct || D.control.bank;
+/* Cash the office holds that isn't a customer's payment: change handed back, an asset sold for cash. */
+const cashOnHand = () => (D.accounts.find(a => a.type === 'Bank' && (a.code === '110-010' || /cash on hand/i.test(a.name)) && !((D.banks || {})[a.id] || {}).custodian) || {}).id || D.control.bank;
+const reconsOf = bank => (D.recons || []).filter(x => x.bank === bank).sort((a, b) => a.date.localeCompare(b.date));
+const lastRecon = bank => reconsOf(bank).slice(-1)[0];
+const recBanks = () => bankAccounts().filter(a => !((D.banks || {})[a.id] || {}).custodian && !/cash on hand|petty cash/i.test(a.name)); // cash is counted, not reconciled
+const bookBal = (bank, date) => { const b = bankBalance(bank, date); return bankCur(bank) === 'USD' ? b.usd : b.php; };
+const recChecks = (bank, date) => D.vouchers.filter(v => isCheck(v) && vBank(v) === bank && v.checkDate <= date && liveAt(v, date) && !(v.clearedOn && v.clearedOn <= date))
+  .sort((a, b) => a.checkDate.localeCompare(b.checkDate) || String(a.checkNo).localeCompare(String(b.checkNo)));
+const recDeposits = (bank, date) => (D.deposits || []).filter(d => d.bank === bank && d.date <= date && liveAt(d, date) && !(d.clearedOn && d.clearedOn <= date))
+  .sort((a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no));
+function reconPage() {
+  return pageHead('recon', 'Each bank statement against the books, once a month. What the statement shows is marked cleared; what isn’t on it yet carries to the next one.')
+    + `<div id="list">${reconList()}</div>`;
+}
+function reconList() {
+  const banks = recBanks(), today = defaultDate();
+  if (!banks.length) return '<div class="empty"><b>No bank accounts</b>Bank accounts are accounts of type Bank on the Chart of Accounts.</div>';
+  const can = canBooks('checks.clear');
+  const top = table([
+    { h: 'Account', k: a => `<b>${esc(acctLabel(a))}</b>${bankCur(a.id) === 'USD' ? '<span class="sub">US dollars</span>' : ''}` },
+    { h: 'Books today', num: 1, k: a => money(bookBal(a.id, today)) },
+    { h: 'Last reconciled', k: a => { const r = lastRecon(a.id); return r ? `${fdate(r.date)}<span class="sub">Statement ${money(r.statement)}</span>` : '<span class="hint">Not yet</span>'; } },
+    { h: 'Checks out', num: 1, k: a => { const c = recChecks(a.id, today); return c.length ? `${money(sum(c.map(v => v.checkAmount)))}<span class="sub">${c.length} check${c.length === 1 ? '' : 's'}</span>` : ''; } },
+    { h: 'Deposits not yet in', num: 1, k: a => { const d = recDeposits(a.id, today); return d.length ? `${money(sum(d.map(x => x.amount)))}<span class="sub">${d.length} slip${d.length === 1 ? '' : 's'}</span>` : ''; } },
+    { h: '', k: a => rowActs([can && ['reconcile', a.id, 'Reconcile'], can && lastRecon(a.id) && !isLocked(lastRecon(a.id).date) && ['undo-recon', lastRecon(a.id).id, 'Undo latest']]) }
+  ], banks);
+  const hist = (D.recons || []).slice().sort((a, b) => b.date.localeCompare(a.date) || acctName(a.bank).localeCompare(acctName(b.bank)));
+  return top + (hist.length ? `<h2 class="mt">Reconciled in ${YEAR}</h2>${table([
+    { h: 'Statement', k: x => `<b>${fdate(x.date)}</b><span class="sub">${esc(acctName(x.bank))}</span>` },
+    { h: 'Statement balance', num: 1, k: x => money(x.statement) },
+    { h: 'Checks out', num: 1, k: x => x.checks ? money(x.checks) : '' },
+    { h: 'Deposits not yet in', num: 1, k: x => x.deposits ? money(x.deposits) : '' },
+    { h: 'Books', num: 1, k: x => `<b>${money(x.book)}</b>` },
+    { h: 'Still ties', k: x => { const now = bookBal(x.bank, x.date); return Math.abs(now - x.book) < 0.005 ? '<span class="pill p-cleared">Ties</span>' : `<span class="pill p-tie-off">Changed</span><span class="sub">Books now ${money(now)}</span>`; } },
+    { h: '', k: x => rowActs([['view-recon', x.id, 'View']]) }
+  ], hist)}` : '');
+}
+function reconForm(bank) {
+  const last = lastRecon(bank), cur = bankCur(bank), ticked = new Set();
+  const lastEom = (() => { const t = TODAY(); const d = new Date(t.getFullYear(), t.getMonth(), 0); return iso(d); })();
+  const firstDate = last ? nextDay(last.date) : `${YEAR}-01-01`;
+  const startDate = [lastEom, firstDate].sort().pop() > `${YEAR}-12-31` ? `${YEAR}-12-31` : [lastEom, firstDate].sort().pop();
+  const body = `<div class="vform"><div class="section"><div class="fields">
+      ${F('br-acct', 'Account', `<input id="br-acct" value="${esc(acctLabel(acct(bank)))}" disabled>`, 'span2')}
+      ${F('br-date', 'Statement date', inp('br-date', startDate, 'date', `min="${firstDate}" max="${YEAR}-12-31"`))}
+      ${F('br-bal', `Ending balance on the statement (${cur === 'USD' ? 'US$' : '₱'})`, inp('br-bal', '', 'number', 'step="0.01" inputmode="decimal"'))}
+    </div><p class="hint" style="margin-top:8px">${last ? `Reconciled through ${fdate(last.date)}.` : 'The first reconciliation of this account.'} If the statement shows bank charges, interest or a transfer the books don’t have yet, record it first, then reconcile.</p></div>
+    <div class="section"><h3>Checks</h3><p class="hint" style="margin:-4px 0 10px">Tick each check that’s on the statement.</p><div id="br-checks"></div></div>
+    <div class="section"><h3>Deposits</h3><p class="hint" style="margin:-4px 0 10px">Tick each deposit that’s on the statement.</p><div id="br-deps"></div></div>
+    <div class="section" style="margin-bottom:0"><div id="br-sum"></div></div></div>`;
+  const amtOf = v => v.checkAmount;
+  const list = (rows, kind) => rows.length ? `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:44px"></th><th>${kind === 'c' ? 'Check' : 'Deposit'}</th><th>${kind === 'c' ? 'Payee' : 'Reference'}</th><th class="num">Amount</th></tr></thead><tbody>${rows.map(x => `<tr>
+      <td><input type="checkbox" class="br-tick" data-id="${x.id}" ${ticked.has(x.id) ? 'checked' : ''} aria-label="On the statement"></td>
+      <td><b>${esc(kind === 'c' ? x.checkNo : x.no)}</b><span class="sub">${fdate(kind === 'c' ? x.checkDate : x.date)}</span></td>
+      <td>${esc(kind === 'c' ? x.payeeName : x.refNo || '')}${kind === 'c' ? `<span class="sub">${esc(x.cv)}</span>` : ''}</td><td class="num">${money(kind === 'c' ? amtOf(x) : x.amount)}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="hint">None ${kind === 'c' ? 'written' : 'made'} by this date that aren’t on an earlier statement.</p>`;
+  const state = () => {
+    const date = val('br-date'), okDate = /^\d{4}-\d{2}-\d{2}$/.test(date);
+    const cs = okDate ? recChecks(bank, date) : [], ds = okDate ? recDeposits(bank, date) : [];
+    const outC = round2(sum(cs.filter(v => !ticked.has(v.id)).map(amtOf))), outD = round2(sum(ds.filter(x => !ticked.has(x.id)).map(x => x.amount)));
+    const stmt = val('br-bal') === '' ? null : round2(numIn(val('br-bal'))), book = okDate ? bookBal(bank, date) : 0;
+    const adj = stmt == null ? null : round2(stmt - outC + outD), diff = adj == null ? null : round2(adj - book);
+    return { date, okDate, cs, ds, outC, outD, stmt, book, adj, diff };
+  };
+  const drawLists = () => { const s = state(); document.getElementById('br-checks').innerHTML = list(s.cs, 'c'); document.getElementById('br-deps').innerHTML = list(s.ds, 'd'); };
+  const drawSum = () => {
+    const s = state(), m = n => n == null ? '—' : money(n);
+    if (s.diff === 0 && document.getElementById('m-err')) document.getElementById('m-err').textContent = '';
+    document.getElementById('br-sum').innerHTML = `<div class="tbl-wrap"><table class="compact rec-sum"><tbody>
+      <tr><td>Ending balance on the statement</td><td class="num">${m(s.stmt)}</td></tr>
+      <tr><td>Less checks not on the statement yet</td><td class="num">${s.outC ? `(${money(s.outC)})` : '–'}</td></tr>
+      <tr><td>Add deposits not on the statement yet</td><td class="num">${s.outD ? money(s.outD) : '–'}</td></tr>
+      <tr><td><b>Adjusted bank balance</b></td><td class="num"><b>${m(s.adj)}</b></td></tr>
+      <tr><td>Balance per the books on ${s.okDate ? fdate(s.date) : '…'}</td><td class="num">${money(s.book)}</td></tr></tbody></table></div>
+      <p class="balcheck ${s.diff === 0 ? 'ok' : s.diff == null ? '' : 'bad'}" style="margin-top:10px">${s.diff == null ? 'Enter the statement’s ending balance.' : s.diff === 0 ? 'Reconciled. The statement and the books agree.' : `Off by ${money(Math.abs(s.diff))}: the adjusted bank balance is ${s.diff > 0 ? 'more' : 'less'} than the books. Check the ticks, the amounts, and anything on the statement the books don’t have.`}</p>`;
+  };
+  openModal(`Reconcile ${esc(acctName(bank))}`, body, () => {
+    const s = state();
+    if (!s.okDate) return 'Enter the statement date.';
+    if (!inYear(s.date)) return yearMsg(s.date);
+    if (last && s.date <= last.date) return `This account is reconciled through ${fdate(last.date)}. Use a later statement.`;
+    if (s.stmt == null) return 'Enter the ending balance on the statement.';
+    if (s.diff !== 0) return `The reconciliation is off by ${money(Math.abs(s.diff))}. It saves only when the adjusted bank balance equals the books.`;
+    const cleared = s.cs.filter(v => ticked.has(v.id)).concat(s.ds.filter(x => ticked.has(x.id)));
+    return save('saveRecon', () => {
+      cleared.forEach(x => { const d = voucher(x.id) || depositOf(x.id); d.clearedOn = s.date; });
+      D.recons = D.recons || [];
+      D.recons.push({ id: nextId('k'), bank, date: s.date, statement: s.stmt, book: s.book, checks: s.outC, deposits: s.outD, cleared: cleared.map(x => x.id), notes: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
+    }, () => toast(`${acctName(bank)} reconciled through ${fdate(s.date)}`));
+  }, 'Save reconciliation', { size: 'wide', noFocus: true, onOpen: () => {
+    const m = modalEl();
+    m.addEventListener('change', e => { if (e.target.classList.contains('br-tick')) { e.target.checked ? ticked.add(e.target.dataset.id) : ticked.delete(e.target.dataset.id); m.dataset.dirty = '1'; drawSum(); } else if (e.target.id === 'br-date') { drawLists(); drawSum(); } });
+    m.addEventListener('input', e => { if (e.target.id === 'br-bal') { m.dataset.dirty = '1'; drawSum(); } if (e.target.id === 'br-date') { drawLists(); drawSum(); } });
+    drawLists(); drawSum(); document.getElementById('br-bal').focus();
+  } });
+}
+function viewRecon(id) {
+  const x = (D.recons || []).find(r => r.id === id); if (!x) return;
+  const items = x.cleared.map(i => voucher(i) || depositOf(i)).filter(Boolean);
+  const body = `<div class="tbl-wrap"><table class="compact rec-sum"><tbody>
+      <tr><td>Ending balance on the statement</td><td class="num">${money(x.statement)}</td></tr><tr><td>Less checks not on the statement yet</td><td class="num">${x.checks ? `(${money(x.checks)})` : '–'}</td></tr>
+      <tr><td>Add deposits not on the statement yet</td><td class="num">${x.deposits ? money(x.deposits) : '–'}</td></tr><tr><td><b>Balance per the books</b></td><td class="num"><b>${money(x.book)}</b></td></tr></tbody></table></div>
+    <h3 class="mt" style="font-size:16px">Cleared on this statement</h3>${items.length ? `<ul class="plain">${items.map(i => `<li>${i.checkNo ? `Check ${esc(i.checkNo)} · ${esc(i.payeeName)} · ${money(i.checkAmount)}` : `Deposit ${esc(i.no)} · ${money(i.amount)}`}</li>`).join('')}</ul>` : '<p class="hint">Nothing new: everything was cleared already.</p>'}
+    <p class="hint" style="margin-top:12px">Saved by ${esc(x.createdBy || '—')}${x.createdAt ? ` on ${esc(atStamp(x.createdAt))}` : ''}.</p>`;
+  openModal(`${esc(acctName(x.bank))}, ${fdate(x.date)}`, body, null, '', { size: 'mid' });
+}
+function undoRecon(id) {
+  const x = (D.recons || []).find(r => r.id === id); if (!x) return;
+  if (lastRecon(x.bank).id !== id) { toast('Only the latest reconciliation of an account can be undone.', true); return; }
+  openModal(`Undo the ${fdate(x.date)} reconciliation`, `<p class="lead">The checks and deposits it found on the statement go back to waiting, and the account is reconciled through ${(reconsOf(x.bank).slice(-2)[0] || {}).id !== id && reconsOf(x.bank).length > 1 ? fdate(reconsOf(x.bank).slice(-2)[0].date) : 'nothing yet'}. Then reconcile that statement again.</p>`, () =>
+    save('undoRecon', () => {
+      x.cleared.forEach(i => { const d = voucher(i) || depositOf(i); if (d && d.clearedOn === x.date) d.clearedOn = ''; });
+      D.recons = D.recons.filter(r => r.id !== id);
+    }, () => toast('Reconciliation undone')), 'Undo it', { danger: true });
+}
+
 const markCleared = (id, date) => save('clearCheck', () => { voucher(id).clearedOn = date; }, () => toast(`${voucher(id).checkNo} marked cleared on ${fdate(date)}`));
 
 /* ---------- Books: journal (every entry, view only) ---------- */
@@ -2305,7 +2438,7 @@ function exceptionsBlock(ym) {
    opening balances and net movement by account and month, worked out as the Sheet's reports are, so the figures
    here match the Financial Statements and Trial Balance tabs. Downloaded as Excel or printed. */
 const REP = { d: null, year: 0, totals: {}, years: [], err: '', busy: false };
-const RP_KINDS = [['is', 'Income Statement'], ['bs', 'Balance Sheet'], ['tb', 'Trial Balance']];
+const RP_KINDS = [['is', 'Income Statement'], ['bs', 'Balance Sheet'], ['cf', 'Cash Flows'], ['eq', 'Changes in Equity'], ['tb', 'Trial Balance']];
 const RP_PERS = [['month', 'Month'], ['quarter', 'Quarter'], ['ytd', 'Year to date'], ['year', 'Full year'], ['range', 'Range of months']];
 const RP_CMPS = [['prev', 'Previous period'], ['ly', 'Same period last year'], ['none', 'No comparison']];
 const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -2399,6 +2532,56 @@ function rpBuild(r) {
     add('grand', 'Net income', plus(ibt, T('Income tax'), -1));
     return { rows, P, cur, cmp };
   }
+  /* Cash flows, indirect method: net income, depreciation added back, then each balance sheet account's change by the
+     part of the business it belongs to. Cash is every Bank account (petty cash included) and Undeposited Funds. */
+  if (r.kind === 'cf') {
+    const isCash = a => a.type === 'Bank' || a.id === D.control.undeposited;
+    const sec = a => isCash(a) || stmtOf(a.type)[0] !== 'Balance sheet' ? '' : isAccumAcct(a) ? 'dep' : a.type === 'Fixed Asset' || a.type === 'Other Asset' ? 'inv'
+      : a.type === 'Long Term Liability' || a.type === 'Equity' || /^2(4|5)/.test(a.code || '') ? 'fin' : 'op';
+    const flow = (ids, p) => { const ns = ids.map(id => C.mv(id, p)); return ns.some(n => n == null) ? null : round2(-sum(ns)); };
+    const lines = k => all.filter(a => sec(a) === k).map(a => ({ a, v: P.map(p => flow([a.id], p)) })).filter(x => nz(x.v));
+    const total = xs => P.map((p, i) => xs.some(x => x.v[i] == null) ? (p.every(([y]) => C.T(y)) ? round2(sum(xs.map(x => x.v[i] || 0))) : null) : round2(sum(xs.map(x => x.v[i]))));
+    add('band', 'Operating activities');
+    const ni = P.map(p => flow(all.filter(a => rpIsIS(a.id)).map(a => a.id), p)); add('acct', 'Net income', ni);
+    const dep = P.map(p => flow(all.filter(a => sec(a) === 'dep').map(a => a.id), p)); if (nz(dep)) add('acct', 'Depreciation and amortization', dep);
+    const op = lines('op'); if (op.length) { add('head', 'Changes in working capital'); op.forEach(x => add('acct', x.a.name, x.v, x.a.code)); }
+    const nOp = plus(plus(ni, nz(dep) ? dep : zero()), total(op)); add('sub', 'Net cash from operating activities', nOp);
+    add('band', 'Investing activities'); const inv = lines('inv'); inv.forEach(x => add('acct', x.a.name, x.v, x.a.code));
+    const nInv = total(inv); add('sub', 'Net cash from investing activities', nInv);
+    add('band', 'Financing activities'); const fin = lines('fin'); fin.forEach(x => add('acct', x.a.name, x.v, x.a.code));
+    const nFin = total(fin); add('sub', 'Net cash from financing activities', nFin);
+    const net = plus(plus(nOp, nInv), nFin); add('total', 'Net increase (decrease) in cash', net);
+    const cashIds = all.filter(isCash).map(a => a.id);
+    const cashAt = e => { if (!C.T(e[0])) return null; return round2(sum(cashIds.map(id => C.bal(id, e) || 0))); };
+    const begin = P.map(p => cashAt([p[0][0], p[0][1] - 1])), end = P.map(p => cashAt(p[p.length - 1]));
+    add('acct', 'Cash at the beginning', begin); add('grand', 'Cash at the end', end);
+    const off = plus(plus(begin, net), end, -1); if (off.some(x => x != null && Math.abs(x) >= 0.005)) add('note', 'Beginning plus the change less the end (should be zero)', off);
+    return { rows, P, cur, cmp };
+  }
+  /* Changes in equity, for the period only: each equity account a column, retained earnings taking the period's net
+     income and dividends. */
+  if (r.kind === 'eq') {
+    const p = cur, [y1, m1] = p[0], before = [y1, m1 - 1], last = p[p.length - 1];
+    const isRE = a => a.id === RP_EARLIER || /^33/.test(a.code || '') || /retained/i.test(a.name), isDiv = a => /^34/.test(a.code || '') || /dividend/i.test(a.name);
+    const eq = all.filter(a => stmtOf(a.type)[1] === 'Equity'), re = eq.filter(a => isRE(a) || isDiv(a)), is = all.filter(a => rpIsIS(a.id));
+    const neg = (ids, at) => round2(-sum(ids.map(id => C.bal(id, at) || 0)));
+    const mvn = ids => round2(-sum(ids.map(id => C.mv(id, p) || 0)));
+    const others = eq.filter(a => !isRE(a) && !isDiv(a) && (nz([C.bal(a.id, before)]) || nz([C.bal(a.id, last)])));
+    const cols = others.map(a => a.name).concat(['Retained earnings', 'Total']);
+    if (!C.T(y1)) return { rows: [], P: [p], cur: p, cmp: null, fixed: cols };
+    const reStart = round2(neg(re.map(a => a.id), before) + neg(is.map(a => a.id), before)), niP = mvn(is.map(a => a.id)), divP = mvn(re.filter(isDiv).map(a => a.id)), reOther = mvn(re.filter(a => !isDiv(a)).map(a => a.id));
+    const row = (vals, reVal) => { const v = vals.concat([reVal]); return v.concat([round2(sum(v))]); };
+    const startLbl = m1 === 1 ? `January 1, ${y1}` : rpLabel([[y1, m1 - 1]], true), endLbl = rpLabel(p, true);
+    add('acct', `Balance, ${startLbl}`, row(others.map(a => neg([a.id], before)), reStart));
+    add('acct', 'Net income for the period', row(others.map(() => 0), niP));
+    if (divP) add('acct', 'Dividends', row(others.map(() => 0), divP));
+    const oth = row(others.map(a => mvn([a.id])), reOther); if (nz(oth)) add('acct', 'Other changes', oth);
+    const endV = row(others.map(a => neg([a.id], last)), round2(neg(re.map(a => a.id), last) + neg(is.map(a => a.id), last)));
+    add('grand', `Balance, ${endLbl}`, endV);
+    const calc = rows.filter(x => x.kind === 'acct').reduce((t, x) => t.map((n, i) => round2(n + x.v[i])), cols.map(() => 0));
+    if (calc.some((n, i) => Math.abs(n - endV[i]) >= 0.005)) add('note', 'Movements less the ending balance (should be zero)', calc.map((n, i) => round2(n - endV[i])));
+    return { rows, P: [p], cur: p, cmp: null, fixed: cols };
+  }
   const ends = P.map(p => p[p.length - 1]);
   if (r.kind === 'bs') {
     const balv = (id, sign) => ends.map(e => { const b = C.bal(id, e); return b == null ? null : round2(sign * b); });
@@ -2435,28 +2618,31 @@ function rpBuild(r) {
 }
 /* Columns: amounts per period, then the change and the change in percent when comparing. */
 function rpCols(R) {
+  if (R.fixed) return R.fixed;
   const L = R.P.map(p => rpLabel(p, R.asOf));
   if (R.tb) return R.P.length > 1 ? [`Debit, ${L[0]}`, `Credit, ${L[0]}`, `Debit, ${L[1]}`, `Credit, ${L[1]}`] : ['Debit', 'Credit'];
   return R.P.length > 1 ? [L[0], L[1], 'Change', 'Change %'] : [L[0]];
 }
 function rpCells(R, row) {
+  if (R.fixed) return row.v;
   if (R.tb) return row.v.flatMap(b => b == null ? [null, null] : [b > 0 ? b : 0, b < 0 ? -b : 0]);
   if (R.P.length < 2) return [row.v[0]];
   const [a, b] = row.v, ch = a == null || b == null ? null : round2(a - b);
   return [a, b, ch, ch == null || !b ? null : ch / Math.abs(b)];
 }
 const rpFmt = (n, pct) => n == null ? '—' : pct ? `${n < 0 ? '(' : ''}${Math.abs(n * 100).toFixed(1)}%${n < 0 ? ')' : ''}` : Math.abs(n) < 0.005 ? '–' : money(n);
-const rpTitle = r => RP_KINDS.find(k => k[0] === r.kind)[1];
+const RP_TITLE = { is: 'Income Statement', bs: 'Balance Sheet', cf: 'Statement of Cash Flows', eq: 'Statement of Changes in Equity', tb: 'Trial Balance' };
+const rpTitle = r => RP_TITLE[r.kind];
 const rpMissing = R => [...new Set(R.P.flat().map(x => x[0]))].filter(y => !REP.totals[y]);
 function rpTable(R) {
-  const cols = rpCols(R), pctCol = !R.tb && cols.length === 4 ? 3 : -1;
+  const cols = rpCols(R), pctCol = !R.tb && !R.fixed && cols.length === 4 ? 3 : -1;
   const body = R.rows.map(row => {
     if (row.kind === 'band') return `<tr class="rp-band"><td colspan="${cols.length + 2}">${esc(row.label)}</td></tr>`;
     if (row.kind === 'head') return `<tr class="rp-head"><td class="rp-code"></td><td colspan="${cols.length + 1}">${esc(row.label)}</td></tr>`;
     return `<tr class="rp-${row.kind}"><td class="rp-code">${esc(row.code)}</td><td>${esc(row.label)}</td>${rpCells(R, row).map((v, i) => `<td class="num">${rpFmt(v, i === pctCol)}</td>`).join('')}</tr>`;
   }).join('');
   const foot = R.tb ? `<tfoot><tr class="rp-grand"><td></td><td>Total</td>${R.tb.flatMap(t => t ? [t.dr, t.cr] : [null, null]).map(v => `<td class="num">${rpFmt(v)}</td>`).join('')}</tr></tfoot>` : '';
-  return `<table class="rp"><thead><tr><th style="width:84px">Code</th><th>${R.tb ? 'Account' : ''}</th>${cols.map(c => `<th class="num">${esc(c)}</th>`).join('')}</tr></thead><tbody>${body}</tbody>${foot}</table>`;
+  return `<table class="rp"><thead><tr><th style="width:84px">${R.fixed ? '' : 'Code'}</th><th>${R.tb ? 'Account' : ''}</th>${cols.map(c => `<th class="num">${esc(c)}</th>`).join('')}</tr></thead><tbody>${body}</tbody>${foot}</table>`;
 }
 function reportsPage() {
   const r = rpState(), seg = (id, list, cur) => `<div class="seg" role="tablist" aria-label="Report">${list.map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === cur}" class="seg-b${k === cur ? ' on' : ''}" data-act="${id}" data-id="${k}">${l}</button>`).join('')}</div>`;
@@ -2464,10 +2650,10 @@ function reportsPage() {
   const pick = r.per === 'month' || r.per === 'ytd' ? mo('rp-m', r.m) : r.per === 'quarter' ? `<select id="rp-q" aria-label="Quarter">${[1, 2, 3, 4].filter(q => q * 3 - 2 <= lastMonth()).map(q => opt(String(q), `Q${q} ${YEAR}`, String(r.q))).join('')}</select>`
     : r.per === 'range' ? `${mo('rp-from', r.from)}<span class="hint">to</span>${mo('rp-to', r.to)}` : '';
   const acts = REP.d === D && REP.year === YEAR && !REP.err ? `${btn('rp-xlsx', 'Download Excel', 'ghost')}${btn('rp-print', 'Print')}` : '';
-  return pageHead('reports', `Income statement, balance sheet and trial balance, compared with the period before or the same period last year. The Google Sheet also has the ledger, the books of accounts, VAT and aging.`, acts)
+  return pageHead('reports', `Income statement, balance sheet, cash flows, changes in equity and trial balance, compared with the period before or the same period last year. The Google Sheet also has the ledger, the books of accounts, VAT and aging.`, acts)
     + seg('rp-kind', RP_KINDS, r.kind)
-    + `<div class="toolbar rp-bar"><label class="rp-l">${r.kind === 'is' ? 'Period' : 'As of the end of'}</label><select id="rp-per" aria-label="Period">${RP_PERS.map(([k, l]) => opt(k, l, r.per)).join('')}</select>${pick}
-      <label class="rp-l">Compare with</label><select id="rp-cmp" aria-label="Compare with">${RP_CMPS.map(([k, l]) => opt(k, l, r.cmp)).join('')}</select></div>
+    + `<div class="toolbar rp-bar"><label class="rp-l">${['bs', 'tb'].includes(r.kind) ? 'As of the end of' : 'Period'}</label><select id="rp-per" aria-label="Period">${RP_PERS.map(([k, l]) => opt(k, l, r.per)).join('')}</select>${pick}
+      ${r.kind === 'eq' ? '' : `<label class="rp-l">Compare with</label><select id="rp-cmp" aria-label="Compare with">${RP_CMPS.map(([k, l]) => opt(k, l, r.cmp)).join('')}</select>`}</div>
     <div id="list">${reportBody()}</div>`;
 }
 function reportBody() {
@@ -2494,7 +2680,7 @@ function rpPrint() {
 }
 /* Excel: the same rows, numbers as numbers, money as #,##0.00 with negatives in brackets. */
 function rpXlsx() {
-  const r = rpState(), R = rpBuild(r), cols = rpCols(R), pctCol = !R.tb && cols.length === 4 ? 3 : -1, co = D.company.name || COMPANY;
+  const r = rpState(), R = rpBuild(r), cols = rpCols(R), pctCol = !R.tb && !R.fixed && cols.length === 4 ? 3 : -1, co = D.company.name || COMPANY;
   const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const colL = n => String.fromCharCode(64 + n), W = 2 + cols.length;
   // styles: 0 plain, 1 company, 2 title, 3 meta, 4 header, 5 header right, 6 band, 7 section head, 8 code, 9 money, 10 pct, 11 sub label, 12 sub money, 13 total label, 14 total money, 15 grand label, 16 grand money, 17 sub pct, 18 total pct, 19 grand pct, 20 note
@@ -3169,12 +3355,17 @@ const TABLES = [
   { name: 'Deposits', key: 'Deposit ID', yearly: true, optional: true, subtitle: 'One row per deposit slip: checks and cash taken from Undeposited Funds to a bank account. Which receipts are on it is on the Deposit items tab.',
     cols: [['Deposit ID', 's', 12], ['Deposit no.', 's', 15], ['Date', 'd', 13], ['Bank account ID', 's', 12], ['Bank account', 's', 30, 'derived'], ['Reference no.', 's', 18], ['Amount', 'n', 15],
       ['Status', 's', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30],
-      ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
+      ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'], ['Cleared on', 'd', 13, 'optional']],
     rows: () => (D.deposits || []).slice().sort((a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no)).map(d => [d.id, d.no, d.date, d.bank, acctPlain(d.bank), d.refNo || null, d.amount,
-      d.status === 'void' ? 'Void' : 'Active', d.voidReason || null, d.voidedOn || null, d.notes || null, d.createdAt || null, d.createdBy || null, d.updatedAt || null, d.updatedBy || null]) },
+      d.status === 'void' ? 'Void' : 'Active', d.voidReason || null, d.voidedOn || null, d.notes || null, d.createdAt || null, d.createdBy || null, d.updatedAt || null, d.updatedBy || null, d.clearedOn || null]) },
   { name: 'Deposit items', key: 'Deposit ID', yearly: true, optional: true, subtitle: 'The receipts on each deposit slip. A receipt from an earlier year can be deposited here.',
     cols: [['Deposit ID', 's', 12], ['Deposit no.', 's', 15, 'derived'], ['Collection ID', 's', 12], ['CR no.', 's', 15, 'derived'], ['Amount', 'n', 15]],
     rows: () => (D.deposits || []).slice().sort((a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no)).flatMap(d => (d.items || []).map(p => [d.id, d.no, p.collectionId, (collectionOf(p.collectionId) || {}).cr || null, p.amount])) },
+  { name: 'Bank reconciliations', key: 'Recon ID', yearly: true, optional: true, subtitle: 'One row per bank statement reconciled: the statement’s ending balance, the books’ balance that day, and the checks and deposits not on the statement yet. What was on the statement is marked cleared on its date.',
+    cols: [['Recon ID', 's', 11], ['Bank account ID', 's', 12], ['Bank account', 's', 30, 'derived'], ['Statement date', 'd', 13], ['Statement balance', 'n', 16], ['Book balance', 'n', 16], ['Checks not yet cleared', 'n', 16], ['Deposits in transit', 'n', 16],
+      ['Cleared on this statement', 's', 40], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
+    rows: () => (D.recons || []).slice().sort((a, b) => a.date.localeCompare(b.date) || a.bank.localeCompare(b.bank)).map(x => [x.id, x.bank, acctPlain(x.bank), x.date, x.statement, x.book, x.checks, x.deposits,
+      (x.cleared || []).join(', ') || null, x.notes || null, x.createdAt || null, x.createdBy || null, x.updatedAt || null, x.updatedBy || null]) },
   { name: 'Petty cash vouchers', key: 'PCV ID', yearly: true, optional: true, subtitle: 'One row per petty cash voucher: what a custodian paid out of the fund. A check that replenishes the fund is a check voucher.',
     cols: [['PCV ID', 's', 12], ['PCV no.', 's', 15], ['Date', 'd', 13], ['Fund account ID', 's', 12], ['Fund', 's', 30, 'derived'], ['Paid to', 's', 30], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['Status', 's', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
@@ -3227,6 +3418,12 @@ const TABLES = [
   { name: 'Shipments', key: 'Shipment ID', optional: true, subtitle: 'Each import shipment. Bills for its goods, freight, brokerage and duties post to Goods in Transit under its Shipment ID; on arrival, its landed cost moves into inventory.',
     cols: [['Shipment ID', 's', 11], ['Shipment no.', 's', 20], ['Description', 's', 40], ['Notes', 's', 30]],
     rows: () => (D.shipments || []).slice().sort((a, b) => a.no.localeCompare(b.no)).map(s => [s.id, s.no, s.desc || null, s.notes || null]) },
+  { name: 'Fixed assets', key: 'Asset ID', optional: true, subtitle: 'The fixed asset register: each asset’s cost, its accounts and its straight-line depreciation. Depreciation is booked month by month as a journal entry from the Fixed Assets page.',
+    cols: [['Asset ID', 's', 10], ['Asset no.', 's', 12], ['Description', 's', 36], ['Asset account ID', 's', 11], ['Asset account', 's', 34, 'derived'], ['Accumulated depreciation account ID', 's', 11], ['Accumulated depreciation account', 's', 34, 'derived'],
+      ['Depreciation expense account ID', 's', 11], ['Depreciation expense account', 's', 30, 'derived'], ['Department', 's', 18], ['Acquired on', 'd', 13], ['Cost', 'n', 15], ['Salvage value', 'n', 14], ['Useful life in months', 'i', 10],
+      ['Depreciation starts', 'd', 13], ['Depreciated before the hub', 'n', 15], ['Status', 's', 10], ['Disposed on', 'd', 13], ['Notes', 's', 30]],
+    rows: () => (D.assets || []).slice().sort((a, b) => a.no.localeCompare(b.no)).map(x => [x.id, x.no, x.desc, x.acct, acctPlain(x.acct), x.accum || null, x.accum ? acctPlain(x.accum) : null, x.exp || null, x.exp ? acctPlain(x.exp) : null,
+      x.dept || null, x.acquired, x.cost, x.salvage || 0, x.life || 0, x.start || null, x.before || 0, x.disposedOn ? 'Disposed' : 'Active', x.disposedOn || null, x.notes || null]) },
   { name: 'Opening balances', key: 'Account ID', optional: true, subtitle: 'Each account’s balance when the hub takes over, from QuickBooks. Type a debit or a credit next to the account and the date in Settings; debits must equal credits.',
     cols: [['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
     rows: () => { const ob = {}; (D.switchOpening.lines || []).forEach(l => { (ob[l.acct] = ob[l.acct] || []).push(l); });
@@ -3703,7 +3900,10 @@ function dataFromTables(sheets, ctx = {}) {
     if (!['Active', 'Void'].includes(o.Status)) E(o, 'Status must be Active or Void.');
     if (o.Status === 'Void' && !o['Void reason']) E(o, 'Status is Void but Void reason is blank.');
     const d = { id: o['Deposit ID'], no: o['Deposit no.'], date: o.Date, bank: o['Bank account ID'], refNo: o['Reference no.'] || '', amount: o.Amount, notes: o.Notes || '',
-      status: o.Status === 'Void' ? 'void' : 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
+      status: o.Status === 'Void' ? 'void' : 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '',
+      clearedOn: o['Cleared on'] || '' };
+    if (d.clearedOn && d.clearedOn < d.date) E(o, 'Cleared on is before the deposit date.');
+    if (d.clearedOn && o.Status === 'Void') E(o, 'A void deposit doesn’t clear; Cleared on stays blank.');
     d.items = (diBy[d.id] || []).map(x => {
       const c = colById[x['Collection ID']];
       if (!c) E(x, `Collection ID ${x['Collection ID']} isn’t in an open year’s Collections.`);
@@ -3821,6 +4021,36 @@ function dataFromTables(sheets, ctx = {}) {
     if (obDr !== obCr) errs.push(`Opening balances tab: debits (${money(obDr)}) must equal credits (${money(obCr)}).`);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(obDate)) errs.push('Settings tab: “Opening balances as of” needs a date, written YYYY-MM-DD.');
   }
+  // bank reconciliations
+  uniq(T['Bank reconciliations'], 'Recon ID', 'Recon ID');
+  const recons = T['Bank reconciliations'].map(o => {
+    for (const h of ['Bank account ID', 'Statement date', 'Statement balance', 'Book balance']) if (o[h] == null) E(o, `${h} is blank.`);
+    if (aType[o['Bank account ID']] !== 'Bank') E(o, `Bank account ID ${o['Bank account ID']} isn’t an account of type Bank.`);
+    inThisYear(o, 'Statement date');
+    return { id: o['Recon ID'], bank: o['Bank account ID'], date: o['Statement date'], statement: o['Statement balance'] || 0, book: o['Book balance'] || 0, checks: o['Checks not yet cleared'] || 0, deposits: o['Deposits in transit'] || 0,
+      cleared: String(o['Cleared on this statement'] || '').split(',').map(x => x.trim()).filter(Boolean), notes: o.Notes || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
+  });
+  // fixed assets
+  uniq(T['Fixed assets'], 'Asset ID', 'Asset ID'); uniq(T['Fixed assets'], 'Asset no.', 'Asset no.');
+  const assets = T['Fixed assets'].map(o => {
+    for (const h of ['Asset no.', 'Description', 'Asset account ID', 'Acquired on', 'Cost', 'Status']) if (o[h] == null || o[h] === '') E(o, `${h} is blank.`);
+    const ac = o['Asset account ID'], acc = o['Accumulated depreciation account ID'] || '', ex = o['Depreciation expense account ID'] || '', life = o['Useful life in months'] || 0;
+    if (ac && aType[ac] !== 'Fixed Asset') E(o, 'Asset account ID must be an account of type Fixed Asset.');
+    if (life < 0) E(o, 'Useful life in months can’t be negative.');
+    if (life > 0) {
+      if (aType[acc] !== 'Fixed Asset' || acc === ac) E(o, 'Accumulated depreciation account ID must be another account of type Fixed Asset.');
+      if (!['Expense', 'Other Expense'].includes(aType[ex])) E(o, 'Depreciation expense account ID must be an expense account.');
+      if (!o['Depreciation starts']) E(o, 'Depreciation starts is blank.');
+    }
+    if (!(o.Cost > 0)) E(o, 'Cost must be more than zero.');
+    const salvage = o['Salvage value'] || 0, before = o['Depreciated before the hub'] || 0;
+    if (salvage < 0 || salvage >= (o.Cost || 0)) E(o, 'Salvage value must be zero or more, and less than the cost.');
+    if (before < 0 || before > round2((o.Cost || 0) - salvage)) E(o, 'Depreciated before the hub must be between zero and the cost less the salvage value.');
+    if (!['Active', 'Disposed'].includes(o.Status)) E(o, 'Status must be Active or Disposed.');
+    if ((o.Status === 'Disposed') !== !!o['Disposed on']) E(o, 'Disposed on is filled in only when Status is Disposed.');
+    return { id: o['Asset ID'], no: o['Asset no.'], desc: o.Description || '', acct: ac, accum: acc, exp: ex, dept: readDept(o), acquired: o['Acquired on'], cost: o.Cost || 0, salvage, life,
+      start: o['Depreciation starts'] || '', before, disposedOn: o['Disposed on'] || '', notes: o.Notes || '' };
+  });
   if (!S_['Company name']) errs.push('Settings tab: Company name is blank.');
   if (S_['Company TIN'] && !TIN_RE.test(S_['Company TIN'])) errs.push('Settings tab: Company TIN must be written 000-000-000 or 000-000-000-000.');
   if (errs.length) return { errs };
@@ -3831,7 +4061,7 @@ function dataFromTables(sheets, ctx = {}) {
     signers: { prepared: S_['Prepared by'] || '', checked: S_['Checked by'] || '', approved: S_['Approved by'] || '' },
     accounts, contacts, bills: bills.concat(foreignBills), vouchers: vouchers.concat(foreignVouchers), journals, banks,
     invoices: invoices.concat(foreignInvoices), collections: collections.concat(foreignCollections), deposits, departments, hasDepartments: !!sheets.Departments, budgets,
-    shipments, pettyCash, liquidations,
+    shipments, pettyCash, liquidations, recons, assets,
     acctBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.accts || {}).forEach(([k, x]) => { const y = m[k] = m[k] || { php: 0, usd: 0 }; y.php = round2(y.php + (x.php || 0)); y.usd = round2(y.usd + (x.usd || 0)); }); return m; }, {}),
     tagsBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.tags || {}).forEach(([k, n]) => { m[k] = round2((m[k] || 0) + n); }); return m; }, {}),
     tagAcctsBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.tagAccts || {}).forEach(([k, n]) => { m[k] = round2((m[k] || 0) + n); }); return m; }, {}),
@@ -4275,6 +4505,7 @@ function viewDeposit(id) {
 function voidDeposit(id) {
   const d = depositOf(id);
   if (!d || !live(d)) return;
+  if (d.clearedOn) { toast(`Deposit ${d.no} is on the ${fdate(d.clearedOn)} bank statement, so it can’t be voided. Undo that reconciliation first if it was a mistake.`, true); return; }
   voidModal(`Void Deposit ${esc(d.no)}`, `For a deposit entered by mistake, or one with a bounced check: void it, then deposit the good ones again on the same date. Its checks and cash go back to Undeposited Funds on the void date.`, d.date, 'voidDeposit',
     (reason, dt) => { Object.assign(depositOf(id), { status: 'void', voidReason: reason, voidedOn: dt }); }, d.no);
 }
@@ -4639,7 +4870,8 @@ function liqForm(x0, empId) {
   const blank = () => ({ accountId: '', desc: '', amount: '', dept: '', tag: '' });
   const x = edit ? JSON.parse(JSON.stringify(x0)) : { no: nextNo(D.liquidations || [], 'no', 'LQ', defaultDate()), date: defaultDate(), employee: empId || emps[0].id, particulars: '', lines: [blank()], vatable: false, vat: '', vatManual: false, returned: '', reimbursed: '', cashAcct: '', notes: '' };
   if (!x.lines.length) x.lines.push(blank());
-  const cashOptions = cur => opt(D.control.undeposited, `${acctName(D.control.undeposited)} (cash to deposit)`, cur) + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, acctLabel(a), cur)).join('');
+  // change handed back is cash on hand (or straight into a bank or a fund); Undeposited Funds holds only collections, which deposit slips take
+  const cashOptions = cur => (cur === D.control.undeposited ? opt(D.control.undeposited, acctName(D.control.undeposited), cur) : '') + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, acctLabel(a), cur)).join('');
   const body = `<div class="vform"><div class="section"><h3>Liquidation</h3><div class="fields">
       ${F('q-no', 'Liquidation no.', inp('q-no', x.no, 'text', 'autocomplete="off"'))}${F('q-date', 'Date', inp('q-date', x.date, 'date'))}
       ${F('q-emp', 'Employee', `<select id="q-emp">${emps.concat(edit && !emps.some(p => p.id === x.employee) && contact(x.employee) ? [contact(x.employee)] : []).map(p => opt(p.id, p.name, x.employee)).join('')}</select>`, 'span2')}
@@ -4650,7 +4882,7 @@ function liqForm(x0, empId) {
     <div class="section"><h3>The difference</h3><div class="fields">
       ${F('q-ret', 'Cash returned by the employee (₱)', inp('q-ret', x.returned || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}
       ${F('q-rei', 'Cash reimbursed to the employee (₱)', inp('q-rei', x.reimbursed || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}
-      ${F('q-cash', 'Into or out of', `<select id="q-cash">${cashOptions(x.cashAcct || D.control.undeposited)}</select>`, 'span2')}
+      ${F('q-cash', 'Into or out of', `<select id="q-cash">${cashOptions(x.cashAcct || cashOnHand())}</select>`, 'span2')}
     </div><p class="hint" id="q-diff" style="margin-top:8px"></p></div>
     <div class="section"><p class="warnline" id="q-warn"></p><div class="checkamt"><span class="label">Advance cleared</span><span class="big" id="q-total">₱0.00</span></div></div>
     <div class="section"><h3>Accounting entry</h3><div class="entry" id="q-entry"></div></div>
@@ -5189,6 +5421,321 @@ function deptSpending() {
   }); });
   return by;
 }
+/* ---------- Books: fixed assets ----------
+   The register: each asset's cost, accounts and straight-line depreciation by month. Depreciation is booked a month
+   at a time as one journal entry ("Depreciation for October 2026"), oldest month first; each asset's lines carry its
+   number in brackets, so the hub knows what's on the books for it. An asset added or changed late is caught up in the
+   next month booked. Disposing books the sale or write-off and takes the asset off the register. */
+const assetOf = id => (D.assets || []).find(x => x.id === id);
+const ymOf = d => String(d || '').slice(0, 7);
+const monthsFrom = (a, b) => (Number(b.slice(0, 4)) * 12 + Number(b.slice(5, 7))) - (Number(a.slice(0, 4)) * 12 + Number(a.slice(5, 7)));
+const prevYm = m => { const [y, mo] = m.split('-').map(Number); return mo === 1 ? `${y - 1}-12` : `${y}-${pad(mo - 1, 2)}`; };
+const depBase = x => round2(x.cost - (x.salvage || 0));
+const depMonthly = x => x.life > 0 ? round2(depBase(x) / x.life) : 0;
+const DEP_MEMO = m => `Depreciation for ${monthLabel(m)}`;
+const DEP_RE = /^Depreciation for ([A-Z][a-z]+ \d{4})$/;
+const isAccumAcct = a => /^159/.test(a.code || '') || /accumulated (depreciation|amortization)/i.test(a.name);
+const assetAccts = () => sortAccounts(D.accounts.filter(a => a.type === 'Fixed Asset' && !isAccumAcct(a) && a.active));
+const accumAccts = () => sortAccounts(D.accounts.filter(a => a.type === 'Fixed Asset' && isAccumAcct(a) && a.active));
+const expAccts = () => sortAccounts(D.accounts.filter(a => DEPT_TYPES.includes(a.type) && a.active));
+/* What the schedule has depreciated by the end of a month: what came from before the hub, then a month's share for
+   each month from the later of the start and the hub's first month, through the month before a disposal. The last
+   month of the useful life takes whatever centavos are left. */
+function depThrough(x, m) {
+  if (!(x.life > 0) || !x.start) return 0;
+  if (x.disposedOn && m >= ymOf(x.disposedOn)) m = prevYm(ymOf(x.disposedOn));
+  const hub = ymOf(D.switchOpening.date), first = hub && hub > ymOf(x.start) ? hub : ymOf(x.start);
+  const n = monthsFrom(first, m) + 1;
+  if (n <= 0) return round2(x.before || 0);
+  if (monthsFrom(ymOf(x.start), m) + 1 >= x.life) return depBase(x);
+  return Math.min(depBase(x), round2((x.before || 0) + n * depMonthly(x)));
+}
+/* Depreciation entries in this year's books, by month, and what each asset has had from them. */
+const depEntries = () => (D.journals || []).filter(j => j.kind === 'Entry' && live(j) && DEP_RE.test(j.memo || ''));
+const depBookedMonths = () => new Set(depEntries().map(j => j.date.slice(0, 7)));
+const assetTag = x => `[${x.no}]`;
+function depOnBooks(x, asOf) {
+  // what the books hold for it: last year's schedule as at December 31 (or what came from before the hub), plus this
+  // year's depreciation entries
+  const start = Number(YEAR) > Number((D.switchOpening.date || '0').slice(0, 4)) || !D.switchOpening.date ? depThrough(x, `${YEAR - 1}-12`) : round2(x.before || 0);
+  const booked = sum(depEntries().filter(j => !asOf || j.date <= asOf).flatMap(j => (j.entry || []).filter(l => l.acct === x.accum && String(l.memo || '').includes(assetTag(x))).map(l => (l.cr || 0) - (l.dr || 0))));
+  return round2(start + booked);
+}
+const assetLive = (x, date) => !x.disposedOn || x.disposedOn > date;
+/* The months of this year that still need depreciation booked, oldest first, through this month. */
+function depDue() {
+  const booked = depBookedMonths(), last = YEAR === THIS_YEAR() ? TODAY().getMonth() + 1 : 12, out = [];
+  for (let mo = 1; mo <= last; mo++) {
+    const m = `${YEAR}-${pad(mo, 2)}`;
+    if (booked.has(m)) continue;
+    const lines = depLines(m);
+    if (lines.length) out.push({ m, lines, total: round2(sum(lines.map(l => l.amount))) });
+  }
+  return out;
+}
+/* A month's depreciation per asset: the schedule through that month less what's on the books, so a late asset catches up. */
+function depLines(m) {
+  return (D.assets || []).filter(x => x.life > 0 && x.start && ymOf(x.start) <= m && assetLive(x, `${m}-01`)).map(x => ({ x, amount: round2(depThrough(x, m) - depOnBooks(x)) })).filter(l => Math.abs(l.amount) >= 0.005);
+}
+function assetsPage() {
+  const due = depDue(), booked = [...depBookedMonths()].sort(), can = canBooks('journal.edit');
+  const acts = can ? `${btn('new-asset', 'Add asset', due.length ? 'ghost' : '')}${due.length ? btn('book-dep', `Book ${monthLabel(due[0].m)}`) : ''}` : '';
+  const status = due.length ? `<p class="warnline" style="margin:0 0 18px">Depreciation for ${monthLabel(due[0].m)} isn’t booked: ${peso(due[0].total)}.${due.length > 1 ? ` ${due.length - 1} more month${due.length > 2 ? 's' : ''} after it.` : ''}</p>`
+    : (D.assets || []).some(x => x.life > 0) ? `<p class="balcheck ok" style="margin:0 0 18px">Depreciation is booked${booked.length ? ` through ${monthLabel(booked[booked.length - 1])}` : ''}.</p>` : '';
+  return pageHead('assets', 'The company’s equipment, vehicles, buildings and improvements: what each cost, its accounts, and its straight-line depreciation. Depreciation is booked once a month as a journal entry.', acts)
+    + status + `<div id="list">${assetList()}</div>`;
+}
+function assetList() {
+  const xs = (D.assets || []).slice().sort((a, b) => a.no.localeCompare(b.no)), today = defaultDate();
+  if (!xs.length) return `<div class="empty"><b>No fixed assets yet</b>${canBooks('journal.edit') ? `Add each asset the company owns: what it cost, when, and how long it lasts. ${btn('new-asset', 'Add asset', 'sm')}` : ''}</div>`;
+  const nbv = x => x.disposedOn && x.disposedOn <= today ? 0 : round2(x.cost - depOnBooks(x));
+  const st = x => x.disposedOn ? pill('Disposed') + `<span class="sub">${fdate(x.disposedOn)}</span>` : !(x.life > 0) ? '<span class="hint">Not depreciated</span>' : depOnBooks(x) >= depBase(x) ? pill('Fully depreciated') : '';
+  return table([
+    { h: 'Asset', k: x => `<b>${esc(x.no)}</b> ${esc(x.desc)}<span class="sub">Acquired ${fdate(x.acquired)}${x.dept ? ` · ${esc(x.dept)}` : ''}</span>` },
+    { h: 'Account', k: x => `${esc(acctName(x.acct))}${x.life > 0 ? `<span class="sub">${x.life} months${x.life % 12 === 0 ? ` (${x.life / 12} yr)` : ''} from ${monthLabel(ymOf(x.start))}</span>` : ''}` },
+    { h: 'Cost', num: 1, k: x => money(x.cost) },
+    { h: 'Monthly', num: 1, k: x => x.life > 0 && !x.disposedOn ? money(depMonthly(x)) : '' },
+    { h: 'Accumulated', num: 1, k: x => x.disposedOn ? '' : money(depOnBooks(x)) },
+    { h: 'Book value', num: 1, k: x => x.disposedOn ? '' : `<b>${money(nbv(x))}</b>` },
+    { h: 'Status', k: st },
+    { h: '', k: x => rowActs([canBooks('journal.edit') && !x.disposedOn && ['edit-asset', x.id, 'Edit'], canBooks('journal.edit') && !x.disposedOn && ['dispose-asset', x.id, 'Dispose']]) }
+  ], xs, '', `<tfoot><tr><td>${xs.filter(x => !x.disposedOn).length} in use</td><td></td><td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(x => x.cost)))}</td><td></td>
+    <td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(depOnBooks)))}</td><td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(nbv)))}</td><td></td><td></td></tr></tfoot>`, x => x.disposedOn ? 'void' : '');
+}
+/* The accounts an asset usually takes: accumulated depreciation with the same last three digits (150-040 → 159-040),
+   and amortization for leasehold improvements, depreciation for everything else. */
+const pairAccum = id => { const a = acct(id) || {}, tail = (a.code || '').slice(4); return (accumAccts().find(x => tail && (x.code || '').slice(4) === tail) || {}).id || ''; };
+const pairExp = id => { const a = acct(id) || {}, lease = /leasehold/i.test(a.name || ''); const pick = re => (expAccts().find(x => re.test(x.name)) || {}).id; return (lease && pick(/amortization/i)) || pick(/depreciation/i) || ''; };
+const nextAssetNo = () => { let n = 0; (D.assets || []).forEach(x => { const m = /^FA-(\d+)$/.exec(x.no); if (m) n = Math.max(n, Number(m[1])); }); return `FA-${pad(n + 1, 3)}`; };
+function assetForm(id) {
+  const x0 = id ? assetOf(id) : null, edit = !!x0, hub = D.switchOpening.date || '';
+  const x = edit ? { ...x0 } : { no: nextAssetNo(), desc: '', acct: '', accum: '', exp: '', dept: '', acquired: defaultDate(), cost: '', salvage: 0, life: 60, start: '', before: 0, notes: '' };
+  const onBooks = edit ? depOnBooks(x0) : 0;
+  const body = `<div class="vform"><div class="section"><div class="fields">
+      ${F('fa-no', 'Asset no.', inp('fa-no', x.no))}${F('fa-acq', 'Acquired on', inp('fa-acq', x.acquired, 'date'))}
+      ${F('fa-desc', 'Description', inp('fa-desc', x.desc, 'text', 'placeholder="e.g. Forklift, Toyota 2.5T"'), 'full')}
+      ${F('fa-acct', 'Asset account', `<select id="fa-acct">${acctOptions(x.acct, assetAccts())}</select>`, 'span2')}
+      ${F('fa-cost', 'Cost (₱)', inp('fa-cost', x.cost, 'number', 'step="0.01" min="0" inputmode="decimal"'))}${F('fa-salv', 'Salvage value (₱)', inp('fa-salv', x.salvage || 0, 'number', 'step="0.01" min="0" inputmode="decimal"'))}
+    </div></div>
+    <div class="section"><h3>Depreciation</h3><div class="fields">
+      ${F('fa-life', 'Useful life, in months', inp('fa-life', x.life || 0, 'number', 'step="1" min="0" inputmode="numeric"'))}${F('fa-start', 'Starts in the month of', inp('fa-start', x.start || '', 'date'))}
+      ${F('fa-accum', 'Accumulated depreciation account', `<select id="fa-accum">${acctOptions(x.accum, accumAccts())}</select>`, 'span2')}
+      ${F('fa-exp', 'Expense account', `<select id="fa-exp">${acctOptions(x.exp, expAccts())}</select>`, 'span2')}
+      ${F('fa-dept', 'Department', `<select id="fa-dept">${deptOptions(x.dept)}</select>`, 'span2')}
+      <div id="fa-pre-wrap" class="span2">${F('fa-pre', `Depreciated before the hub, to ${hub ? fdate(hub) : 'its start'} (₱)`, inp('fa-pre', x.before || 0, 'number', 'step="0.01" min="0" inputmode="decimal"'))}</div>
+    </div><p class="hint" id="fa-note" style="margin-top:8px"></p></div>
+    <div class="section" style="margin-bottom:0">${F('fa-notes', 'Notes (optional)', `<textarea id="fa-notes">${esc(x.notes || '')}</textarea>`)}</div></div>`;
+  const read = () => Object.assign(x, { no: val('fa-no'), acquired: val('fa-acq'), desc: val('fa-desc'), acct: val('fa-acct'), cost: numIn(val('fa-cost')), salvage: numIn(val('fa-salv')) || 0, life: Math.round(numIn(val('fa-life')) || 0),
+    start: val('fa-start') ? `${val('fa-start').slice(0, 7)}-01` : '', accum: val('fa-accum'), exp: val('fa-exp'), dept: val('fa-dept'), before: numIn(val('fa-pre')) || 0, notes: document.getElementById('fa-notes').value.trim() });
+  const update = () => {
+    read();
+    const preOn = !!hub && x.acquired && x.acquired < hub; document.getElementById('fa-pre-wrap').hidden = !preOn; if (!preOn) x.before = 0;
+    const m = depMonthly(x);
+    document.getElementById('fa-note').textContent = !(x.life > 0) ? 'Not depreciated: land, or anything that doesn’t wear out.'
+      : x.cost > 0 ? `${peso(m)} a month for ${x.life} months${x.life % 12 === 0 ? ` (${x.life / 12} years)` : ''}, ${peso(depBase(x))} in all.${edit && onBooks ? ` ${peso(onBooks)} is on the books already; a change is caught up in the next month booked.` : ''}` : '';
+  };
+  openModal(edit ? `Edit ${esc(x0.no)}` : 'Add a Fixed Asset', body, () => {
+    read();
+    if (!x.no) return 'Enter the asset no.';
+    if ((D.assets || []).some(a => a.id !== id && a.no.toLowerCase() === x.no.toLowerCase())) return `Asset no. ${x.no} is already on the register.`;
+    if (!x.desc) return 'Enter the description.';
+    if (!x.acquired) return 'Enter the date acquired.';
+    if (!x.acct) return 'Choose the asset account.';
+    if (!(x.cost > 0)) return 'Enter the cost, more than zero.';
+    if (x.salvage < 0 || x.salvage >= x.cost) return 'The salvage value must be zero or more, and less than the cost.';
+    if (x.life < 0) return 'The useful life can’t be negative.';
+    if (x.life > 0) {
+      if (!x.start) return 'Enter the month depreciation starts in.';
+      if (ymOf(x.start) < ymOf(x.acquired)) return 'Depreciation can’t start before the asset was acquired.';
+      if (!x.accum) return 'Choose the accumulated depreciation account.';
+      if (!x.exp) return 'Choose the expense account.';
+      if (!x.dept && needsDept(x.exp)) return 'Choose the department its depreciation is charged to.';
+    }
+    if (x.before < 0 || x.before > depBase(x)) return 'Depreciated before the hub must be between zero and the cost less the salvage value.';
+    const rec = { no: x.no, desc: x.desc, acct: x.acct, accum: x.life > 0 ? x.accum : '', exp: x.life > 0 ? x.exp : '', dept: x.life > 0 ? x.dept : '', acquired: x.acquired, cost: round2(x.cost), salvage: round2(x.salvage), life: x.life,
+      start: x.life > 0 ? x.start : '', before: round2(x.before), disposedOn: edit ? x0.disposedOn : '', notes: x.notes };
+    return save('saveAsset', () => { if (edit) Object.assign(assetOf(id), rec); else { D.assets = D.assets || []; D.assets.push({ id: nextId('f'), ...rec }); } }, () => toast(`${x.no} saved`));
+  }, 'Save', { size: 'wide', onOpen: () => {
+    const m = modalEl();
+    m.addEventListener('input', update);
+    m.addEventListener('change', e => {
+      if (e.target.id === 'fa-acct') { const a = val('fa-acct'); if (!val('fa-accum')) document.getElementById('fa-accum').value = pairAccum(a); if (!val('fa-exp')) document.getElementById('fa-exp').value = pairExp(a); }
+      if (e.target.id === 'fa-acq' && !val('fa-start') && val('fa-acq')) { const n = new Date(val('fa-acq') + 'T00:00'); n.setDate(1); n.setMonth(n.getMonth() + 1); document.getElementById('fa-start').value = `${n.getFullYear()}-${pad(n.getMonth() + 1, 2)}-01`; }
+      update();
+    });
+    if (!edit) { const n = new Date(x.acquired + 'T00:00'); n.setDate(1); n.setMonth(n.getMonth() + 1); document.getElementById('fa-start').value = `${n.getFullYear()}-${pad(n.getMonth() + 1, 2)}-01`; }
+    update(); document.getElementById('fa-desc').focus();
+  } });
+}
+/* Book the oldest month not yet booked: one entry, dated the month's last day. */
+function bookDepreciation() {
+  const due = depDue();
+  if (!due.length) { toast('Depreciation is booked through this month.'); return; }
+  const d = due[0], date = eom(d.m);
+  if (isLocked(date)) { toast(`${monthLabel(d.m)} is locked. Unlock it on Monthly Summary to book its depreciation.`, true); return; }
+  const rows = d.lines.map(l => `<tr><td><b>${esc(l.x.no)}</b> ${esc(l.x.desc)}<span class="sub">${esc(acctName(l.x.exp))}${l.x.dept ? ` · ${esc(l.x.dept)}` : ''}</span></td><td class="num">${money(l.amount)}</td></tr>`).join('');
+  const body = `<p class="lead">One journal entry dated ${fdate(date)}: each asset’s expense debited, its accumulated depreciation credited.${d.lines.some(l => Math.abs(l.amount - depMonthly(l.x)) >= 0.005) ? ' Some amounts differ from a month’s share: an asset added or changed late is caught up here.' : ''}</p>
+    <div class="tbl-wrap"><table class="compact"><thead><tr><th>Asset</th><th class="num">Depreciation</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td class="num">${peso(d.total)}</td></tr></tfoot></table></div>`;
+  openModal(`Book ${monthLabel(d.m)}`, body, () => {
+    const no = suggestJe(date, 'JE'), entry = [];
+    d.lines.forEach(l => { const a = Math.abs(l.amount), up = l.amount > 0, memo = `${assetTag(l.x)} ${l.x.desc}`;
+      entry.push({ acct: l.x.exp, memo, dr: up ? a : 0, cr: up ? 0 : a, dept: l.x.dept || '' }, { acct: l.x.accum, memo, dr: up ? 0 : a, cr: up ? a : 0, dept: '' }); });
+    return save('saveJournal', () => {
+      D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: '', memo: DEP_MEMO(d.m), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '', entry,
+        reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
+    }, () => toast(`${no} saved: depreciation for ${monthLabel(d.m)}`));
+  }, 'Book it', { size: 'mid' });
+}
+/* Disposing: sold or written off. The month before is depreciated first; the entry takes the cost and its
+   accumulated depreciation off the books, records what came in, and the difference is a gain or a loss. */
+const gainAcct = () => (D.accounts.find(a => a.code === '810-040') || D.accounts.find(a => /gain.*(sale|dispos)/i.test(a.name)) || {}).id || '';
+function disposeAsset(id) {
+  const x = assetOf(id); if (!x || x.disposedOn) return;
+  const cashList = bankAccounts().filter(a => bankCur(a.id) === 'PHP');
+  const body = `<p class="lead">Sold, scrapped or lost. The entry takes ${esc(x.no)}’s cost and its accumulated depreciation off the books, records anything received, and books the difference as a gain or a loss.</p>
+    <div class="fields">${F('dx-date', 'Date', inp('dx-date', defaultDate(), 'date'))}${F('dx-amt', 'Received for it (₱)', inp('dx-amt', '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00 if scrapped"'))}
+      ${F('dx-into', 'Received into', `<select id="dx-into">${cashList.map(a => opt(a.id, acctLabel(a), cashOnHand())).join('')}</select>`, 'span2')}
+      ${F('dx-gl', 'Gain or loss account', `<select id="dx-gl">${acctOptions(gainAcct(), sortAccounts(D.accounts.filter(a => ['Other Income', 'Other Expense', 'Income', 'Expense'].includes(a.type) && a.active)))}</select>`, 'span2')}
+      ${F('dx-why', 'Why (kept on the entry)', inp('dx-why', '', 'text', 'placeholder="e.g. Sold to J. Cruz; scrapped after flood damage"'), 'full')}</div>
+    <div class="entry" id="dx-entry" style="margin-top:16px"></div>`;
+  const calc = () => {
+    const date = val('dx-date'), got = round2(numIn(val('dx-amt')) || 0), acc = x.life > 0 ? depOnBooks(x) : 0, nbv = round2(x.cost - acc), gl = round2(got - nbv);
+    const e = [x.life > 0 && acc ? { acct: x.accum, memo: assetTag(x), dr: acc, cr: 0 } : null, got ? { acct: val('dx-into'), memo: assetTag(x), dr: got, cr: 0 } : null,
+      gl < 0 ? { acct: val('dx-gl'), memo: 'Loss on disposal', dr: -gl, cr: 0 } : null, { acct: x.acct, memo: assetTag(x), dr: 0, cr: x.cost }, gl > 0 ? { acct: val('dx-gl'), memo: 'Gain on disposal', dr: 0, cr: gl } : null].filter(Boolean);
+    return { date, got, acc, nbv, gl, e };
+  };
+  const show = () => { const c = calc(); document.getElementById('dx-entry').innerHTML = `<p class="hint" style="margin-bottom:8px">Book value ${peso(c.nbv)}: cost ${peso(x.cost)} less ${peso(c.acc)} depreciated. ${c.gl > 0 ? `Gain ${peso(c.gl)}.` : c.gl < 0 ? `Loss ${peso(-c.gl)}.` : 'No gain or loss.'}</p>` + entryTable(c.e); };
+  openModal(`Dispose of ${esc(x.no)}`, body, () => {
+    const c = calc(), why = val('dx-why');
+    if (!c.date) return 'Enter the date.';
+    if (!inYear(c.date)) return yearMsg(c.date);
+    if (isLocked(c.date)) return lockedMsg();
+    if (c.date < x.acquired) return 'The date can’t be before the asset was acquired.';
+    const owing = depDue().filter(d => d.m < ymOf(c.date) && d.lines.some(l => l.x.id === x.id));
+    if (owing.length) return `Book the depreciation for ${monthLabel(owing[0].m)} first, so ${x.no} is depreciated up to the month it goes.`;
+    if (c.gl && !val('dx-gl')) return 'Choose the gain or loss account.';
+    if (!why) return 'Enter why, so the entry says what happened.';
+    const no = suggestJe(c.date, 'JE');
+    return save('saveJournal', () => {
+      D.journals.push({ id: nextId('j'), no, date: c.date, kind: 'Entry', name: '', memo: `Disposal of ${assetTag(x)} ${x.desc}: ${why}`, from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '',
+        entry: c.e.map(l => ({ ...l, dept: '' })), reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
+      assetOf(id).disposedOn = c.date;
+    }, () => toast(`${no} saved. ${x.no} is off the register.`));
+  }, 'Dispose', { size: 'wide', danger: true, onOpen: () => { const m = modalEl(); ['input', 'change'].forEach(ev => m.addEventListener(ev, show)); show(); } });
+}
+
+/* ---------- Books: health ----------
+   The tie-outs an auditor runs, every time the page opens: each detail list against the account it should equal,
+   every entry balanced, the bank reconciled, depreciation booked, suspense cleared. Red is a number that doesn't
+   tie; amber is housekeeping that's due. Each one says where to look. */
+function balancesAt(asOf) {
+  const b = {};
+  Object.entries(D.acctBefore || {}).forEach(([id, x]) => { b[id] = round2((b[id] || 0) + (x.php || 0)); });
+  journal().forEach(d => { if (d.date > asOf) return; d.lines.forEach(l => { b[l.acct] = round2((b[l.acct] || 0) + (l.dr || 0) - (l.cr || 0)); }); });
+  return b;
+}
+function healthChecks(asOf) {
+  const out = [], bal = balancesAt(asOf), B = id => bal[id] || 0, near = (a, b) => Math.abs(round2(a - b)) < 0.005;
+  const tie = (o) => out.push({ ...o, state: o.state || (o.rows.every(r => near(r[1], r[2])) ? 'ok' : 'off') });
+  const switchYear = D.switchOpening.date && D.switchOpening.date.slice(0, 4) === String(YEAR);
+  const obOn = id => switchYear && (D.switchOpening.lines || []).some(l => l.acct === id && (l.dr || l.cr));
+  const obNote = ids => ids.some(obOn) ? ' Part of a difference here can be the opening balance typed in from QuickBooks before its open items were brought in.' : '';
+  // entries balance, and so does the whole
+  const docs = journal().filter(d => d.date <= asOf), bad = docs.filter(d => !near(sum(d.lines.map(l => l.dr || 0)), sum(d.lines.map(l => l.cr || 0))));
+  out.push({ key: 'entries', title: 'Every entry balances', state: bad.length ? 'off' : 'ok', page: 'journal',
+    text: bad.length ? `${bad.length} entr${bad.length === 1 ? 'y doesn’t' : 'ies don’t'}: ${bad.slice(0, 6).map(d => d.ref).join(', ')}. Report it before saving anything else.` : `${docs.length} entries; in each, the debits equal the credits.` });
+  const net = round2(sum(Object.values(bal)));
+  out.push({ key: 'tb', title: 'The trial balance balances', state: near(net, 0) ? 'ok' : 'off', page: 'reports',
+    text: near(net, 0) ? 'Total debits equal total credits, so the balance sheet balances.' : `Debits and credits are ${peso(Math.abs(net))} apart. Report it before saving anything else.` });
+  // payables: unpaid bills less open debit memos, by payables account
+  const apIds = [...new Set([D.control.apTrade, D.control.apOther].concat(D.bills.map(b => b.apAccount)).filter(Boolean))];
+  const apSub = {}; D.bills.filter(b => b.date <= asOf && liveAt(b, asOf)).forEach(b => { const n = (isMemo(b) ? -1 : 1) * pesoOf(b, billBalance(b, null, asOf)); apSub[b.apAccount] = round2((apSub[b.apAccount] || 0) + n); });
+  tie({ key: 'ap', title: 'Unpaid bills equal Accounts Payable', page: 'bills', rows: apIds.map(id => [id, apSub[id] || 0, -B(id)]),
+    text: 'What’s still owed on each bill, less debit memos not yet used, against the payables accounts.' + obNote(apIds) });
+  // receivables
+  const arIds = [...new Set([D.control.ar].concat((D.invoices || []).map(i => i.arAccount)).filter(Boolean))];
+  const arSub = {}; (D.invoices || []).filter(i => i.date <= asOf && liveAt(i, asOf)).forEach(i => { const n = (isMemo(i) ? -1 : 1) * invBalance(i, null, asOf); arSub[i.arAccount] = round2((arSub[i.arAccount] || 0) + n); });
+  tie({ key: 'ar', title: 'Unpaid invoices equal Accounts Receivable', page: 'invoices', rows: arIds.map(id => [id, arSub[id] || 0, B(id)]),
+    text: 'What customers still owe on each invoice, less credit memos not yet used, against the receivables account.' + obNote(arIds) });
+  // undeposited funds
+  if (D.control.undeposited) {
+    const und = round2(sum((D.collections || []).filter(c => toDeposit(c) && c.date <= asOf && liveAt(c, asOf)).map(c => round2(c.amount - settledOn('col', c, null, asOf)))));
+    tie({ key: 'undep', title: 'Checks and cash on hand equal Undeposited Funds', page: 'collections', rows: [[D.control.undeposited, und, B(D.control.undeposited)]],
+      text: 'Collections received as checks or cash and not yet on a deposit slip, against Undeposited Funds.' + obNote([D.control.undeposited]) });
+  }
+  // employee advances and goods in transit, by name and by shipment
+  const tags = tagBalances(asOf);
+  if (D.control.advances) {
+    const emp = round2(sum(Object.entries(tags).filter(([t]) => contact(t)).map(([, n]) => n)));
+    tie({ key: 'adv', title: 'Advances by employee equal Advances - Employees', page: 'advances', rows: [[D.control.advances, emp, B(D.control.advances)]],
+      text: 'Each employee’s advances not yet liquidated, against the account. A difference is an amount on the account that isn’t charged to an employee.' });
+  }
+  const transit = transitIds().filter(id => acct(id));
+  if (transit.length) {
+    const ship = round2(sum(Object.entries(tags).filter(([t]) => shipmentOf(t)).map(([, n]) => n)));
+    tie({ key: 'git', title: 'Open shipments equal Goods in Transit', page: 'shipments', rows: [['__transit', ship, round2(sum(transit.map(B)))]],
+      text: 'Each shipment’s costs not yet received into inventory, against the goods in transit accounts together.' });
+  }
+  // fixed assets: cost and accumulated depreciation, per account
+  const fa = (D.assets || []).filter(x => x.acquired <= asOf && assetLive(x, asOf)), faIds = [...new Set(D.accounts.filter(a => a.type === 'Fixed Asset').map(a => a.id))];
+  if (fa.length || faIds.some(id => !near(B(id), 0))) {
+    const m = asOf.slice(0, 7), want = {};
+    fa.forEach(x => { want[x.acct] = round2((want[x.acct] || 0) + x.cost); if (x.life > 0) want[x.accum] = round2((want[x.accum] || 0) - depOnBooks(x, asOf)); });
+    tie({ key: 'fa', title: 'The fixed asset register equals the asset accounts', page: 'assets', rows: faIds.filter(id => !near(want[id] || 0, 0) || !near(B(id), 0)).map(id => [id, want[id] || 0, B(id)]),
+      text: 'Each asset account against the cost of the assets on the register, and each accumulated depreciation account against what’s been booked for them (in brackets).' });
+    const due = depDue().filter(d => d.m < asOf.slice(0, 7) || (d.m === asOf.slice(0, 7) && asOf === eom(d.m)));
+    out.push({ key: 'dep', title: 'Depreciation is booked', state: due.length ? 'todo' : 'ok', page: 'assets',
+      text: due.length ? `${due.map(d => monthLabel(d.m)).join(', ')} ${due.length === 1 ? 'isn’t' : 'aren’t'} booked yet: ${peso(sum(due.map(d => d.total)))}.` : 'Every month that has ended is booked.' });
+  }
+  // the bank: reconciled, still tying, not overdrawn
+  const lastEnded = (() => { const d = parseD(asOf); return iso(new Date(d.getFullYear(), d.getMonth(), 0)); })();
+  recBanks().forEach(a => {
+    const r = lastRecon(a.id), stale = (D.recons || []).filter(x => x.bank === a.id && !near(bookBal(a.id, x.date), x.book)), used = journal().some(d => d.date <= asOf && d.lines.some(l => l.acct === a.id));
+    if (!used && !r) return;
+    const st = stale.length ? 'off' : (!r || r.date < lastEnded) && lastEnded >= `${YEAR}-01-01` ? 'todo' : 'ok';
+    out.push({ key: 'rec-' + a.id, title: `${acctName(a.id)} is reconciled`, state: st, page: 'recon',
+      text: stale.length ? `The books changed for a statement already reconciled: ${stale.map(x => fdate(x.date)).join(', ')}. Something dated on or before it was added, edited or voided. Undo and reconcile again, or find the change.`
+        : r ? `Reconciled through ${fdate(r.date)}.${st === 'todo' ? ` The ${fdate(lastEnded)} statement is next.` : ''}` : 'Not reconciled yet. Start with the first statement of the year.' });
+    if (B(a.id) < -0.004) out.push({ key: 'neg-' + a.id, title: `${acctName(a.id)} isn’t overdrawn`, state: 'off', page: 'recon', text: `The books show ${peso(B(a.id))} on ${fdate(asOf)}. A check or transfer is likely dated before the money came in, or an entry went to the wrong account.` });
+  });
+  // petty cash: between nothing and the fund amount
+  funds().forEach(a => {
+    const f = fundOf(a.id), n = B(a.id);
+    if (n < -0.004 || n > f.amount + 0.004) out.push({ key: 'pc-' + a.id, title: `${acctName(a.id)} is within its fund`, state: 'off', page: 'petty', text: `On hand per the books: ${peso(n)}, against a fund of ${peso(f.amount)}. Petty cash can’t be below zero or above the fund.` });
+  });
+  // suspense
+  D.accounts.filter(a => /^149/.test(a.code || '') || /suspense/i.test(a.name)).forEach(a => {
+    out.push({ key: 'sus-' + a.id, title: `${acctName(a.id)} is cleared`, state: near(B(a.id), 0) ? 'ok' : 'todo', page: 'gj',
+      text: near(B(a.id), 0) ? 'Nothing left waiting to be sorted.' : `${peso(B(a.id))} is still waiting. Move it to the right accounts with a journal entry before the month is locked.` });
+  });
+  // months closed
+  const lockTo = D.lockedThrough || '', ended = lastEnded >= `${YEAR}-01-01` ? lastEnded : '';
+  if (ended) out.push({ key: 'lock', title: 'Months are locked once closed', state: lockTo >= ended ? 'ok' : 'todo', page: 'summary',
+    text: lockTo >= ended ? `Locked through ${fdate(lockTo)}.` : `${lockTo ? `Locked through ${fdate(lockTo)}. ` : 'No months locked yet. '}When ${monthLabel(ended.slice(0, 7))} is reviewed, lock it on Monthly Summary so nothing in it changes.` });
+  return out;
+}
+const HEALTH_PILL = { ok: ['Ties', 'p-cleared'], off: ['Doesn’t tie', 'p-tie-off'], todo: ['To do', 'p-tie-todo'] };
+function healthPage() {
+  const ends = yearMonths().slice(1).map(m => eom(m)), asOf = S.ha && (S.ha === defaultDate() || ends.includes(S.ha)) ? S.ha : defaultDate();
+  return pageHead('health', 'The checks an auditor runs, done every time this page opens: each detail list against its account, every entry balanced, the bank reconciled, depreciation booked.')
+    + `<div class="toolbar"><label class="rp-l" style="font:700 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--green7)">As of</label><select id="ha" aria-label="As of">${opt(defaultDate(), `Today, ${fdate(defaultDate())}`, asOf)}${ends.map(d => opt(d, `End of ${monthLabel(d.slice(0, 7))}`, asOf)).join('')}</select></div>
+    <div id="list">${healthBody(asOf)}</div>`;
+}
+function healthBody(asOf) {
+  asOf = asOf || S.ha || defaultDate();
+  const cs = healthChecks(asOf), off = cs.filter(c => c.state === 'off').length, todo = cs.filter(c => c.state === 'todo').length;
+  const head = off ? `<p class="balcheck bad">${off} check${off === 1 ? '' : 's'} ${off === 1 ? 'doesn’t' : 'don’t'} tie${todo ? `, and ${todo} thing${todo === 1 ? '' : 's'} to do` : ''}.</p>`
+    : todo ? `<p class="warnline">Everything ties. ${todo} thing${todo === 1 ? '' : 's'} to do.</p>` : '<p class="balcheck ok">Everything ties, and nothing is due.</p>';
+  const lbl = id => id === '__transit' ? 'Goods in transit accounts' : acctName(id);
+  const card = c => `<section class="card hc hc-${c.state}"><div class="hc-top"><h3>${esc(c.title)}</h3><span class="pill ${HEALTH_PILL[c.state][1]}">${c.state === 'ok' && !(c.rows && c.rows.length) ? 'OK' : HEALTH_PILL[c.state][0]}</span></div>
+    <p class="hint" style="margin:6px 0 ${c.rows && c.rows.length ? 12 : 0}px">${esc(c.text)}</p>
+    ${c.rows && c.rows.length ? `<div class="tbl-wrap"><table class="compact"><thead><tr><th>Account</th><th class="num">Detail</th><th class="num">Books</th><th class="num">Difference</th></tr></thead><tbody>${c.rows.map(([id, a, b]) => `<tr><td>${esc(lbl(id))}</td><td class="num">${money(a)}</td><td class="num">${money(b)}</td><td class="num">${Math.abs(round2(a - b)) < 0.005 ? '–' : `<b>${money(round2(a - b))}</b>`}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${c.state !== 'ok' && c.page && allowedPage(c.page) ? `<p style="margin-top:12px">${btn('nav', `Go to ${labelOf(c.page)}`, 'link sm', c.page)}</p>` : ''}</section>`;
+  const order = { off: 0, todo: 1, ok: 2 };
+  return head + `<div class="hc-grid">${cs.slice().sort((a, b) => order[a.state] - order[b.state]).map(card).join('')}</div>`;
+}
+const allowedPage = id => NAV.flatMap(g => g.items).some(n => n.id === id && allowed(n));
+
 function budgetsPage() {
   const depts = D.departments || [], sel = depts.some(d => d.name === S.bd) ? S.bd : '';
   const acts = canBooks('budgets.edit') && D.hasDepartments ? `${btn('departments', 'Departments', 'ghost')}${depts.length ? btn('edit-budget', sel ? `Set ${esc(sel)} budget` : 'Set a budget', '', sel) : ''}` : '';
@@ -5361,8 +5908,8 @@ async function historyOf(id) {
 }
 
 /* ---------- Wiring ---------- */
-const PAGES = { reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
-const LISTS = { reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+const PAGES = { recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
+const LISTS = { recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
 const go = (page, fromHistory) => {
   document.body.classList.remove('nav-open');
   const changed = page !== S.page;
@@ -5400,6 +5947,13 @@ const ACT = {
   'void-pcv': id => voidPcv(id),
   'new-liq': () => liqForm(),
   liquidate: id => liqForm(null, id),
+  reconcile: id => reconForm(id),
+  'view-recon': id => viewRecon(id),
+  'undo-recon': id => undoRecon(id),
+  'new-asset': () => assetForm(),
+  'edit-asset': id => assetForm(id),
+  'dispose-asset': id => disposeAsset(id),
+  'book-dep': () => bookDepreciation(),
   'pay-owner': id => payOwnerBack(id),
   'rp-kind': id => { rpState().kind = id; refreshMain(); },
   'rp-xlsx': () => rpXlsx(),
@@ -5447,8 +6001,8 @@ const ACT = {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
   'void-voucher': id => voidVoucher(id),
-  'clear-one': id => { const v = voucher(id); openModal(`Mark ${esc(v.checkNo)} Cleared`, F('m-cd', 'Cleared on (date on the bank statement)', inp('m-cd', todayIso(), 'date')), () => { const d = val('m-cd'); if (!d) return 'Enter the date.'; if (d < v.checkDate) return 'A check can’t clear before its date.'; return markCleared(id, d); }, 'Mark cleared'); },
-  unclear: id => saveNow('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')),
+  'clear-one': id => { const v = voucher(id), lr = lastRecon(vBank(v)); openModal(`Mark ${esc(v.checkNo)} Cleared`, F('m-cd', 'Cleared on (date on the bank statement)', inp('m-cd', todayIso(), 'date')), () => { const d = val('m-cd'); if (!d) return 'Enter the date.'; if (d < v.checkDate) return 'A check can’t clear before its date.'; if (lr && d <= lr.date) return `${acctName(vBank(v))} is reconciled through ${fdate(lr.date)}. A check that cleared by then belongs on that reconciliation: undo it and reconcile again.`; return markCleared(id, d); }, 'Mark cleared'); },
+  unclear: id => { const v = voucher(id), lr = lastRecon(vBank(v)); if (lr && v.clearedOn <= lr.date) { toast(`Check ${v.checkNo} is on the ${fdate(lr.date)} bank reconciliation. Undo that reconciliation first.`, true); return; } saveNow('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')); },
   'new-account': () => accountForm(),
   'edit-account': id => accountEditForm(id),
   'download-chart': () => downloadChart(),
@@ -5556,6 +6110,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'sf') { S.sf = t.value; relist(); }
   else if (t.id === 'cf') { S.cf = t.value; refreshMain(); }
   else if (t.id === 'sm') { S.sm = t.value; refreshMain(); }
+  else if (t.id === 'ha') { S.ha = t.value; refreshMain(); }
   else if (/^rp-(per|cmp|m|q|from|to)$/.test(t.id)) { const r = rpState(), k = t.id.slice(3); r[k] = k === 'per' || k === 'cmp' ? t.value : Number(t.value); refreshMain(); }
   else if (t.id === 'yr') switchYear(t.value);
   else if (t.id === 'cr') { S.cr = t.value; refreshMain(); }

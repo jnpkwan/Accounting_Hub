@@ -448,7 +448,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.13';
+const APP_VERSION = '3.14';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
@@ -4348,7 +4348,7 @@ function staffPage() {
   return pageHead(petty ? 'petty' : 'advances', petty ? 'Each custodian’s petty cash fund, and the vouchers paid out of it. A check from the bank, or an owner out of pocket, refills what was spent.'
     : 'Release cash to an employee, then liquidate it when they come back with receipts and the change. Until then it’s on their name as an advance.', acts)
     + `<div class="toolbar"><input id="q" type="search" placeholder="${petty ? 'Search PCV no., paid to, particulars' : 'Search employee, LQ no., particulars'}" value="${esc(S.q)}" aria-label="Search"></div>
-    ${petty ? fundStrip() + ownerStrip() : ''}<div id="list">${staffList()}</div>`;
+    ${petty ? fundStrip() + ownerStrip('refill') : ''}<div id="list">${staffList()}</div>${petty ? '' : `<div style="margin-top:32px">${ownerStrip('advance')}</div>`}`;
 }
 function fundStrip() {
   const fs = funds();
@@ -4437,6 +4437,8 @@ function replenishByCheck(id, amount) {
    knows that refill is settled. Recording one needs the journal permission. */
 const OWNER_MEMO = owner => `Petty cash refilled by ${owner}, out of pocket`;
 const OWNER_RE = /^Petty cash refilled by (.+), out of pocket$/;
+const ADV_MEMO = (emp, owner, part) => `Cash advance to ${emp}, paid by ${owner} out of pocket: ${part}`;
+const ADV_RE = /^Cash advance to (.+), paid by (.+) out of pocket: /;
 const ownerAcctDefault = () => (D.accounts.find(a => a.code === '240-010') || D.accounts.find(a => /stockholder|owner/i.test(a.name) && /liabilit|Equity/.test(stmtOf(a.type)[1])) || {}).id || '';
 const ownerAccts = () => sortAccounts(D.accounts.filter(a => a.active && /liabilities|Equity/.test(stmtOf(a.type)[1]) && a.id !== D.control.apTrade && a.id !== D.control.apOther));
 function replenish(id) {
@@ -4472,29 +4474,33 @@ function replenish(id) {
 }
 /* Refills by owners this year, what's been paid back on each (check voucher lines on the same account that name the
    entry), and what's still owed. */
-function ownerRefills() {
-  return (D.journals || []).filter(j => j.kind === 'Entry' && live(j) && OWNER_RE.test(j.memo || '')).map(j => {
-    const cr = (j.entry || []).find(l => l.cr > 0) || {}, dr = (j.entry || []).find(l => l.dr > 0) || {}, amount = round2(cr.cr || 0);
+function ownerItems(kind) {
+  const re = kind === 'advance' ? ADV_RE : OWNER_RE;
+  return (D.journals || []).filter(j => j.kind === 'Entry' && live(j) && re.test(j.memo || '')).map(j => {
+    const cr = (j.entry || []).find(l => l.cr > 0) || {}, dr = (j.entry || []).find(l => l.dr > 0) || {}, amount = round2(cr.cr || 0), m = j.memo.match(re);
     const paid = round2(sum(D.vouchers.filter(live).flatMap(v => (v.lines || []).filter(l => l.accountId === cr.acct && String(l.desc || '').includes(j.no)).map(l => numIn(l.amount)))));
-    return { j, owner: j.memo.match(OWNER_RE)[1], fund: dr.acct, due: cr.acct, amount, paid, owed: round2(amount - paid) };
+    return { j, kind, owner: j.name || (kind === 'advance' ? m[2] : m[1]), fund: dr.acct, emp: kind === 'advance' ? ((contact(dr.tag) || {}).name || m[1]) : '', due: cr.acct, amount, paid, owed: round2(amount - paid) };
   }).sort((a, b) => b.j.date.localeCompare(a.j.date));
 }
+const ownerRefills = () => ownerItems('refill');
 function payOwnerBack(jeId) {
-  const x = ownerRefills().find(o => o.j.id === jeId);
+  const x = ownerItems('refill').concat(ownerItems('advance')).find(o => o.j.id === jeId);
   if (!x || x.owed <= 0) return;
   const p = contactByName(x.owner) || {};
-  voucherForm({ payeeId: p.id || '', payeeName: p.name || x.owner, tin: p.tin || '', particulars: `Pays back ${x.owner} for petty cash refilled out of pocket on ${fdate(x.j.date)}`,
+  voucherForm({ payeeId: p.id || '', payeeName: p.name || x.owner, tin: p.tin || '', particulars: x.kind === 'advance' ? `Pays back ${x.owner} for the cash advance to ${x.emp} on ${fdate(x.j.date)}` : `Pays back ${x.owner} for petty cash refilled out of pocket on ${fdate(x.j.date)}`,
     lines: [{ accountId: x.due, desc: `Pays back ${x.j.no}`, amount: x.owed.toFixed(2), dept: '', tag: '' }], vatable: false, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '',
     cv: '', date: defaultDate(), checkDate: defaultDate(), checkNo: '', bills: [], method: 'Check', bankAcct: D.control.bank, charges: '' });
 }
-function ownerStrip() {
-  const xs = ownerRefills();
+/* What the company owes owners for paying out of their own pockets: petty cash refills on Petty Cash, cash advances
+   on Cash Advances. */
+function ownerStrip(kind = 'refill') {
+  const xs = ownerItems(kind), adv = kind === 'advance';
   if (!xs.length) return '';
   const owed = round2(sum(xs.map(x => Math.max(x.owed, 0))));
   return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Owed to Owners <span class="hint" style="font-weight:400">${owed ? `${peso(owed)} still to pay back` : 'all paid back'}</span></h2>${table([
-    { h: 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(acctName(x.fund))}</span>` },
+    { h: adv ? 'Advance' : 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(adv ? x.emp : acctName(x.fund))}</span>` },
     { h: 'Owner', k: x => `${esc(x.owner)}<span class="sub">${esc(acctName(x.due))}</span>` },
-    { h: 'Refilled', num: 1, k: x => money(x.amount) },
+    { h: adv ? 'Advanced' : 'Refilled', num: 1, k: x => money(x.amount) },
     { h: 'Paid back', num: 1, k: x => x.paid ? money(x.paid) : '' },
     { h: 'Still owed', num: 1, k: x => x.owed > 0 ? `<b>${peso(x.owed)}</b>` : pill('Paid') },
     { h: '', k: x => rowActs([x.owed > 0 && canBooks('vouchers.edit') && ['pay-owner', x.j.id, 'Pay back']]) }
@@ -4573,16 +4579,20 @@ function voidPcv(id) {
 }
 /* Releasing an advance: who, how much, what for, and how it's paid. It then opens the check voucher, transfer or
    petty cash voucher filled in (one line on Advances - Employees, charged to the employee) to check and save. */
-const canRelease = () => canBooks('vouchers.edit') || canBooks('transfers.edit') || (canBooks('staff.edit') && funds().length > 0);
+const canRelease = () => canBooks('vouchers.edit') || canBooks('transfers.edit') || canBooks('journal.edit') || (canBooks('staff.edit') && funds().length > 0);
 function releaseForm(empId) {
   const emps = employees();
   if (!emps.length) { toast('Mark the employee as an Employee in Contacts first.', true); return; }
-  const ways = [canBooks('vouchers.edit') && ['cv', 'Check'], canBooks('transfers.edit') && ['pt', 'Bank transfer'], ...(canBooks('staff.edit') ? funds().map(a => ['pc:' + a.id, `Cash from ${acctName(a.id)}`]) : [])].filter(Boolean);
-  const body = `<p class="lead">The employee gets the cash now and brings back receipts and any change later. This fills in the ${ways.length > 1 ? 'voucher' : ways[0][1].toLowerCase() + ' voucher'} for you to check and save.</p>
+  const ways = [canBooks('vouchers.edit') && ['cv', 'Check'], canBooks('transfers.edit') && ['pt', 'Bank transfer'], ...(canBooks('staff.edit') ? funds().map(a => ['pc:' + a.id, `Cash from ${acctName(a.id)}`]) : []),
+    canBooks('journal.edit') && ['owner', 'An owner, out of pocket']].filter(Boolean);
+  const names = [...new Set(D.contacts.map(p => p.name))].sort();
+  const body = `<p class="lead">The employee gets the cash now and brings back receipts and any change later. By check, transfer or petty cash, this fills in the voucher for you to check and save. Paid by an owner, it's recorded as owed to them, to pay back from Owed to Owners on this page.</p>
     <div class="fields">${F('r-emp', 'Employee', `<select id="r-emp">${emps.map(p => opt(p.id, p.name, empId || '')).join('')}</select>`, 'span2')}
       ${F('r-date', 'Date released', inp('r-date', defaultDate(), 'date'))}${F('r-amt', 'Amount (₱)', inp('r-amt', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
       ${F('r-part', 'What it’s for', inp('r-part', '', 'text', 'placeholder="e.g. Sales trip to Cebu, Nov 18 to 21"'), 'full')}
-      ${F('r-how', 'Released by', `<select id="r-how">${ways.map(w => opt(w[0], w[1], '')).join('')}</select>`, 'span2')}</div>`;
+      ${F('r-how', 'Released by', `<select id="r-how">${ways.map(w => opt(w[0], w[1], '')).join('')}</select>`, 'span2')}</div>
+    <div class="fields" id="r-own" style="margin-top:16px" hidden>${F('r-owner', 'Owner', inp('r-owner', '', 'text', 'list="r-names" autocomplete="off" placeholder="Who paid it"') + `<datalist id="r-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>`, 'span2')}
+      ${F('r-acct', 'Owed to them on', `<select id="r-acct">${acctOptions(ownerAcctDefault(), ownerAccts(), 'Choose an account')}</select>`, 'span2')}</div>`;
   openModal('Release a Cash Advance', body, () => {
     const p = contact(val('r-emp')), date = val('r-date'), n = numIn(val('r-amt')), part = val('r-part'), how = val('r-how');
     if (!p) return 'Choose the employee.';
@@ -4592,12 +4602,27 @@ function releaseForm(empId) {
     if (!(n > 0)) return 'Enter the amount released, more than zero.';
     if (!part) return 'Enter what it’s for.';
     const line = { accountId: D.control.advances, desc: 'Cash advance', amount: round2(n).toFixed(2), dept: '', tag: p.id }, particulars = `Cash advance: ${part}`;
+    if (how === 'owner') {
+      const owner = val('r-owner'), due = val('r-acct'), amt = round2(n);
+      if (!owner) return 'Enter the owner who paid it.';
+      if (!due) return 'Choose the account it’s owed on.';
+      const no = suggestJe(date, 'JE');
+      return save('saveJournal', () => {
+        D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: owner, memo: ADV_MEMO(p.name, owner, part), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '',
+          entry: [{ acct: D.control.advances, memo: 'Cash advance', dr: amt, cr: 0, dept: '', tag: p.id }, { acct: due, memo: `Owed to ${owner}`, dr: 0, cr: amt, dept: '' }],
+          reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
+      }, () => toast(`${no} saved. ${p.name} has the advance; ${owner} is owed ${peso(amt)}.`));
+    }
     closeModal();
     if (how.startsWith('pc:')) { pcvForm(null, { date, fund: how.slice(3), paidTo: p.name, particulars, lines: [line] }); return; }
     const pt = how === 'pt';
     (pt ? transferForm : voucherForm)({ payeeId: p.id, payeeName: p.name, tin: p.tin || '', particulars, lines: [line], vatable: false, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '',
       cv: '', date, checkDate: date, checkNo: '', bills: [], method: pt ? 'Transfer' : 'Check', bankAcct: D.control.bank, charges: '' });
-  }, 'Continue', { onOpen: () => document.getElementById(empId ? 'r-amt' : 'r-emp').focus() });
+  }, 'Continue', { onOpen: () => {
+    const show = () => { const own = val('r-how') === 'owner'; document.getElementById('r-own').hidden = !own; document.querySelector('#modal-root [data-act="save-modal"]').textContent = own ? 'Save' : 'Continue'; };
+    document.getElementById('r-how').addEventListener('change', show); show();
+    document.getElementById(empId ? 'r-amt' : 'r-emp').focus();
+  } });
 }
 function liqForm(x0, empId) {
   const edit = !!x0, self = edit ? x0.id : null, emps = employees();

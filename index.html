@@ -37,6 +37,8 @@ h1,h2,h3{font-family:var(--display);color:var(--ink);margin:0}
 tr.more td{text-align:center;color:var(--muted);font-size:12.5px;padding:14px}
 .over{color:#B42318;font-weight:700}
 .field.gone{display:none}
+tr.bsub td{font-size:13.5px;padding-top:6px;padding-bottom:6px}
+.ball tbody tr td,.ball tbody tr:nth-child(even) td{background:#fff}.ball tbody tr.bsub td{background:var(--mist)}.ball tbody tr:not(.bsub):not(:first-child) td{border-top:1px solid var(--silver)}
 .apick{position:relative}.apick>select{position:absolute;inset:0;opacity:0;pointer-events:none}
 .apick-box{text-overflow:ellipsis}.apick-box:not(:focus){cursor:pointer}
 .apick-list{position:fixed;z-index:80;background:#fff;border:1px solid var(--silver);border-radius:10px;box-shadow:var(--lift);overflow-y:auto;padding:4px 0;font-size:14px}
@@ -84,7 +86,10 @@ img.dv-logo{max-width:200px;max-height:60px}
 .ver{opacity:.45}
 .nav a{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.7);text-decoration:none;font:600 14px var(--display);transition:background .2s,color .2s}
 .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
-.nav a.on{background:rgba(255,255,255,.08);color:#fff;box-shadow:inset 3px 0 0 var(--green)}
+.nav a.on{background:transparent;color:#fff}
+.nav{position:relative}.nav a{position:relative;z-index:1}
+.nav-ind{position:absolute;left:0;right:0;top:0;height:0;border-radius:8px;background:rgba(255,255,255,.08);box-shadow:inset 3px 0 0 var(--green);pointer-events:none;transition:transform .32s cubic-bezier(.4,0,.2,1),height .32s cubic-bezier(.4,0,.2,1)}
+@media (prefers-reduced-motion:reduce){.nav-ind{transition:none}}
 .side-foot{margin-top:auto;padding:20px 12px 0;border-top:1px solid rgba(255,255,255,.12);font-size:12.5px;display:flex;flex-direction:column;gap:6px}
 .yr{display:flex;flex-direction:column;gap:6px;padding:0 12px 24px;font:700 10.5px var(--display);letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.42)}
 .yr select{height:38px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);font:700 15px var(--display);letter-spacing:0;text-transform:none}
@@ -340,11 +345,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.8';
+const APP_VERSION = '3.9';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 9;
+const API_NEEDED = 10;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -1356,6 +1361,8 @@ function render() {
   }
   if (!PAGES[S.page] || !NAV.flatMap(g => g.items).some(n => n.id === S.page && allowed(n))) S.page = 'vouchers';
   const cur = NAV.flatMap(g => g.items).find(n => n.id === S.page);
+  // the sidebar is drawn again with the page: keep where it was scrolled to
+  const side0 = app.querySelector('.side'), sideTop = side0 ? side0.scrollTop : null;
   app.innerHTML = `<div class="shell">
     <header class="topbar"><button class="menu-btn" data-act="menu" aria-label="Open the menu"><span></span><span></span><span></span></button>
       <div class="tb-title"><small>${esc(groupOf(S.page))} · ${YEAR}</small><b>${esc(cur ? cur.label : '')}</b></div></header>
@@ -1365,13 +1372,33 @@ function render() {
       <nav class="nav" aria-label="Main">${NAV.map(g => ({ ...g, items: g.items.filter(allowed) })).filter(g => g.items.length).map(g => `<div class="nav-group"><div class="nav-label">${g.group}</div>${g.items.map(n => {
         const on = S.page === n.id;
         return `<a href="#" data-act="nav" data-id="${n.id}" class="${on ? 'on' : ''}" ${on ? 'aria-current="page"' : ''}>${n.label}</a>`;
-      }).join('')}</div>`).join('')}</nav>
+      }).join('')}</div>`).join('')}<span class="nav-ind" aria-hidden="true"></span></nav>
       <div class="side-foot"><span class="who">${esc(ME().name)}</span><span class="role">${esc(ME().role)}</span>
         <button class="lnk" data-act="change-password">Change password</button><button class="lnk" data-act="sign-out">Sign out</button>
         <span class="ver" style="margin-top:8px">Version ${APP_VERSION} · ${HUB_BUILD}</span></div>
     </aside>
     <main class="main" id="main">${yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : ''}${updateLine()}${PAGES[S.page]()}</main></div>`;
+  const side = app.querySelector('.side'); if (side && sideTop != null) side.scrollTop = sideTop;
+  placeNav();
 }
+/* The highlight behind the current page in the sidebar: it slides from the page you were on to the one you
+   picked. It starts where it last was, then moves. */
+let navAt = null;
+function placeNav() {
+  const ind = document.querySelector('.nav-ind'), a = document.querySelector('.nav a.on');
+  if (!ind) return;
+  if (!a) { ind.style.height = '0px'; navAt = null; return; }
+  const to = { y: a.offsetTop, h: a.offsetHeight };
+  if (!navAt) { ind.style.transition = 'none'; ind.style.transform = `translateY(${to.y}px)`; ind.style.height = to.h + 'px'; void ind.offsetHeight; ind.style.transition = ''; navAt = to; return; }
+  if (navAt.y !== to.y || navAt.h !== to.h) {
+    ind.style.transition = 'none'; ind.style.transform = `translateY(${navAt.y}px)`; ind.style.height = navAt.h + 'px';
+    void ind.offsetHeight; // start from the old place before moving
+    ind.style.transition = '';
+  }
+  ind.style.transform = `translateY(${to.y}px)`; ind.style.height = to.h + 'px';
+  navAt = to;
+}
+addEventListener('resize', () => { navAt = null; placeNav(); });
 /* Years with books, this year, and next year from December on. */
 const yearChoices = () => { const t = THIS_YEAR(), ys = new Set([...(D.years || []), t, YEAR]); if (TODAY().getMonth() === 11) ys.add(t + 1); return [...ys].sort((a, b) => b - a); };
 const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + PAGES[S.page](); };
@@ -1440,17 +1467,21 @@ function deptSpent(dept, accountId, exceptId) {
   let m = byEx.get(exceptId || '');
   if (!m) {
     m = {};
-    journal().forEach(d => { if (d.id === exceptId || !d.date.startsWith(String(YEAR)) || d.src === 'ob') return; d.lines.forEach(l => { if (!l.dept) return; const k = String(l.dept).toLowerCase() + '|' + l.acct; m[k] = (m[k] || 0) + (l.dr || 0) - (l.cr || 0); }); });
+    journal().forEach(d => { if (d.id === exceptId || !d.date.startsWith(String(YEAR)) || d.src === 'ob') return; d.lines.forEach(l => { if (!l.dept) return; const k = String(l.dept).toLowerCase() + '|', n = (l.dr || 0) - (l.cr || 0); m[k + l.acct] = (m[k + l.acct] || 0) + n; if (DEPT_TYPES.includes((acct(l.acct) || {}).type)) m[k + '*'] = (m[k + '*'] || 0) + n; }); });
     byEx.set(exceptId || '', m);
   }
   return round2(m[String(dept).toLowerCase() + '|' + accountId] || 0);
 }
 const budgetOf = (dept, accountId) => (D.budgets || []).find(b => b.dept.toLowerCase() === String(dept).toLowerCase() && b.acct === accountId);
-/* Warnings, never blocks: lines that would take a department past its budget for the year. */
+/* A department's budget for the year: the amount set for the whole department (account blank) if there is one,
+   otherwise what its accounts' budgets add up to. */
+const deptBudget = dept => { const w = budgetOf(dept, ''), bs = (D.budgets || []).filter(b => b.dept.toLowerCase() === String(dept).toLowerCase()); return w ? w.amount : bs.length ? round2(sum(bs.map(b => b.amount))) : null; };
+/* Warnings, never blocks: lines that would take a department, or one of its accounts, past its budget for the year. */
 function budgetWarnings(entry, exceptId) {
-  const by = {};
-  entry.forEach(l => { if (!l.dept || !DEPT_TYPES.includes((acct(l.acct) || {}).type)) return; const k = l.dept + '|' + l.acct; by[k] = round2((by[k] || 0) + (l.dr || 0) - (l.cr || 0)); });
-  return Object.entries(by).map(([k, n]) => { const [dept, a] = k.split('|'), b = budgetOf(dept, a); if (!b) return ''; const after = round2(deptSpent(dept, a, exceptId) + n); return after > b.amount ? `${dept} · ${acctName(a)}: ${peso(round2(after - b.amount))} over its ${YEAR} budget of ${peso(b.amount)} with this.` : ''; }).filter(Boolean);
+  const by = {}, whole = {};
+  entry.forEach(l => { if (!l.dept || !DEPT_TYPES.includes((acct(l.acct) || {}).type)) return; const k = l.dept + '|' + l.acct, n = (l.dr || 0) - (l.cr || 0); by[k] = round2((by[k] || 0) + n); whole[l.dept] = round2((whole[l.dept] || 0) + n); });
+  const overall = Object.entries(whole).map(([dept, n]) => { const b = deptBudget(dept); if (b == null) return ''; const after = round2(deptSpent(dept, '*', exceptId) + n); return n > 0 && after > b ? `${dept}: ${peso(round2(after - b))} over its ${YEAR} budget of ${peso(b)} with this.` : ''; });
+  return overall.filter(Boolean).concat(Object.entries(by).map(([k, n]) => { const [dept, a] = k.split('|'), b = budgetOf(dept, a); if (!b) return ''; const after = round2(deptSpent(dept, a, exceptId) + n); return after > b.amount ? `${dept} · ${acctName(a)}: ${peso(round2(after - b.amount))} over its ${YEAR} budget of ${peso(b.amount)} with this.` : ''; }).filter(Boolean));
 }
 function docForm(kind, v0, mode = 'new') {
   const isDM = kind === 'dm', isBill = kind === 'bill' || isDM, isPT = kind === 'pt', edit = mode === 'edit';
@@ -2737,9 +2768,10 @@ const TABLES = [
   { name: 'Year opening', key: 'Account ID', yearly: true, optional: true, subtitle: 'Each account’s balance on January 1, written when the year before was closed. Income and expenses are closed to retained earnings.',
     cols: [['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
     rows: () => (D.yearOpening.lines || []).map(l => [l.acct, acctCode(l.acct) || null, acctPlain(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.usd || null, ...tagVals(l.acct, l.tag)]) },
-  { name: 'Budgets', key: 'Department', yearly: true, optional: true, subtitle: 'Each department’s budget for the year, by expense account. Spending is what the Journal tab shows for that department and account.',
+  { name: 'Budgets', key: 'Department', yearly: true, optional: true, subtitle: 'Each department’s budget for the year: for the whole department (no account), by expense account, or both. Spending is what the Journal tab shows for that department.',
     cols: [['Department', 's', 22], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Yearly budget', 'n', 16]],
-    rows: () => (D.budgets || []).slice().sort((a, b) => a.dept.localeCompare(b.dept) || acctPlain(a.acct).localeCompare(acctPlain(b.acct))).map(x => [x.dept, x.acct, acctCode(x.acct) || null, acctPlain(x.acct), x.amount]) },
+    rows: () => (D.budgets || []).slice().sort((a, b) => a.dept.localeCompare(b.dept) || (a.acct ? 1 : 0) - (b.acct ? 1 : 0) || acctCode(a.acct).localeCompare(acctCode(b.acct)) || acctPlain(a.acct).localeCompare(acctPlain(b.acct)))
+      .map(x => [x.dept, x.acct || null, x.acct ? acctCode(x.acct) || null : null, x.acct ? acctPlain(x.acct) : 'Whole department, any expense account', x.amount]) },
   { name: 'Contacts', key: 'Contact ID', subtitle: 'Everyone the company pays or bills.',
     cols: [['Contact ID', 's', 11], ['Name', 's', 34], ['Roles', 's', 26], ['TIN', 's', 18], ['Address', 's', 40], ['Usual account ID', 's', 12], ['Usual account', 's', 34, 'derived'], ['Usual ATC', 's', 10], ['Usually charges VAT', 's', 12]],
     rows: () => D.contacts.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.id, p.name, p.roles.map(roleLabel).join(', '), p.tin || null, p.address || null, p.accountId || null, p.accountId ? acctPlain(p.accountId) : null, p.atc || null, yn(p.vatable !== false)]) },
@@ -3313,14 +3345,14 @@ function dataFromTables(sheets, ctx = {}) {
     else if (t.date > b.date) errs.push(`Bills tab: debit memo ${b.ref} applies to ${t.ref}, which is dated after it.`); });
   invoices.filter(i => i.appliesTo).forEach(i => { const t = iById[i.appliesTo]; if (!t) errs.push(`Sales invoices tab: credit memo ${i.ref} applies to ${i.appliesTo}, which isn’t an open invoice.`); else if (isMemo(t) || t.customerId !== i.customerId) errs.push(`Sales invoices tab: credit memo ${i.ref} must apply to an invoice of the same customer.`);
     else if (t.date > i.date) errs.push(`Sales invoices tab: credit memo ${i.ref} applies to ${t.ref}, which is dated after it.`); });
-  // budgets: a yearly amount per department and expense account
+  // budgets: a yearly amount per department, for the whole department (Account ID blank) and/or per expense account
   const budgets = [], bSeen = new Set();
   T.Budgets.forEach(o => {
-    const dept = readDept(o), a = o['Account ID'];
+    const dept = readDept(o), a = o['Account ID'] || '';
     if (!dept) E(o, 'Department is blank.');
-    if (!aid.has(a)) E(o, `Account ID ${a} isn’t on the Accounts tab.`); else if (!DEPT_TYPES.includes(aType[a])) E(o, 'Budgets are for expense accounts.');
+    if (a && !aid.has(a)) E(o, `Account ID ${a} isn’t on the Accounts tab.`); else if (a && !DEPT_TYPES.includes(aType[a])) E(o, 'Budgets are for expense accounts.');
     if (!(o['Yearly budget'] >= 0)) E(o, 'Yearly budget must be zero or more.');
-    const k = String(dept).toLowerCase() + '|' + a; if (bSeen.has(k)) E(o, `${dept} has this account twice.`); bSeen.add(k);
+    const k = String(dept).toLowerCase() + '|' + a; if (bSeen.has(k)) E(o, a ? `${dept} has this account twice.` : `${dept} has two budgets for the whole department.`); bSeen.add(k);
     budgets.push({ dept, acct: a, amount: o['Yearly budget'] || 0 });
   });
   if (errs.length) return { errs };
@@ -3903,12 +3935,17 @@ function staffList() {
   if (S.xf !== 'advances') {
     const all = (D.pettyCash || []);
     if (!all.length) return funds().length ? `<div class="empty"><b>No petty cash vouchers in ${YEAR}</b>${canBooks('staff.edit') ? `Record each payment out of a fund. ${btn('new-pcv', 'New petty cash voucher', 'sm')}` : ''}</div>` : '';
-    const rows = all.filter(x => hasQ(x.no, x.paidTo, x.particulars, acctName(x.fund), x.notes)).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
+    // what each voucher was spent on: the account of each line, with its department, shipment or employee
+    const charged = l => { const t = l.tag && (shipmentOf(l.tag) || contact(l.tag)); return l.dept || (t ? t.no || t.name : ''); };
+    const usedFor = x => { const ls = x.lines.filter(l => l.accountId), first = ls[0];
+      return !first ? '' : `${esc(acctName(first.accountId))}${ls.length > 1 ? ` <span style="color:var(--muted)">and ${ls.length - 1} more</span>` : ''}<span class="sub">${esc([...new Set(ls.map(charged).filter(Boolean))].join(', '))}</span>`; };
+    const manyFunds = funds().length > 1;
+    const rows = all.filter(x => hasQ(x.no, x.paidTo, x.particulars, acctName(x.fund), x.notes, ...x.lines.map(l => acctName(l.accountId)), ...x.lines.map(charged))).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
     const lv = rows.filter(live);
     return table([
-      { h: 'PCV no.', k: x => `<b>${esc(x.no)}</b><span class="sub">${fdate(x.date)}</span>` },
+      { h: 'PCV no.', k: x => `<b>${esc(x.no)}</b><span class="sub">${fdate(x.date)}${manyFunds ? ` · ${esc(acctName(x.fund))}` : ''}</span>` },
       { h: 'Paid to', k: x => `${esc(x.paidTo || '')}<span class="sub">${esc(x.particulars)}</span>` },
-      { h: 'Fund', k: x => esc(acctName(x.fund)) },
+      { h: 'Used for', k: usedFor },
       { h: 'Amount', num: 1, k: x => `<span class="amt">${peso(vGross(x))}</span>${x.vat ? `<span class="sub">${money(x.vat)} VAT</span>` : ''}` },
       { h: 'Status', k: x => x.status === 'void' ? pill('Void') + `<span class="sub">${esc(x.voidReason || '')}</span>` : '' },
       { h: '', k: x => rowActs([['view-pcv', x.id, 'View'], live(x) && !isLocked(x.date) && canBooks('staff.edit') && ['edit-pcv', x.id, 'Edit']]) }
@@ -4594,48 +4631,59 @@ function deptSpending() {
 function budgetsPage() {
   const depts = D.departments || [], sel = depts.some(d => d.name === S.bd) ? S.bd : '';
   const acts = canBooks('budgets.edit') && D.hasDepartments ? `${btn('departments', 'Departments', 'ghost')}${depts.length ? btn('edit-budget', sel ? `Set ${esc(sel)} budget` : 'Set a budget', '', sel) : ''}` : '';
-  return pageHead('budgets', `Each department’s ${YEAR} budget by expense account, against what it has spent, month by month. Going over shows a warning when the bill, voucher or entry is entered; it never stops the save.`, acts)
+  return pageHead('budgets', `Each department’s ${YEAR} budget, for the whole department or by expense account, against what it has spent, month by month. Going over shows a warning when the bill, voucher or entry is entered; it never stops the save.`, acts)
     + (D.hasDepartments ? '' : `<div class="empty"><b>Departments aren’t set up yet</b>${isAdmin() ? `Finish the update to add them. ${btn('finish-update', 'Finish the update', 'sm')}` : 'Ask an admin to open the hub and finish the update.'}</div>`)
     + (depts.length ? `<div class="toolbar"><select id="bd" aria-label="Department"><option value="">All departments</option>${depts.map(d => opt(d.name, d.name + (d.active ? '' : ' (hidden)'), sel)).join('')}</select></div><div id="list">${budgetBody(sel)}</div>` : '');
 }
 function budgetBody(sel) {
   const sp = deptSpending(), months = Array.from({ length: YEAR === THIS_YEAR() ? TODAY().getMonth() + 1 : 12 }, (_, i) => pad(i + 1, 2));
   const total = o => round2(Object.values(o || {}).reduce((a, x) => a + x, 0));
-  const pct = (s, b) => b ? `${Math.round(s / b * 100)}%` : '';
+  const pct = (s, b) => !b ? '' : s > 0 && s / b < 0.005 ? 'under 1%' : `${Math.round(s / b * 100)}%`;
   const leftCell = (b, s) => b == null ? '<span class="hint">No budget</span>' : `<span class="${s > b ? 'over' : ''}">${money(round2(b - s))}</span>`;
   if (!sel) {
-    const rows = (D.departments || []).map(d => {
-      const bud = sum((D.budgets || []).filter(x => x.dept === d.name).map(x => x.amount)), s = sum(Object.values(sp[d.name] || {}).map(total));
-      return { name: d.name, has: (D.budgets || []).some(x => x.dept === d.name), bud, s, month: sum(Object.values(sp[d.name] || {}).map(o => o[months[months.length - 1]] || 0)) };
+    // each department, then under it each account with its own budget, then everything else it spent on;
+    // with a whole-department budget, "everything else" gets what isn't assigned to an account
+    const last = months[months.length - 1], rows = [];
+    (D.departments || []).forEach(d => {
+      const mine = sp[d.name] || {}, bud = deptBudget(d.name), whole = budgetOf(d.name, '');
+      rows.push({ name: d.name, has: bud != null, bud, s: sum(Object.values(mine).map(total)), month: sum(Object.values(mine).map(o => o[last] || 0)) });
+      const per = sortAccounts((D.budgets || []).filter(x => x.dept === d.name && x.acct).map(x => acct(x.acct)).filter(Boolean));
+      if (!per.length) return;
+      per.forEach(a => { const b = budgetOf(d.name, a.id); rows.push({ sub: true, label: acctLabel(a), has: true, bud: b.amount, s: total(mine[a.id]), month: (mine[a.id] || {})[last] || 0 }); });
+      const others = Object.keys(mine).filter(id => !per.some(a => a.id === id)), rest = whole ? round2(whole.amount - sum(per.map(a => budgetOf(d.name, a.id).amount))) : null;
+      const os = sum(others.map(id => total(mine[id]))), om = sum(others.map(id => (mine[id] || {})[last] || 0));
+      if (rest || os) rows.push({ sub: true, label: whole ? 'Not assigned to an account' : 'Other accounts', note: others.length ? `Spent on ${others.length} other account${others.length === 1 ? '' : 's'}` : '', has: rest != null, bud: rest, s: os, month: om });
     });
     const none = sum(Object.values(sp[''] || {}).map(total));
     if (none) rows.push({ name: 'No department', none: true, has: false, bud: 0, s: none, month: sum(Object.values(sp[''] || {}).map(o => o[months[months.length - 1]] || 0)) });
     return table([
-      { h: 'Department', k: r => r.none ? `<b>No department</b><span class="sub">Expense lines without one: bank charges on transfers, and anything entered before departments</span>` : `<b>${esc(r.name)}</b>` },
-      { h: `${YEAR} budget`, num: 1, k: r => r.has ? money(r.bud) : '<span class="hint">None set</span>' },
+      { h: 'Department', k: r => r.sub ? `<span style="display:block;padding-left:16px">${esc(r.label)}${r.note ? `<span class="sub">${esc(r.note)}</span>` : ''}</span>` : r.none ? `<b>No department</b><span class="sub">Expense lines without one: bank charges on transfers, and anything entered before departments</span>` : `<b>${esc(r.name)}</b>` },
+      { h: `${YEAR} budget`, num: 1, k: r => r.has ? money(r.bud) : r.sub ? '' : '<span class="hint">None set</span>' },
       { h: `Spent, ${monthLabel(`${YEAR}-${months[months.length - 1]}`).split(' ')[0]}`, num: 1, k: r => money(r.month) },
       { h: 'Spent this year', num: 1, k: r => money(r.s) },
       { h: 'Left', num: 1, k: r => r.has ? leftCell(r.bud, r.s) : '' },
       { h: 'Used', num: 1, k: r => r.has ? `<span class="${r.s > r.bud ? 'over' : ''}">${pct(r.s, r.bud)}</span>` : '' },
-      { h: '', k: r => r.none ? '' : rowActs([['pick-dept', r.name, 'Open']]) }
-    ], rows, 'No departments.');
+      { h: '', k: r => r.none || r.sub ? '' : rowActs([['pick-dept', r.name, 'Open']]) }
+    ], rows, 'No departments.', '', r => r.sub ? 'bsub' : '').replace('<div class="tbl-wrap">', '<div class="tbl-wrap ball">');
   }
-  const mine = sp[sel] || {}, buds = (D.budgets || []).filter(x => x.dept === sel);
+  const mine = sp[sel] || {}, buds = (D.budgets || []).filter(x => x.dept === sel && x.acct), whole = budgetOf(sel, '');
   const ids = [...new Set(buds.map(x => x.acct).concat(Object.keys(mine)))];
+  if (!ids.length && whole) return `<div class="empty"><b>${esc(sel)}: ${peso(whole.amount)} for ${YEAR}, nothing spent yet</b>Spending shows here, by account and month, as bills, vouchers and entries are charged to ${esc(sel)}.</div>`;
   if (!ids.length) return `<div class="empty"><b>No budget or spending for ${esc(sel)} yet</b>${canBooks('budgets.edit') ? `Set the year’s budget by account. ${btn('edit-budget', 'Set budget', 'sm', sel)}` : ''}</div>`;
   const rows = sortAccounts(ids.map(acct).filter(Boolean)).map(a => { const b = buds.find(x => x.acct === a.id); return { a, bud: b ? b.amount : null, m: mine[a.id] || {}, s: total(mine[a.id]) }; });
   const mLabel = m => new Date(YEAR, Number(m) - 1, 1).toLocaleDateString('en-US', { month: 'short' });
-  const tb = sum(rows.map(r => r.bud || 0)), ts = sum(rows.map(r => r.s));
+  // the total's budget is the whole department's when one is set; otherwise the accounts' budgets added up
+  const tb = whole ? whole.amount : sum(rows.map(r => r.bud || 0)), ts = sum(rows.map(r => r.s));
   return `<div class="tbl-wrap budget"><table><thead><tr><th>Account</th><th class="num">Budget</th>${months.map(m => `<th class="num">${mLabel(m)}</th>`).join('')}<th class="num">Spent</th><th class="num">Left</th></tr></thead><tbody>${rows.map(r => `<tr>
-    <td>${esc(acctLabel(r.a))}</td><td class="num">${r.bud == null ? '' : money(r.bud)}</td>${months.map(m => `<td class="num">${r.m[m] ? money(r.m[m]) : ''}</td>`).join('')}<td class="num"><b>${money(r.s)}</b></td><td class="num">${leftCell(r.bud, r.s)}</td></tr>`).join('')}</tbody>
-    <tfoot><tr><td>Total</td><td class="num">${money(tb)}</td>${months.map(m => `<td class="num">${money(sum(rows.map(r => r.m[m] || 0)))}</td>`).join('')}<td class="num">${money(ts)}</td><td class="num"><span class="${ts > tb ? 'over' : ''}">${money(round2(tb - ts))}</span></td></tr></tfoot></table></div>`;
+    <td>${esc(acctLabel(r.a))}</td><td class="num">${r.bud == null ? '' : money(r.bud)}</td>${months.map(m => `<td class="num">${r.m[m] ? money(r.m[m]) : ''}</td>`).join('')}<td class="num"><b>${money(r.s)}</b></td><td class="num">${r.bud == null && whole ? '' : leftCell(r.bud, r.s)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>${whole ? 'Whole department' : 'Total'}</td><td class="num">${money(tb)}</td>${months.map(m => `<td class="num">${money(sum(rows.map(r => r.m[m] || 0)))}</td>`).join('')}<td class="num">${money(ts)}</td><td class="num"><span class="${ts > tb ? 'over' : ''}">${money(round2(tb - ts))}</span></td></tr></tfoot></table></div>`;
 }
 function budgetForm(dept) {
   const depts = (D.departments || []).filter(d => d.active || d.name === dept);
   let cur = dept || (depts[0] || {}).name || '';
   const expense = () => D.accounts.filter(a => DEPT_TYPES.includes(a.type) && a.active);
-  let rows = [];
-  const load = () => { rows = (D.budgets || []).filter(x => x.dept === cur).map(x => ({ acct: x.acct, amount: x.amount })); if (!rows.length) rows.push({ acct: '', amount: '' }); };
+  let rows = [], whole = '';
+  const load = () => { const w = budgetOf(cur, ''); whole = w ? String(w.amount) : ''; rows = (D.budgets || []).filter(x => x.dept === cur && x.acct).map(x => ({ acct: x.acct, amount: x.amount })); if (!rows.length) rows.push({ acct: '', amount: '' }); };
   load();
   const draw = () => {
     document.getElementById('b-rows').innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th>Expense account</th><th class="num" style="width:180px">${YEAR} budget (₱)</th><th class="num" style="width:150px">Spent so far</th><th style="width:70px"></th></tr></thead><tbody>${rows.map((r, i) => `<tr data-i="${i}">
@@ -4647,12 +4695,16 @@ function budgetForm(dept) {
     tot();
   };
   const read = () => document.querySelectorAll('#b-rows tbody tr').forEach(tr => { const r = rows[Number(tr.dataset.i)]; r.acct = tr.querySelector('.b-acct').value; r.amount = tr.querySelector('.b-amt').value; });
-  const tot = () => { read(); document.getElementById('b-tot').textContent = money(sum(rows.map(r => numIn(r.amount) || 0))); };
-  openModal(`Set the ${YEAR} Budget`, `<div class="fields">${F('b-dept', 'Department', `<select id="b-dept">${depts.map(d => opt(d.name, d.name, cur)).join('')}</select>`, 'span2')}</div>
-    <div class="section" style="margin-top:16px"><div id="b-rows"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="b-add">Add an account</button></p>
-    <p class="hint" style="margin-top:8px">A yearly amount per account. The Budgets page shows it against spending month by month.</p></div>`, () => {
+  const tot = () => { read(); const t = sum(rows.map(r => numIn(r.amount) || 0)), w = numIn(val('b-whole')); document.getElementById('b-tot').textContent = money(t);
+    document.getElementById('b-note').textContent = w > 0 && t > w ? `The accounts add up to ${peso(t)}, more than the ${peso(w)} for the whole department.` : w > 0 && t ? `${peso(round2(w - t))} of the ${peso(w)} isn’t assigned to an account.` : ''; };
+  openModal(`Set the ${YEAR} Budget`, `<div class="fields">${F('b-dept', 'Department', `<select id="b-dept">${depts.map(d => opt(d.name, d.name, cur)).join('')}</select>`, 'span2')}
+    ${F('b-whole', `Whole department, ${YEAR} (₱)`, inp('b-whole', whole, 'number', 'step="0.01" min="0" inputmode="decimal" style="text-align:right"'), 'span2')}</div>
+    <p class="hint" style="margin-top:8px">The department’s budget for the year, whatever it’s spent on. Every expense charged to the department counts against it.</p>
+    <div class="section" style="margin-top:16px"><h3 style="margin:0 0 8px;font:700 15px var(--display)">By account <span class="hint" style="font:400 13px var(--body)">optional, once you know</span></h3><div id="b-rows"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="b-add">Add an account</button></p>
+    <p class="hint" id="b-note" style="margin-top:8px"></p></div>`, () => {
     read();
-    const out = [], seen = new Set();
+    const out = [], seen = new Set(), w = val('b-whole');
+    if (w !== '') { const n = numIn(w); if (isNaN(n) || n < 0) return 'The whole department’s budget must be zero or more.'; out.push({ dept: cur, acct: '', amount: round2(n) }); }
     for (const r of rows) {
       if (!r.acct && (r.amount === '' || r.amount == null)) continue;
       if (!r.acct) return 'Choose the account for each amount.';
@@ -4665,7 +4717,7 @@ function budgetForm(dept) {
     draw();
     const m = modalEl();
     m.addEventListener('input', () => { m.dataset.dirty = '1'; tot(); });
-    m.addEventListener('change', ev => { m.dataset.dirty = '1'; if (ev.target.id === 'b-dept') { cur = ev.target.value; load(); draw(); } else { read(); draw(); } });
+    m.addEventListener('change', ev => { m.dataset.dirty = '1'; if (ev.target.id === 'b-dept') { cur = ev.target.value; load(); document.getElementById('b-whole').value = whole; draw(); } else if (ev.target.id !== 'b-whole') { read(); draw(); } });
     m.addEventListener('click', ev => { const t = ev.target; if (t.id === 'b-add') { read(); rows.push({ acct: '', amount: '' }); draw(); } else if (t.classList.contains('b-del')) { read(); rows.splice(Number(t.dataset.i), 1); if (!rows.length) rows.push({ acct: '', amount: '' }); draw(); } });
   } });
 }

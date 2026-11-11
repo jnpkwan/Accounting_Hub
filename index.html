@@ -125,7 +125,7 @@ table.compact input,table.compact select{height:38px;padding:0 10px;font-size:14
 .p-cost-difference,.p-changed{background:#FFF4E5;color:#8A4B00;box-shadow:inset 0 0 0 1px #F2C98A}
 .p-no-costs-yet{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
 .p-cleared,.p-deposited,.p-in-the-bank,.p-sent,.p-received,.p-counted{background:var(--green05);color:var(--green7)}
-.p-void{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
+.p-void,.p-hidden{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
 .p-pending,.p-unpaid,.p-open-credit{background:var(--blue05);color:var(--blue7)}
 .p-partly-paid,.p-partly-applied{background:var(--sky);color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue3)}
 .p-paid,.p-applied{background:var(--green05);color:var(--green7)}
@@ -340,11 +340,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.7';
+const APP_VERSION = '3.8';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 8;
+const API_NEEDED = 9;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -374,7 +374,7 @@ const PERMISSIONS = [
   ['General Journal', [['journal.edit', 'Enter, edit and void']]],
   ['Monthly Summary', [['months.lock', 'Lock and unlock months'], ['year.close', 'Close the year']]],
   ['Budgets', [['budgets.edit', 'Set budgets and departments']]],
-  ['Chart of Accounts', [['accounts.add', 'Add accounts']]],
+  ['Chart of Accounts', [['accounts.add', 'Add and edit accounts']]],
   ['Contacts', [['contacts.edit', 'Add, edit and delete']]],
   ['Company and Printing', [['company.edit', 'Edit']]],
   ['Users and Roles', [['users.manage', 'Manage users and roles']]]
@@ -2305,14 +2305,132 @@ function contactForm(id) {
 /* ---------- Lists: chart of accounts (view and add) ---------- */
 function accountsPage() {
   const auto = id => { const k = Object.keys(D.control).find(x => D.control[x] === id); return k ? CONTROL_LABEL[k] : ''; };
-  return pageHead('accounts', `All ${D.accounts.length} accounts, by code. The first digit is the section: 1 assets, 2 liabilities, 3 equity, 4 revenue, 5 cost of sales, 6 selling, 7 general and admin, 8 other income and expenses, 9 income tax.`, can('accounts.add') ? btn('new-account', 'Add account') : '')
+  const hidden = D.accounts.filter(a => !a.active).length;
+  return pageHead('accounts', `All ${D.accounts.length} accounts, by code${hidden ? `, ${hidden} of them hidden` : ''}. The first digit is the section: 1 assets, 2 liabilities, 3 equity, 4 revenue, 5 cost of sales, 6 selling, 7 general and admin, 8 other income and expenses, 9 income tax.`,
+    btn('download-chart', 'Download chart', 'ghost') + (can('accounts.add') ? btn('new-account', 'Add account') : ''))
     + `<div id="list">${table([
       { h: 'Code', k: a => a.code ? `<b style="white-space:nowrap">${esc(a.code)}</b>` : '' },
-      { h: 'Account', k: a => `${esc(a.name)}${auto(a.id) ? `<span class="sub">Posted automatically: ${esc(auto(a.id).toLowerCase())}</span>` : ''}` },
+      { h: 'Account', k: a => `${esc(a.name)}${!a.active ? ` ${pill('Hidden')}` : ''}${auto(a.id) ? `<span class="sub">Posted automatically: ${esc(auto(a.id).toLowerCase())}</span>` : ''}` },
       { h: 'Type', k: a => esc(a.type) },
       { h: 'Bank details', k: a => a.type !== 'Bank' ? '' : `${bankCur(a.id) === 'USD' ? 'US dollars' : 'Pesos'}<span class="sub">${esc([bankInfo(a.id).printed, bankInfo(a.id).number].filter(Boolean).join(' · '))}</span>` },
-      { h: '', k: a => a.type === 'Bank' && can('accounts.add') ? rowActs([['bank-details', a.id, 'Bank details']]) : '' }
+      { h: '', k: a => can('accounts.add') ? rowActs([['edit-account', a.id, 'Edit'], a.type === 'Bank' && ['bank-details', a.id, 'Bank details']]) : '' }
     ], sortAccounts(D.accounts), 'No accounts.')}</div>`;
+}
+/* Download chart: the chart of accounts as an Excel file, ready to print for the accountant: Letter, landscape,
+   one page wide, the header row on every page. Built here, with no library: an .xlsx is a zip of XML files. */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files) {
+  const enc = new TextEncoder(), parts = [], dir = []; let off = 0;
+  const u16 = n => [n & 255, (n >>> 8) & 255], u32 = n => [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255];
+  files.forEach(([name, text]) => {
+    const nm = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+    const head = [...u16(20), ...u16(0x800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(nm.length), ...u16(0)];
+    parts.push(new Uint8Array([...u32(0x04034b50), ...head]), nm, data);
+    dir.push(new Uint8Array([...u32(0x02014b50), ...u16(20), ...head, ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(off)]), nm);
+    off += 30 + nm.length + data.length;
+  });
+  const size = dir.reduce((n, p) => n + p.length, 0);
+  return new Blob([...parts, ...dir, new Uint8Array([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(size), ...u32(off), ...u16(0)])], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+function downloadChart() {
+  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = n => String.fromCharCode(64 + n);
+  const cols = ['Code', 'Account', 'Type', 'Statement section', 'Posted automatically as'], widths = [11, 50, 24, 34, 30];
+  const today = new Date(), asOf = DATE_FMT.format(today);
+  // styles: 0 plain, 1 title, 2 subtitle, 3 note, 4 header, 5 section band, 6 code (bold), 7 cell with a rule under it, 8 small note
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="6"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="14"/><name val="Arial"/></font><font><sz val="11"/><name val="Arial"/></font><font><i/><sz val="9"/><color rgb="FF555555"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF1B4DA0"/><name val="Arial"/></font></fonts>
+<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B4DA0"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE8EEF8"/></patternFill></fill></fills>
+<borders count="3"><border/><border><bottom style="thin"><color rgb="FFBFBFBF"/></bottom></border><border><top style="thin"><color rgb="FF1B4DA0"/></top></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="9">
+<xf fontId="0"/><xf fontId="1" applyFont="1"/><xf fontId="2" applyFont="1"/><xf fontId="3" applyFont="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf>
+<xf fontId="4" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf><xf fontId="5" fillId="3" borderId="2" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf fontId="5" borderId="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="top"/></xf><xf fontId="0" borderId="1" applyBorder="1" applyAlignment="1"><alignment wrapText="1" vertical="top"/></xf><xf fontId="3" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const sheet = (title, list) => {
+    const rows = []; let r = 0;
+    const row = (cells, ht) => { r++; rows.push(`<row r="${r}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells.map(([v, st], i) => v === '' || v == null ? (st ? `<c r="${colL(i + 1)}${r}" s="${st}"/>` : '') : `<c r="${colL(i + 1)}${r}" s="${st || 0}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`).join('')}</row>`); };
+    row([[D.company.name || COMPANY, 1]], 22);
+    row([[`${title} · as of ${asOf}`, 2]], 18);
+    row([['Code XXX-XXX: the first digit is the section (1 assets, 2 liabilities, 3 equity, 4 revenue, 5 cost of sales, 6 selling, 7 general and administrative, 8 other income and expenses, 9 income tax); the next two digits are the group; the last three are the account, numbered by tens.', 3]], 28);
+    row([]);
+    const head = r + 1; row(cols.map(c => [c, 4]), 20);
+    let sec = null;
+    sortAccounts(list).forEach(a => {
+      const g = a.code ? a.code[0] : '';
+      if (g !== sec) { sec = g; row(cols.map((c, i) => [i ? '' : (g ? `${g} · ${CODE_SECTIONS[g]}` : 'Without a code'), 5]), 18); }
+      const auto = acctAuto(a.id);
+      row([[a.code || '', 6], [a.name, 7], [a.type, 7], [stmtSection(a), 7], [auto ? auto[0].toUpperCase() + auto.slice(1) : '', 7]]);
+    });
+    row([]); row([[`${list.length} account${list.length === 1 ? '' : 's'}`, 8]]);
+    const last = r;
+    return { head, xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:E${last}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${head}" topLeftCell="A${head + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${rows.join('')}</sheetData><mergeCells count="1"><mergeCell ref="A3:E3"/></mergeCells>
+<printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/>
+<headerFooter><oddFooter>&amp;L&amp;"Arial"&amp;8${x(D.company.name || COMPANY)} · ${x(title)}, ${x(asOf)}&amp;R&amp;"Arial"&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter></worksheet>` };
+  };
+  const shown = D.accounts.filter(a => a.active), hid = D.accounts.filter(a => !a.active);
+  const sheets = [['Chart of Accounts', sheet('Chart of Accounts', shown)]].concat(hid.length ? [['Hidden Accounts', sheet('Hidden accounts', hid)]] : []);
+  const files = [
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`],
+    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${s[0]}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets><definedNames>${sheets.map((s, i) => `<definedName name="_xlnm.Print_Titles" localSheetId="${i}">'${s[0]}'!$${s[1].head}:$${s[1].head}</definedName>`).join('')}</definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', styles],
+    ...sheets.map((s, i) => [`xl/worksheets/sheet${i + 1}.xml`, s[1].xml])
+  ];
+  const a = document.createElement('a'), url = URL.createObjectURL(zipStore(files));
+  a.href = url; a.download = `${(D.company.name || COMPANY).replace(/[^\w.-]+/g, '_')}_Chart_of_Accounts_${today.getFullYear()}-${pad(today.getMonth() + 1, 2)}-${pad(today.getDate(), 2)}.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast('Chart of accounts downloaded');
+}
+/* What can change on an account. The code and name always. Its type, and the first digit of its code (which puts it
+   in a section of the statements), only while it has no entries and no balance in the open books, so past months
+   never move to another place in the statements. Hidden only at a zero balance. An account the hub posts to on its
+   own keeps its type and stays shown. Code.gs checks the same. */
+const acctUsed = id => Math.abs(((D.acctBefore || {})[id] || {}).php || 0) >= 0.005 || journal().some(d => d.lines.some(l => l.acct === id));
+const acctAuto = id => { const k = Object.keys(D.control).find(x => D.control[x] === id); return k ? CONTROL_LABEL[k] : ''; };
+function accountEditForm(id) {
+  const a = acct(id); if (!a) return;
+  if (yearClosed()) return toast(`The ${YEAR} books are closed. Switch to an open year to edit accounts.`, true);
+  const used = acctUsed(id), auto = acctAuto(id), bal = round2(acctBalance(id)), typeLock = auto ? `posted to automatically (${auto.toLowerCase()})` : used ? 'it has entries in the open books' : '';
+  const hideLock = auto ? `It’s posted to automatically (${auto.toLowerCase()}), so it stays shown.` : Math.abs(bal) >= 0.005 ? `It has a balance of ${peso(bal)}, so it stays shown until that’s zero.` : '';
+  const inTransit = isTransit(id) && journal().some(d => d.lines.some(l => l.acct === id && l.tag));
+  openModal(`Edit ${acctLabel(a)}`, `<div class="fields">
+    ${F('e-code', 'Code', inp('e-code', a.code || '', 'text', 'autocomplete="off" inputmode="numeric" placeholder="000-000"'))}
+    ${F('e-name', 'Account name', inp('e-name', a.name), 'span2')}
+    ${F('e-type', 'Type', `<select id="e-type" ${typeLock ? 'disabled' : ''}>${TYPE_ORDER.map(t => opt(t, t, a.type)).join('')}</select>`, 'span2')}
+    <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="e-shown" ${a.active ? 'checked' : ''} ${hideLock && a.active ? 'disabled' : ''}> Shown in lists</label></div>
+  </div><p class="hint" id="e-hint" style="margin-top:8px"></p>
+  <p class="hint" style="margin-top:8px">${[typeLock ? `The type stays ${esc(a.type)}: ${esc(typeLock)}.${used && !auto ? ' Add a new account instead, and hide this one once it’s at zero.' : ''}` : 'The type can change while the account has no entries.',
+    used && a.code ? `The code keeps its first digit, ${esc(a.code[0])}, since it has entries.` : '', hideLock && a.active ? esc(hideLock) : '',
+    'A new code or name shows on every entry that uses the account, past ones included.'].filter(Boolean).join(' ')}</p>`, () => {
+    const code = val('e-code'), name = val('e-name'), type = typeLock ? a.type : val('e-type'), active = document.getElementById('e-shown').checked;
+    if (!code && a.code) return 'Enter the code, written 000-000.';
+    if (codeErr(code, type)) return codeErr(code, type);
+    const dup = D.accounts.find(x => x.id !== id && x.code && x.code === code); if (dup) return `${code} is already ${dup.name}.`;
+    if (used && a.code && code[0] !== a.code[0]) return `${a.name} has entries, so its code keeps its first digit, ${a.code[0]}.`;
+    if (!name) return 'Enter the account name.';
+    if (D.accounts.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) return `${name} is already on the list.`;
+    // an account with shipment lines stays in, or out of, the goods in transit group
+    const t = D.accounts.find(x => x.id === D.control.transit), grp = t && t.code ? t.code.slice(0, 4) : '';
+    const willTransit = id === D.control.transit || (grp && code.startsWith(grp) && id !== D.control.transit);
+    if (inTransit && !willTransit) return `${a.name} has shipment lines, so its code stays in the ${grp}xxx group.`;
+    if (!isTransit(id) && willTransit && journal().some(d => d.lines.some(l => l.acct === id))) return `${a.name} has entries, so it can’t join the goods in transit group (${grp}xxx).`;
+    if (id === D.control.transit && grp && code.slice(0, 4) !== grp && D.accounts.some(x => x.id !== id && (x.code || '').startsWith(grp))) return `${a.name} heads the goods in transit group, so its code stays in ${grp}xxx.`;
+    if (type !== a.type && (type === 'Bank' || a.type === 'Bank')) return 'A bank account stays type Bank, and another account can’t become one. Add a new account of type Bank instead.';
+    if (!active && a.active && hideLock) return hideLock;
+    if (code === (a.code || '') && name === a.name && type === a.type && active === a.active) return 'Nothing changed.';
+    return save('editAccount', () => { const x = acct(id); Object.assign(x, { code, name, type, active }); }, () => toast(`${code ? code + ' · ' : ''}${name} saved`));
+  }, 'Save account', { onOpen: () => {
+    const c = document.getElementById('e-code'), ty = document.getElementById('e-type'), h = document.getElementById('e-hint');
+    const hint = () => { const code = c.value.trim(), e = codeErr(code, typeLock ? a.type : ty.value), g = code.slice(0, 3);
+      h.textContent = e && CODE_RE.test(code) ? e : /^\d{3}$/.test(g) && code !== a.code && nextCode(g) ? `The next free code in ${g} is ${nextCode(g)}.` : ''; };
+    c.addEventListener('input', hint); ty.addEventListener('change', hint); hint();
+  } });
 }
 const bankFields = (b = {}) => `${F('a-cur', 'Currency', `<select id="a-cur">${opt('PHP', 'Pesos', b.currency || 'PHP')}${opt('USD', 'US dollars', b.currency)}</select>`)}
   ${F('a-print', 'Bank name as printed on vouchers', inp('a-print', b.printed || '', 'text', 'placeholder="e.g. EastWest Bank"'), 'span2')}${F('a-no', 'Account no. (optional)', inp('a-no', b.number || '', 'text'))}`;
@@ -4706,6 +4824,8 @@ const ACT = {
   'clear-one': id => { const v = voucher(id); openModal(`Mark ${esc(v.checkNo)} Cleared`, F('m-cd', 'Cleared on (date on the bank statement)', inp('m-cd', todayIso(), 'date')), () => { const d = val('m-cd'); if (!d) return 'Enter the date.'; if (d < v.checkDate) return 'A check can’t clear before its date.'; return markCleared(id, d); }, 'Mark cleared'); },
   unclear: id => saveNow('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')),
   'new-account': () => accountForm(),
+  'edit-account': id => accountEditForm(id),
+  'download-chart': () => downloadChart(),
   'new-contact': () => contactForm(),
   'edit-contact': id => contactForm(id),
   'delete-contact': id => { const p = contact(id); saveNow('deleteContact', () => { D.contacts = D.contacts.filter(x => x.id !== id); }, () => toast(`${p.name} deleted`)); },

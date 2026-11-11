@@ -334,6 +334,50 @@ table.rp tr.rp-note td{color:#A52A24;background:#FCEBEA!important;font-weight:70
 .hc .tbl-wrap{box-shadow:inset 0 0 0 1px var(--silver)}
 table.rec-sum td{padding:8px 14px}table.rec-sum tr:nth-child(4) td{border-top:1px solid var(--ink)}
 @media (max-width:760px){.hc-grid{grid-template-columns:1fr}}
+/* Help: the ? by a page title, its tips, the (i) bubbles, the guide */
+.qhelp{display:inline-grid;place-items:center;width:30px;height:30px;margin-left:10px;vertical-align:middle;border-radius:50%;border:1.5px solid var(--blue1);background:#fff;color:var(--blue);font:800 15px var(--display);cursor:pointer;transition:background .2s,color .2s,transform .2s}
+.qhelp:hover,.qhelp[aria-expanded="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
+.qhelp-demo{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--blue1);color:var(--blue);font:800 11px var(--display);vertical-align:1px}
+.ptips{margin:-12px 0 24px;padding:16px 20px;border-radius:12px;background:var(--sky);box-shadow:inset 4px 0 0 var(--blue);animation:up .22s cubic-bezier(.4,0,.2,1)}
+.ptips-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.ptips ul{margin:0 0 8px;padding-left:20px}.ptips .btn.link{padding-left:0}.ptips li{margin:4px 0;line-height:1.5}
+.tip{display:inline-grid;place-items:center;position:relative;width:16px;height:16px;margin-left:4px;vertical-align:-2px;border-radius:50%;background:var(--blue05);color:var(--blue);cursor:help;text-transform:none;letter-spacing:0}
+.tip::before{content:"i";font:800 10.5px/1 var(--display)}
+.tip:hover,.tip:focus,.tip.on{background:var(--blue);color:#fff;outline:none}
+#tipbox{position:fixed;z-index:120;max-width:300px;padding:10px 12px;border-radius:8px;background:var(--ink);color:#fff;font:400 13px/1.5 var(--body);box-shadow:0 12px 32px rgba(27,77,160,.18);opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .15s,transform .15s}
+#tipbox.on{opacity:1;transform:none}
+#guide-drawer{position:fixed;top:0;right:0;bottom:0;z-index:90;width:min(520px,100vw);background:#fff;box-shadow:0 20px 48px rgba(27,77,160,.18);transform:translateX(104%);transition:transform .28s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+#guide-drawer.open{transform:none}
+.gd-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:24px 28px 16px;border-bottom:1px solid var(--silver);position:relative}
+.gd-head::after{content:"";position:absolute;left:28px;bottom:-2px;width:56px;height:3px;border-radius:3px;background:var(--grad)}
+.gd-head h2{margin:6px 0 0;font:800 24px/1.15 var(--display);letter-spacing:-.02em;color:var(--blue)}
+.gd-x{border:0;background:var(--blue05);color:var(--blue);width:36px;height:36px;border-radius:50%;font:700 22px/1 var(--display);cursor:pointer;flex:none}.gd-x:hover{background:var(--blue);color:#fff}
+.gd-body{flex:1;overflow:auto;padding:20px 28px 28px;overscroll-behavior:contain}
+.gd-foot{padding:14px 28px;border-top:1px solid var(--silver)}
+.gd-body h4,.hp-b h4{margin:20px 0 6px;font:700 11px var(--display);letter-spacing:.18em;text-transform:uppercase;color:var(--green7)}
+.gd-what{font-size:15.5px;line-height:1.6;color:var(--carbon);margin-top:0}
+.gd-say{margin:0 0 8px;font-style:italic;color:var(--muted)}
+.gd-entry td{padding:7px 12px}.gd-entry tr.gd-gap td{padding:3px;background:#fff!important;border:0}
+.gd-list{margin:0;padding-left:20px}.gd-list li{margin:5px 0;line-height:1.55}
+.gd-watch li::marker{color:var(--green7)}
+.gd-dc td:nth-child(2){font-weight:700;color:var(--blue)}
+.hp[open] .hp-sub{display:none}
+.hp-sub{display:block;margin-top:3px;font:400 13px/1.45 var(--body);color:var(--muted);letter-spacing:0;text-transform:none}
+@media (max-width:760px){.gd-head{padding:20px 20px 14px}.gd-head::after{left:20px}.gd-body{padding:16px 20px 24px}.gd-foot{padding:12px 20px}}
+@media (prefers-reduced-motion:reduce){#guide-drawer,#tipbox{transition:none}}
+th .tip{background:rgba(255,255,255,.18);color:#fff}th .tip::after{bottom:auto;top:calc(100% + 8px)}
+.welcome{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 20px;padding:14px 18px;border-radius:12px;background:var(--green05);box-shadow:inset 4px 0 0 var(--green7)}
+.welcome-acts{display:flex;gap:14px;align-items:center}
+.hp-start{padding:24px 28px}.hp-start h2{margin:6px 0 10px}
+.hp-steps{margin:0;padding-left:22px}.hp-steps li{margin:7px 0;line-height:1.55}
+details.hp{background:#fff;border-radius:12px;margin:0 0 10px;box-shadow:0 1px 0 var(--silver)}
+details.hp>summary{cursor:pointer;padding:16px 20px;gap:16px;font:700 15px var(--display);color:var(--carbon);list-style:none;display:flex;justify-content:space-between;align-items:center}
+details.hp>summary::-webkit-details-marker{display:none}
+details.hp>summary::after{content:"+";font:700 20px var(--display);color:var(--blue);transition:transform .2s}
+details.hp[open]>summary::after{transform:rotate(45deg)}
+.hp-b{padding:0 20px 18px}.hp-b p{margin:0;line-height:1.6}
+.hp-words dl{display:grid;grid-template-columns:200px 1fr;gap:10px 20px;margin:0}.hp-words dt{font:700 14px var(--display);color:var(--blue)}.hp-words dd{margin:0}
+@media (max-width:760px){.hp-words dl{grid-template-columns:1fr}.hp-words dd{margin-bottom:8px}.tip::after{max-width:220px}}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
 #print-area{display:none}
@@ -458,7 +502,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.16';
+const APP_VERSION = '3.17';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
@@ -1331,7 +1375,7 @@ function suggestCheckNo() {
 }
 
 /* ---------- UI helpers ---------- */
-const F = (id, label, input, cls = '') => `<div class="field ${cls}"><label for="${id}">${label}</label>${input}</div>`;
+const F = (id, label, input, cls = '') => { const l = String(label).replace(/<[^>]*>/g, '').trim(), t = FIELD_TIPS[`${id}|${l}`] || FIELD_TIPS[l]; return `<div class="field ${cls}"><label for="${id}">${label}${t && !/class="tip"/.test(label) ? ' ' + tip(t) : ''}</label>${input}</div>`; };
 const inp = (id, v = '', type = 'text', attrs = '') => `<input id="${id}" type="${type}" value="${esc(v)}" ${attrs}>`;
 const opt = (v, l, cur) => `<option value="${esc(v)}" ${String(v) === String(cur) ? 'selected' : ''}>${esc(l)}</option>`;
 const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
@@ -1495,7 +1539,8 @@ const NAV = [
   { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
   { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }, { id: 'health', label: 'Books Health' }] },
-  { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] }
+  { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] },
+  { group: 'Help', items: [{ id: 'help', label: 'How to Use the Hub' }] }
 ];
 const allowed = n => !n.soon && (!n.need || can(n.need));
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
@@ -1549,7 +1594,7 @@ function render() {
         <button class="lnk" data-act="change-password">Change password</button><button class="lnk" data-act="sign-out">Sign out</button>
         <span class="ver" style="margin-top:8px">Version ${APP_VERSION} · ${HUB_BUILD}</span></div>
     </aside>
-    <main class="main${enter ? ' enter' : ''}" id="main">${loadingInApp ? skeleton() : (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + PAGES[S.page]()}</main></div>`;
+    <main class="main${enter ? ' enter' : ''}" id="main">${loadingInApp ? skeleton() : (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + welcomeLine() + PAGES[S.page]()}</main></div>`;
   const side = app.querySelector('.side'); if (side && sideTop != null) side.scrollTop = sideTop;
   if (samePage) scrollTo(0, y0);
   // once the page is in, typing in a search box or filtering redraws it without replaying the entrance
@@ -1581,8 +1626,8 @@ function placeNav() {
 addEventListener('resize', () => { navAt = null; placeNav(); });
 /* Years with books, this year, and next year from December on. */
 const yearChoices = () => { const t = THIS_YEAR(), ys = new Set([...(D.years || []), t, YEAR]); if (TODAY().getMonth() === 11) ys.add(t + 1); return [...ys].sort((a, b) => b - a); };
-const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + PAGES[S.page](); };
-const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id); return head(groupOf(id), n.title || n.label, sub, actions); };
+const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + welcomeLine() + PAGES[S.page](); };
+const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : ''; return head(groupOf(id), (n.title || n.label) + q, sub, actions); };
 
 /* ---------- Payables: check vouchers ---------- */
 function vouchersPage() {
@@ -1710,16 +1755,16 @@ function docForm(kind, v0, mode = 'new') {
       ${F('f-payee', 'Payee', inp('f-payee', v.payeeName, 'text', 'list="dl-payees" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-payees">${D.contacts.filter(isPayee).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>`, 'span2')}
       <div class="field" id="f-ptype-wrap" hidden><label for="f-ptype">Payee type</label><select id="f-ptype">${ROLES.filter(r => PAYEE_ROLES.includes(r[0])).map(([k, l]) => opt(k, l, '')).join('')}</select></div>
       ${F('f-tin', 'Payee TIN', inp('f-tin', v.tin || (p0 ? p0.tin : ''), 'text', 'placeholder="000-000-000-000"'))}
-      ${F('f-part', 'Particulars', inp('f-part', v.particulars, 'text', `placeholder="${isDM ? 'e.g. 12 pcs returned, damaged on arrival' : 'e.g. Internet and telephone for September 2026'}"`), 'full')}
+      ${F('f-part', 'Particulars ' + tip('What it’s for, in a line. It shows in the lists and prints on the voucher that pays it.'), inp('f-part', v.particulars, 'text', `placeholder="${isDM ? 'e.g. 12 pcs returned, damaged on arrival' : 'e.g. Internet and telephone for September 2026'}"`), 'full')}
       ${isDM ? F('f-applies', 'Apply it to', '<select id="f-applies"></select>', 'full') : ''}
     </div><p class="hint" id="f-payee-note" style="margin-top:8px"></p></div>
     ${isBill ? '' : `<div class="section"><h3>Bills this ${isPT ? 'transfer' : 'check'} pays</h3><div id="f-bills"></div></div>`}
     <div class="section"><h3>${isDM ? 'What it takes back' : isBill ? 'What it’s for' : 'Items without a bill'}</h3><div id="f-lines"></div>
       <p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="f-addline"></button></p></div>
     <div class="section" id="f-tax-sec"><h3>Taxes</h3><div class="fields">
-      <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="f-vatable" ${v.vatable ? 'checked' : ''}> Amounts include 12% VAT</label></div>
+      <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="f-vatable" ${v.vatable ? 'checked' : ''}> Amounts include 12% VAT ${tip('Tick when the supplier’s invoice shows VAT. Enter amounts as printed; the hub splits the VAT out to Input VAT.')}</label></div>
       ${F('f-vat', 'Input VAT (₱) <button type="button" class="autolink" id="f-vat-auto" hidden>use computed</button>', inp('f-vat', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
-      ${F('f-atc', 'Withholding tax (ATC)', `<select id="f-atc">${atcOptions(isDM ? '' : v.atc)}</select>`, isDM ? 'gone' : '')}
+      ${F('f-atc', 'Withholding tax (ATC) ' + tip('The BIR code for the tax you withhold from this payee. Choose it and the hub computes the EWT; leave it blank if you don’t withhold.'), `<select id="f-atc">${atcOptions(isDM ? '' : v.atc)}</select>`, isDM ? 'gone' : '')}
       ${F('f-ewt', 'EWT withheld (₱) <button type="button" class="autolink" id="f-ewt-auto" hidden>use computed</button>', inp('f-ewt', '', 'number', 'step="0.01" min="0" inputmode="decimal"'), isDM ? 'gone' : '')}
     </div></div>
     <div class="section"><p class="warnline" id="f-taxwarn"></p>
@@ -1773,7 +1818,7 @@ function docForm(kind, v0, mode = 'new') {
     document.getElementById('f-addline').textContent = v.lines.length ? 'Split across another account' : 'Add an item without a bill';
     if (!v.lines.length) { el.innerHTML = `<p class="hint">None. Add one if the ${isPT ? 'transfer' : 'check'} also pays something that has no bill.</p>`; return; }
     const depts = true;
-    el.innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${depts ? 34 : 42}%">Account</th>${depts ? '<th style="width:17%">Charged to</th>' : ''}<th>Description (optional)</th><th class="num" style="width:170px" id="f-amt-h">${isDM ? 'Amount' : 'Amount per invoice'} (${curSym(v.currency)})</th><th style="width:70px"></th></tr></thead><tbody>${v.lines.map((l, i) => `<tr>
+    el.innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${depts ? 34 : 42}%">Account</th>${depts ? `<th style="width:17%">Charged to ${tip('The department an expense is for; the shipment, for goods in transit; the employee, for an advance.')}</th>` : ''}<th>Description (optional)</th><th class="num" style="width:170px" id="f-amt-h">${isDM ? 'Amount' : 'Amount per invoice'} (${curSym(v.currency)})</th><th style="width:70px"></th></tr></thead><tbody>${v.lines.map((l, i) => `<tr>
       <td><select class="l-acct" aria-label="Line ${i + 1} account">${acctOptions(l.accountId, purchaseAccounts())}</select></td>
       ${chargeCell('l', l, i, l.accountId)}
       <td><input class="l-desc" value="${esc(l.desc)}" aria-label="Line ${i + 1} description"></td>
@@ -2275,7 +2320,7 @@ function reconForm(bank) {
   const body = `<div class="vform"><div class="section"><div class="fields">
       ${F('br-acct', 'Account', `<input id="br-acct" value="${esc(acctLabel(acct(bank)))}" disabled>`, 'span2')}
       ${F('br-date', 'Statement date', inp('br-date', startDate, 'date', `min="${firstDate}" max="${YEAR}-12-31"`))}
-      ${F('br-bal', `Ending balance on the statement (${cur === 'USD' ? 'US$' : '₱'})`, inp('br-bal', '', 'number', 'step="0.01" inputmode="decimal"'))}
+      ${F('br-bal', `Ending balance on the statement (${cur === 'USD' ? 'US$' : '₱'}) ` + tip('The last balance printed on the statement, on the statement date.'), inp('br-bal', '', 'number', 'step="0.01" inputmode="decimal"'))}
     </div><p class="hint" style="margin-top:8px">${last ? `Reconciled through ${fdate(last.date)}.` : 'The first reconciliation of this account.'} If the statement shows bank charges, interest or a transfer the books don’t have yet, record it first, then reconcile.</p></div>
     <div class="section"><h3>Checks</h3><p class="hint" style="margin:-4px 0 10px">Tick each check that’s on the statement.</p><div id="br-checks"></div></div>
     <div class="section"><h3>Deposits</h3><p class="hint" style="margin:-4px 0 10px">Tick each deposit that’s on the statement.</p><div id="br-deps"></div></div>
@@ -4126,7 +4171,7 @@ function salesForm(i0, asMemo) {
     </div><p class="hint" id="s-note" style="margin-top:8px"></p></div>
     <div class="section"><h3>${memo ? 'What it takes back' : 'What was sold'}</h3><div id="s-lines"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="s-add">Split across another account</button></p></div>
     <div class="section"><div class="fields">
-      <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="s-vatable" ${x.vatable ? 'checked' : ''}> Amounts include 12% VAT</label></div>
+      <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="s-vatable" ${x.vatable ? 'checked' : ''}> Amounts include 12% VAT ${tip('Tick when your invoice shows VAT. Enter amounts as printed; the hub splits the VAT out to Output VAT.')}</label></div>
       ${F('s-vat', 'Output VAT (₱) <button type="button" class="autolink" id="s-vat-auto" hidden>use computed</button>', inp('s-vat', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
     </div></div>
     <div class="section"><p class="warnline" id="s-warn"></p><div class="checkamt"><span class="label">${memo ? 'Amount of the memo' : 'Amount receivable'}</span><span class="big" id="s-total">₱0.00</span></div></div>
@@ -4307,7 +4352,7 @@ function collectionForm(c0) {
       ${F('c-method', 'Paid by', `<select id="c-method">${['Check', 'Cash', 'Transfer'].map(m => opt(m, m === 'Transfer' ? 'Bank transfer' : m, x.method)).join('')}</select>`)}
       ${F('c-ref', '<span id="c-ref-l">Check no.</span>', inp('c-ref', x.refNo, 'text', 'autocomplete="off"'))}
       <div class="field" id="c-bank-wrap">${`<label for="c-cbank">Customer’s bank</label>`}${inp('c-cbank', x.custBank, 'text', 'placeholder="e.g. BDO"')}</div>
-      ${F('c-into', 'Received into', `<select id="c-into">${intoOptions()}</select>`)}
+      ${F('c-into', 'Received into ' + tip('Checks and cash: Undeposited Funds, until a deposit slip takes them to the bank. A transfer: the bank account it landed in.'), `<select id="c-into">${intoOptions()}</select>`)}
       ${F('c-part', 'Particulars', inp('c-part', x.particulars, 'text', 'placeholder="e.g. Payment of invoices 1043, 1051"'), 'full')}
     </div><p class="hint" id="c-note" style="margin-top:8px"></p></div>
     <div class="section"><h3>Invoices it settles</h3><div id="c-inv"></div></div>
@@ -4880,7 +4925,7 @@ function liqForm(x0, empId) {
     <div class="section"><h3>Receipts</h3><div id="q-lines"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="q-add">Add a line</button></p></div>
     <div class="section">${vatFields('q', x)}</div>
     <div class="section"><h3>The difference</h3><div class="fields">
-      ${F('q-ret', 'Cash returned by the employee (₱)', inp('q-ret', x.returned || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}
+      ${F('q-ret', 'Cash returned by the employee (₱) ' + tip('The change they hand back. If they spent more than they got, leave this blank and enter what you paid them under Cash reimbursed.'), inp('q-ret', x.returned || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}
       ${F('q-rei', 'Cash reimbursed to the employee (₱)', inp('q-rei', x.reimbursed || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}
       ${F('q-cash', 'Into or out of', `<select id="q-cash">${cashOptions(x.cashAcct || cashOnHand())}</select>`, 'span2')}
     </div><p class="hint" id="q-diff" style="margin-top:8px"></p></div>
@@ -5103,7 +5148,7 @@ function countForm(j0, ym0) {
   const body = `<div class="fields">
     ${F('ct-no', 'Count no.', inp('ct-no', x.no, 'text', 'autocomplete="off"'))}
     ${F('ct-ym', 'Month end', `<select id="ct-ym" ${edit ? 'disabled' : ''}>${(edit ? [x.ym] : countMonths()).map(m => opt(m, `${monthLabel(m)} (${fdate(eom(m))})`, x.ym)).join('')}</select>`)}
-    ${F('ct-amt', 'Stock count value (₱)', inp('ct-amt', x.amount, 'number', 'step="0.01" min="0" inputmode="decimal"'), 'span2')}
+    ${F('ct-amt', 'Stock count value (₱) ' + tip('The cost of everything on hand at month end, from the count sheet. The hub books the cost of goods sold from the difference.'), inp('ct-amt', x.amount, 'number', 'step="0.01" min="0" inputmode="decimal"'), 'span2')}
   </div><div class="tbl-wrap" style="margin-top:16px"><table class="compact"><tbody id="ct-calc"></tbody></table></div>
   <div class="section" style="margin-top:16px"><h3>Accounting entry</h3><div class="entry" id="ct-entry"></div></div>
   <div style="margin-top:16px">${F('ct-notes', 'Notes (optional)', `<textarea id="ct-notes">${esc(x.notes)}</textarea>`)}</div>`;
@@ -5515,10 +5560,10 @@ function assetForm(id) {
       ${F('fa-no', 'Asset no.', inp('fa-no', x.no))}${F('fa-acq', 'Acquired on', inp('fa-acq', x.acquired, 'date'))}
       ${F('fa-desc', 'Description', inp('fa-desc', x.desc, 'text', 'placeholder="e.g. Forklift, Toyota 2.5T"'), 'full')}
       ${F('fa-acct', 'Asset account', `<select id="fa-acct">${acctOptions(x.acct, assetAccts())}</select>`, 'span2')}
-      ${F('fa-cost', 'Cost (₱)', inp('fa-cost', x.cost, 'number', 'step="0.01" min="0" inputmode="decimal"'))}${F('fa-salv', 'Salvage value (₱)', inp('fa-salv', x.salvage || 0, 'number', 'step="0.01" min="0" inputmode="decimal"'))}
+      ${F('fa-cost', 'Cost (₱)', inp('fa-cost', x.cost, 'number', 'step="0.01" min="0" inputmode="decimal"'))}${F('fa-salv', 'Salvage value (₱) ' + tip('What it’s expected to sell for at the end of its life. Usually zero.'), inp('fa-salv', x.salvage || 0, 'number', 'step="0.01" min="0" inputmode="decimal"'))}
     </div></div>
     <div class="section"><h3>Depreciation</h3><div class="fields">
-      ${F('fa-life', 'Useful life, in months', inp('fa-life', x.life || 0, 'number', 'step="1" min="0" inputmode="numeric"'))}${F('fa-start', 'Starts in the month of', inp('fa-start', x.start || '', 'date'))}
+      ${F('fa-life', 'Useful life, in months ' + tip('How long it’s expected to be used: 60 for 5 years. 0 for land, which isn’t depreciated.'), inp('fa-life', x.life || 0, 'number', 'step="1" min="0" inputmode="numeric"'))}${F('fa-start', 'Starts in the month of', inp('fa-start', x.start || '', 'date'))}
       ${F('fa-accum', 'Accumulated depreciation account', `<select id="fa-accum">${acctOptions(x.accum, accumAccts())}</select>`, 'span2')}
       ${F('fa-exp', 'Expense account', `<select id="fa-exp">${acctOptions(x.exp, expAccts())}</select>`, 'span2')}
       ${F('fa-dept', 'Department', `<select id="fa-dept">${deptOptions(x.dept)}</select>`, 'span2')}
@@ -5736,6 +5781,455 @@ function healthBody(asOf) {
 }
 const allowedPage = id => NAV.flatMap(g => g.items).some(n => n.id === id && allowed(n));
 
+/* ---------- Help ----------
+   How to Use the Hub: a start-here list, short how-to guides, the month-end checklist, answers to the usual
+   questions and the words the hub uses. Each page also has a "?" by its title that opens a few tips for that page,
+   and a few form fields carry an (i) with a one-line explanation. A first sign-in shows a note pointing here. */
+const tip = text => `<span class="tip" tabindex="0" role="note" aria-label="${esc(text)}" data-tip="${esc(text)}"></span>`;
+/* ---------- The guide ----------
+   Written for someone who has never kept books: what each page is for, when it's used, what to fill in and why,
+   the entry it writes, and where that lands on the reports. One example company runs through it, with amounts that
+   add up. GUIDE[page] is shown by the ? beside each page's title and, all together, on How to Use the Hub. */
+const GUIDE_GROUPS = [
+  ['everyday', 'Everyday work', 'The pages most people use every day: what comes in, what goes out, and the cash in between.'],
+  ['close', 'Closing the month and reporting', 'For Approvers and Admins: checking the books, closing each month, and the statements for the owners and the accountant.'],
+  ['setup', 'Setup', 'Lists the other pages depend on. Set once, changed now and then.']
+];
+const GUIDE = {
+  bills: { who: 'everyday',
+    what: 'A bill is a supplier’s invoice: what the company owes for something it bought. Entering it is how the books learn about an utang before it’s paid.',
+    when: 'The moment a supplier’s invoice arrives, even if you’ll pay it next month. Goods from a supplier (stock to sell) and services from a vendor (rent, trucking, repairs) both start here.',
+    steps: [
+      ['Invoice no. and date', 'Copy them from the supplier’s invoice. The date decides which month the cost belongs to.'],
+      ['Payee', 'Start typing; pick the name from the list. A new name is added to Contacts, as a Supplier (goods) or a Vendor (services). That choice decides which payables account the bill goes to.'],
+      ['Particulars', 'What it’s for, in a line: “Warehouse rent, October 2026”. It prints on the voucher that pays it.'],
+      ['Lines', 'One line per kind of cost. Pick the account (what it is) and the department (who it’s for). Type the amount as printed on the invoice, VAT included.'],
+      ['VAT', 'Tick it when the invoice shows VAT. The hub takes the VAT out of each line for you.'],
+      ['Withholding tax (ATC)', 'If the company withholds tax from this payee, choose the ATC. The hub works out the EWT. You pay the supplier the rest and the BIR the EWT.'],
+      ['Save', 'The bill is now on the Unpaid list until a check voucher or transfer pays it.']
+    ],
+    book: { say: 'Prime Realty bills ₱56,000 rent with VAT, and the company withholds 5% (ATC WC100).',
+      rows: [['720-010 · Rental Expense', 50000, 0], ['140-010 · Input VAT', 6000, 0], ['220-020 · Expanded Withholding Tax Payable', 0, 2500], ['210-020 · Accounts Payable - Others', 0, 53500]],
+      note: 'The rent is a cost. The VAT is tax the company can claim back. The EWT is tax the company now owes the BIR for Prime Realty. What’s left, ₱53,500, is what the company owes Prime Realty.' },
+    shows: ['Rental Expense: on the Income Statement, under General and administrative expenses.', 'Input VAT and the payables: on the Balance Sheet, until they’re paid or filed.', 'The bill: on Unpaid Bills in the Google Sheet, and on the purchase book.'],
+    watch: ['Don’t enter the same invoice twice. The hub refuses a second bill with the same invoice no. from the same payee.', 'Use the invoice date, not today’s date.', 'Goods for an import go to the Goods in Transit accounts and the shipment, not to Inventories. See Shipments.']
+  },
+  vouchers: { who: 'everyday',
+    what: 'A check voucher pays bills by check. It’s the paper the check is attached to, signed by whoever prepared, checked and approved it.',
+    when: 'Every time a check is written. Usually it pays bills already entered; it can also pay something with no bill, like a permit paid on the spot.',
+    steps: [
+      ['Payee', 'Pick who the check is for. Their unpaid bills appear.'],
+      ['Tick the bills', 'Tick each bill this check pays. You can pay part of a bill; the rest stays unpaid.'],
+      ['Check no., check date, bank account', 'As written on the check. The bank account is the one the check is drawn on.'],
+      ['Lines (only with no bill)', 'For a payment that was never billed, add lines instead, the same way as on a bill.'],
+      ['Save, then Print', 'Print the voucher, attach the bills and the check, and pass it for signatures.']
+    ],
+    book: { say: 'Check 1001 pays Prime Realty’s rent bill.',
+      rows: [['210-020 · Accounts Payable - Others', 53500, 0], ['111-010 · Cash in Bank - Metrobank', 0, 53500]],
+      note: 'The utang to Prime Realty goes down, and so does the money in the bank. The rent was already counted as a cost when the bill was entered, so paying it doesn’t count it again.' },
+    shows: ['Cash in Bank: on the Balance Sheet, and on the Statement of Cash Flows.', 'The check: on Check Monitoring until the bank pays it, then on the bank reconciliation.', 'The voucher: on the cash disbursements book in the Google Sheet.'],
+    watch: ['A check is written on the voucher date, but leaves the bank only when it clears. That’s why the bank statement and the books differ for a while. Bank Reconciliation sorts that out.', 'Spoiled or cancelled check: void the voucher with the date and reason. Don’t delete it; the check number must stay accounted for.']
+  },
+  transfers: { who: 'everyday',
+    what: 'Payments that leave the bank without a check: online banking, a bank transfer, an auto-debit. It also moves money between the company’s own accounts.',
+    when: 'Paying a bill by transfer, or moving money from one bank account to another (including cash on hand put into the bank).',
+    steps: [
+      ['New payment', 'Works like a check voucher: pick the payee, tick the bills, and put the bank’s reference number where the check number would go. Add any bank charge the transfer cost.'],
+      ['Move between accounts', 'From one of the company’s accounts to another: pick From and To, the amount that left, and any bank charge.']
+    ],
+    book: { say: 'The forklift bill of ₱240,000 is paid by transfer from Metrobank.',
+      rows: [['210-020 · Accounts Payable - Others', 240000, 0], ['111-010 · Cash in Bank - Metrobank', 0, 240000]],
+      note: 'Same as a check, except a transfer leaves the bank the same day, so there’s nothing to wait for on the bank statement.' },
+    shows: ['Cash in Bank on the Balance Sheet and the Statement of Cash Flows.', 'A bank charge: Bank Service Charges, on the Income Statement.'],
+    watch: ['A move between your own accounts isn’t income or a cost. It only changes which account holds the money.']
+  },
+  invoices: { who: 'everyday',
+    what: 'A sales invoice is what a customer owes the company. It’s how a sale gets into the books.',
+    when: 'Each time an invoice is issued to a customer. A credit memo, from the same page, reduces what a customer owes: a return, a discount, an overcharge.',
+    steps: [
+      ['Invoice no. and date', 'As printed on the invoice you gave the customer.'],
+      ['Customer', 'Pick them from the list.'],
+      ['Lines', 'The sales account (each big customer has its own) and the amount as invoiced, VAT included.'],
+      ['VAT', 'Tick it when the invoice shows VAT; the hub splits it out.'],
+      ['Credit memo: Apply it to', 'Pick the invoice it reduces, so that invoice shows less owing.']
+    ],
+    book: { say: 'An invoice of ₱112,000 with VAT to CitiHardware Bacolod.',
+      rows: [['120-010 · Accounts Receivable - Trade', 112000, 0], ['410-010 · Sales - CitiHardware Bacolod Inc', 0, 100000], ['220-010 · Output VAT', 0, 12000]],
+      note: 'The customer now owes ₱112,000. ₱100,000 is the sale. ₱12,000 is VAT the company collects for the BIR, so it’s owed to the BIR, not earned.' },
+    shows: ['Sales: on the Income Statement, at the top.', 'What customers owe: Accounts Receivable on the Balance Sheet, and Unpaid Invoices in the Google Sheet.', 'Output VAT: on the Balance Sheet until it’s filed and paid; on the VAT on Sales list.'],
+    watch: ['A sale counts when it’s invoiced, not when it’s paid.', 'A return or discount is a credit memo, not a smaller invoice. That keeps the original invoice matching the paper.']
+  },
+  collections: { who: 'everyday',
+    what: 'A collection is a customer’s payment. It reduces what they owe. A deposit slip then takes checks and cash to the bank.',
+    when: 'Whenever a customer pays: a check, cash, or a transfer straight into the bank.',
+    steps: [
+      ['Customer, date, paid by', 'Pick the customer and how they paid. Checks and cash go to Undeposited Funds; a transfer goes straight to the bank account.'],
+      ['Tick the invoices', 'Tick what the payment covers, and how much of each.'],
+      ['Withheld by the customer', 'Big customers often withhold tax (CWT) and send a BIR Form 2307. Enter what they withheld; the buttons fill in 1% or 2% of the amount before VAT.'],
+      ['Deposit', 'When checks and cash go to the bank, choose New deposit, tick what’s on the deposit slip, and pick the bank.']
+    ],
+    book: { say: 'CitiHardware Bacolod pays the ₱112,000 invoice with a check for ₱111,000, having withheld 1% of ₱100,000. Then the check is deposited.',
+      rows: [['110-090 · Undeposited Funds', 111000, 0], ['140-020 · Creditable Withholding Tax', 1000, 0], ['120-010 · Accounts Receivable - Trade', 0, 112000], ['', null, null], ['111-010 · Cash in Bank - Metrobank', 111000, 0], ['110-090 · Undeposited Funds', 0, 111000]],
+      note: 'First the customer’s debt goes away: ₱111,000 as a check in hand and ₱1,000 as tax the company can claim. Then the deposit moves the check from “in hand” to “in the bank”.' },
+    shows: ['Accounts Receivable and Cash in Bank on the Balance Sheet.', 'Creditable Withholding Tax: on the Balance Sheet, used against the company’s income tax.', 'The cash receipts book, and CWT by Customers, in the Google Sheet.'],
+    watch: ['Undeposited Funds is only for customers’ payments. Other cash (change from an advance, an asset sold) goes to Cash on Hand.', 'Keep the 2307; the accountant needs it to claim the CWT.']
+  },
+  checks: { who: 'everyday',
+    what: 'Every check the company wrote, and whether the bank has paid it yet (cleared).',
+    when: 'To see which checks are still out, and to mark one cleared once it’s on the bank statement.',
+    steps: [['Cleared…', 'Enter the date the check shows on the bank statement.'], ['Or let Bank Reconciliation do it', 'Ticking a check there marks it cleared for you.']],
+    book: null,
+    shows: ['Nothing new in the books; the check was booked when it was written. This is about timing: what the bank has paid so far.'],
+    watch: ['A check on a reconciled statement stays cleared. If it was a mistake, undo that reconciliation first.']
+  },
+  recon: { who: 'close',
+    what: 'Once a month, the bank’s statement is compared with the books, item by item, until they agree. It’s how you know nothing is missing or entered twice.',
+    when: 'When each month’s bank statement comes, for each bank account.',
+    steps: [
+      ['Record what’s missing first', 'If the statement shows a bank charge, interest, or a transfer the books don’t have, enter it first (Bank Transfers or General Journal).'],
+      ['Reconcile', 'Pick the account. Enter the statement date and its ending balance.'],
+      ['Tick', 'Tick each check and each deposit that appears on the statement.'],
+      ['Read the bottom', 'Statement balance, less checks not on it yet, plus deposits not on it yet, must equal the books. If it’s off, look for a missed tick or a wrong amount.'],
+      ['Save', 'It only saves when it agrees. What you ticked is marked cleared.']
+    ],
+    book: null,
+    shows: ['No entry. Books Health shows each account as reconciled, and flags one if the books later change for a month already reconciled.'],
+    watch: ['Checks you wrote that the bank hasn’t paid yet, and deposits made on the last day, are normal differences. They show up on next month’s statement.', 'Only the latest reconciliation can be undone.']
+  },
+  petty: { who: 'everyday',
+    what: 'Petty cash is a small fixed amount of cash kept by one person, the custodian, for small expenses. Each payment out of it needs a petty cash voucher (PCV) with its resibo.',
+    when: 'Each time something small is paid in cash: supplies, fares, a courier. Replenish when the fund runs low.',
+    steps: [
+      ['Set up a fund (once)', 'Its account, its custodian and its amount, for example ₱10,000.'],
+      ['New petty cash voucher', 'Who was paid (as on the resibo), what for, and each line’s account and department.'],
+      ['Replenish', 'A check for exactly what was spent brings the fund back to its amount. Or record that an owner refilled it from their own pocket; the hub lists that under Owed to Owners until the company pays them back.']
+    ],
+    book: { say: 'A ₱1,500 PCV for office supplies, then a check to refill it.',
+      rows: [['730-010 · Office & Warehouse Supplies', 1500, 0], ['110-020 · Petty Cash Fund', 0, 1500], ['', null, null], ['110-020 · Petty Cash Fund', 1500, 0], ['111-010 · Cash in Bank - Metrobank', 0, 1500]],
+      note: 'The supplies are a cost the day they’re bought. The refill just moves money from the bank back into the cash box.' },
+    shows: ['Each expense on the Income Statement, under its account; and against its department’s budget.', 'Petty Cash Fund on the Balance Sheet, in cash.'],
+    watch: ['Cash in the box plus the PCVs not yet replenished should always equal the fund. Count it now and then.', 'Books Health flags a fund that’s below zero or above its amount.']
+  },
+  advances: { who: 'everyday',
+    what: 'A cash advance is money given to an employee before they spend it, for a trip or a purchase. A liquidation is the employee coming back with the resibos and the sukli (change).',
+    when: 'Release when the money goes out. Liquidate when the employee returns.',
+    steps: [
+      ['Release an advance', 'The employee, the amount, what it’s for, and how it’s paid: by check, transfer, petty cash, or by an owner out of pocket. It opens the voucher filled in, to check and save.'],
+      ['Liquidate', 'On the employee’s row. Enter each resibo with its account and department, then the change they hand back. If they spent more than they got, enter what you paid them on top instead.'],
+      ['Where the change goes', 'Into Cash on Hand, unless it went straight back into the fund or the bank.']
+    ],
+    book: { say: 'Ana gets a ₱5,000 check for a trip. She comes back with ₱3,200 of fuel receipts and ₱1,800 change.',
+      rows: [['141-010 · Advances - Employees (Ana Cruz)', 5000, 0], ['111-010 · Cash in Bank - Metrobank', 0, 5000], ['', null, null], ['730-040 · Fuel, Oil & Transportation', 3200, 0], ['110-010 · Cash on Hand', 1800, 0], ['141-010 · Advances - Employees (Ana Cruz)', 0, 5000]],
+      note: 'While Ana has the money, it’s still the company’s, just in her hands, so it isn’t a cost yet. It becomes a cost only when the receipts come in.' },
+    shows: ['Advances - Employees on the Balance Sheet, by employee on this page.', 'The receipts, as expenses, on the Income Statement.'],
+    watch: ['An advance stays on the employee’s name until it’s fully liquidated. Chase old ones.']
+  },
+  shipments: { who: 'everyday',
+    what: 'An import costs more than the supplier’s price: ocean freight, brokerage, duties, trucking. A shipment collects all of those so the goods are valued at what it really cost to bring them in, the landed cost.',
+    when: 'Create the shipment when you order. Charge every bill for it to the shipment. Receive it when the goods arrive.',
+    steps: [
+      ['New shipment', 'Its number and a short description.'],
+      ['Bills', 'On Supplier Bills, each line goes to a Goods in Transit account (131-…) and names the shipment.'],
+      ['Receive', 'When the goods are in the warehouse. The landed cost moves into Inventories.']
+    ],
+    book: { say: 'Goods of ₱200,000 and ocean freight of ₱20,000, then received.',
+      rows: [['131-010 · Goods in Transit - Supplier Cost', 200000, 0], ['210-010 · Accounts Payable - Trade', 0, 200000], ['131-020 · Goods in Transit - Ocean Freight', 20000, 0], ['210-020 · Accounts Payable - Others', 0, 20000], ['', null, null], ['130-010 · Inventories', 220000, 0], ['131-010 · Goods in Transit - Supplier Cost', 0, 200000], ['131-020 · Goods in Transit - Ocean Freight', 0, 20000]],
+      note: 'While the goods are on the way, their cost waits in Goods in Transit. Receiving moves the whole ₱220,000 into stock, so the freight becomes part of what the goods cost.' },
+    shows: ['Goods in Transit and Inventories on the Balance Sheet.', 'The Cost of Sales schedule in the Google Sheet.'],
+    watch: ['A freight bill that comes after the goods were received still goes to the shipment; the page then shows a cost difference to clear.']
+  },
+  counts: { who: 'everyday',
+    what: 'At each month end someone counts what’s in the warehouse and works out its value. The hub compares that with what the books say should be there; the difference is what was sold, the cost of goods sold.',
+    when: 'After the month’s last delivery and sale are entered.',
+    steps: [['Month end', 'Pick the month.'], ['Stock count value', 'The value of everything counted, at cost.'], ['Save', 'The hub books cost of goods sold for the month.']],
+    book: { say: 'The books say ₱250,000 of stock; the count finds ₱150,000.',
+      rows: [['510-010 · Cost of Goods Sold', 100000, 0], ['130-010 · Inventories', 0, 100000]],
+      note: 'The ₱100,000 that’s no longer on the shelf was sold (or lost), so it becomes a cost against this month’s sales.' },
+    shows: ['Cost of Goods Sold on the Income Statement, right under sales; sales less this is the gross profit.', 'Inventories on the Balance Sheet.'],
+    watch: ['If a bill or receipt for the month comes in after the count, the page says Changed. Save the count again.']
+  },
+  gj: { who: 'everyday',
+    what: 'For anything no other page covers: an expense used but not billed yet (an accrual), a correction, moving an amount from one account to another.',
+    when: 'Mostly at month end, by whoever closes the books.',
+    steps: [
+      ['Date and memo', 'The memo says why, in a sentence.'],
+      ['Lines', 'Each line is an account with a debit or a credit. Debits must equal credits before it saves.'],
+      ['Reverse it on', 'For an accrual: the date it should undo itself, usually the 1st of next month, when the real bill comes.']
+    ],
+    book: { say: 'October’s electricity, about ₱8,000, before Davao Light’s bill arrives.',
+      rows: [['720-020 · Light, Power & Water', 8000, 0], ['230-010 · Accrued Expenses Payable', 0, 8000]],
+      note: 'October carries its own electricity even though the bill comes in November. On November 1 the hub reverses it, so the real bill isn’t counted twice.' },
+    shows: ['Wherever its accounts are, on every report.'],
+    watch: ['If a page exists for it (a bill, a collection, a deposit), use that page. An entry here doesn’t update unpaid bills, the bank reconciliation or Books Health’s lists.']
+  },
+  journal: { who: 'everyday',
+    what: 'Every entry the books hold, from every page, in date order: the bookkeeper’s journal.',
+    when: 'To find an entry, see what a document wrote, or trace an amount.',
+    steps: [['Search', 'By number, name or account.'], ['Open', 'To see each line and where it came from.']],
+    book: null, shows: ['Everything on the reports adds up from these entries.'], watch: ['Nothing is changed here. Fix a document on its own page.']
+  },
+  summary: { who: 'close',
+    what: 'Each month’s totals by account, and where months are locked.',
+    when: 'At month end, to review the month, then lock it.',
+    steps: [['Review', 'Compare the month with the one before. Anything odd? Open All Entries to see why.'], ['Lock', 'Once the month is reviewed. Nothing dated in it can be added, changed or voided until it’s unlocked.'], ['Close the year', 'After December is locked: the year becomes final and next year opens with its balances.']],
+    book: null, shows: ['Locked months are what the accountant receives; they won’t change after you send them.'],
+    watch: ['Run Books Health before locking.']
+  },
+  budgets: { who: 'close',
+    what: 'How much each department may spend this year, in total or by account, against what it actually spent.',
+    when: 'Set at the start of the year; watched every month.',
+    steps: [['Set a budget', 'Pick the department; enter the whole year’s amount, and if you like, split some of it by account.'], ['Watch', 'Every bill, voucher, PCV and entry with a department counts against it. Going over shows a warning when it’s entered; it never stops the save.']],
+    book: null, shows: ['Nothing in the books. Budgets are a plan to compare with.'], watch: ['Spending only counts if its department is chosen on the line.']
+  },
+  assets: { who: 'close',
+    what: 'Things the company keeps for years (equipment, vehicles, a building) aren’t a cost all at once. Their cost is spread over the months they’re used. That spread is depreciation, and this page does it each month.',
+    when: 'Add an asset when it’s bought (after the bill or voucher for it). Book depreciation once a month. Dispose when it’s sold or scrapped.',
+    steps: [
+      ['Add asset', 'Description, account, date acquired, cost, and useful life in months (60 for five years; 0 for land). The depreciation accounts fill in.'],
+      ['Book [month]', 'Posts the month’s depreciation for every asset as one journal entry, oldest month first.'],
+      ['Dispose', 'Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
+    ],
+    book: { say: 'A ₱240,000 forklift, used for 60 months: ₱4,000 a month.',
+      rows: [['760-010 · Depreciation Expense', 4000, 0], ['159-030 · Accumulated Depreciation - Warehouse Equipment', 0, 4000]],
+      note: 'Each month ₱4,000 of the forklift’s cost becomes a cost. Accumulated Depreciation keeps count of how much has been used up, so the forklift’s value on the books drops by ₱4,000 a month.' },
+    shows: ['Depreciation Expense on the Income Statement.', 'The equipment less its accumulated depreciation on the Balance Sheet.', 'Added back on the Statement of Cash Flows, because no cash left.'],
+    watch: ['Enter the purchase as a bill or voucher first; the register doesn’t book the cost itself.', 'Books Health checks that the register agrees with the asset accounts.']
+  },
+  reports: { who: 'close',
+    what: 'The statements the owners and the accountant read, from the books as they stand.',
+    when: 'At month end after closing, and whenever the owners ask how the company is doing.',
+    steps: [
+      ['Pick a report', 'Income Statement: did the company make money? Balance Sheet: what it owns and owes on a day. Cash Flows: where the cash came from and went. Changes in Equity: what happened to the owners’ share. Trial Balance: every account’s balance, for the accountant.'],
+      ['Pick a period, and what to compare with', 'A month, a quarter, the year so far, or a range; against the period before or the same period last year.'],
+      ['Download Excel or Print', 'For the accountant or the owners.']
+    ],
+    book: null,
+    shows: ['The same figures as the Google Sheet’s report tabs. The Sheet also has the ledger, the books of accounts, VAT and aging.'],
+    watch: ['Net income on the Income Statement is what moves the Balance Sheet’s equity. If one looks wrong, so will the other.']
+  },
+  health: { who: 'close',
+    what: 'The checks an auditor would run, done every time the page opens. Each list in the hub is compared with the account it should equal.',
+    when: 'Before locking a month, and any time something looks off.',
+    steps: [['As of', 'Today, or a month end.'], ['Read the cards', 'Red: a number doesn’t tie, so something is in the wrong place. Amber: something is due, like a reconciliation. Green: all good.'], ['Fix it', 'Each card says where to look and links there.']],
+    book: null, shows: ['When every card is green, the reports can be trusted.'],
+    watch: ['The usual cause of red: something entered on General Journal that should have used its own page, or the wrong account picked.']
+  },
+  accounts: { who: 'setup',
+    what: 'The chart of accounts: every account the books use, each with a code. Think of it as the labelled drawers every peso is filed into.',
+    when: 'Rarely. Add an account when something new needs its own line.',
+    steps: [['Codes by section', '1 what the company owns, 2 what it owes, 3 the owners’ share, 4 sales, 5 cost of sales, 6 and 7 expenses, 8 other income and expense.'], ['Add or edit', 'An account in use can be renamed, but its type and section can’t change.'], ['Download chart', 'An Excel copy for the accountant.']],
+    book: null, shows: ['Every report is built from these accounts, in code order.'], watch: ['Ask before adding one; two accounts for the same thing split a total that should be one.']
+  },
+  contacts: { who: 'setup',
+    what: 'Everyone the company pays or bills, spelled once: suppliers, vendors, customers, employees.',
+    when: 'New names are added as bills and vouchers are saved. Come here to fix spelling or add a TIN.',
+    steps: [['Type', 'Supplier (sells you goods), Vendor (services), Customer, Employee. A supplier’s bills go to Accounts Payable - Trade; a vendor’s to Accounts Payable - Others. Only employees can get cash advances.'], ['TIN', 'Printed on vouchers and needed for tax lists.'], ['Usual account and withholding', 'Filled in for you on their next bill.']],
+    book: null, shows: ['Names on every document, and on the tax lists in the Google Sheet.'], watch: ['One person, one contact. A second spelling splits their history.']
+  },
+  company: { who: 'setup',
+    what: 'The company details printed on vouchers, who signs them, how to send the books to the accounting firm, and the daily backup.',
+    when: 'Once, and when a signatory changes.',
+    steps: [['Details and signatories', 'Name, TIN, address; Prepared by, Checked by, Approved by.'], ['Books for the Accounting Firm', 'Rebuild the reports, then download the Google Sheet as Excel.'], ['Daily Backup', 'When the last copy was made; Back up now before anything risky.']],
+    book: null, shows: ['On every printed voucher.'], watch: ['The address and TIN print exactly as typed.']
+  },
+  users: { who: 'setup',
+    what: 'Who can sign in, and what each person can do. Each person has one role; each role is a set of permissions.',
+    when: 'When someone joins, leaves, or needs to do more.',
+    steps: [['Add a user', 'A username and a temporary password; they change it after signing in.'], ['Roles', 'Give the least that lets someone do their job. Admin can do everything.'], ['Someone leaves', 'Turn their sign-in off. Their name stays on what they did.']],
+    book: null, shows: ['Every save in the Change Log carries the user’s name.'], watch: ['Never share a sign-in; the Change Log is only useful if names are true.']
+  },
+  log: { who: 'setup',
+    what: 'Every save: who, when, and what changed.',
+    when: 'To find out who changed something, and when.',
+    steps: [['Search', 'By name, CV no., invoice or check no.']], book: null, shows: ['Nothing in the books.'], watch: ['Nothing in the books disappears without a line here.']
+  }
+};
+/* The first page of the guide: how books work, in a few minutes. */
+const GUIDE_START = `
+  <p>Every peso the company gets or spends comes from somewhere and goes somewhere. The hub writes down both: that’s what “double-entry bookkeeping” means. Each entry has two sides, and they are always equal.</p>
+  <h3>Debit and credit, in one picture</h3>
+  <p>Think of each account as a jar. A <b>debit</b> is the left side of an entry, a <b>credit</b> the right. Which one makes a jar fuller depends on the kind of jar:</p>
+  <div class="tbl-wrap"><table class="compact gd-dc"><thead><tr><th>Kind of account</th><th>Gets bigger with a</th><th>Examples</th></tr></thead><tbody>
+    <tr><td>What the company <b>owns</b></td><td>Debit</td><td>Cash in Bank, what customers owe, stock, equipment</td></tr>
+    <tr><td>What the company <b>owes</b></td><td>Credit</td><td>What it owes suppliers, VAT and EWT owed to the BIR, loans</td></tr>
+    <tr><td>The <b>owners’ share</b></td><td>Credit</td><td>Capital Stock, Retained Earnings</td></tr>
+    <tr><td><b>Sales</b> and other income</td><td>Credit</td><td>Sales, interest income</td></tr>
+    <tr><td><b>Costs</b> and expenses</td><td>Debit</td><td>Cost of goods sold, rent, salaries, fuel</td></tr></tbody></table></div>
+  <p>Example: a customer pays ₱10,000 into the bank. Cash in Bank (owned) gets a ₱10,000 debit and gets bigger; what the customer owes (also owned) gets a ₱10,000 credit and gets smaller. Both sides: ₱10,000.</p>
+  <h3>The two reports everything ends up in</h3>
+  <p><b>Income Statement</b>: sales, less what they cost, less expenses, equals profit (net income) for a period. It answers “did we make money in October?”</p>
+  <p><b>Balance Sheet</b>: on one day, what the company owns equals what it owes plus the owners’ share. Profit adds to the owners’ share, which is why the two reports always agree.</p>
+  <h3>The trip a peso takes</h3>
+  <ol class="hp-steps"><li><b>Buying:</b> a supplier’s invoice is a <b>bill</b> (we owe), then a <b>check voucher</b> or <b>transfer</b> pays it (the bank goes down).</li>
+    <li><b>Selling:</b> a <b>sales invoice</b> (the customer owes), then a <b>collection</b> (they paid), then a <b>deposit</b> (it’s in the bank).</li>
+    <li><b>Small cash:</b> <b>petty cash vouchers</b> and <b>cash advances</b>, settled with resibos.</li>
+    <li><b>Month end:</b> the stock count, depreciation, accruals, the bank reconciliation, Books Health, then lock the month.</li></ol>
+  <h3>Where it all lives</h3>
+  <p>The hub is where you work. Every save goes straight to the company’s Google Sheet, which holds the complete books and the reports for the accounting firm. A copy of the Sheet is made every night.</p>`;
+const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
+  '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
+  '<b>Find your pages.</b> The sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup. You see only the pages your role uses.',
+  '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
+  '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
+  '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];
+const HELP_CLOSE = [
+  ['Everything for the month is in', 'Every bill, voucher, transfer, invoice, collection and deposit dated in the month.'],
+  ['Petty cash and advances', 'Replenish each fund so every PCV is in. Liquidate the advances that have come back.'],
+  ['Stock', 'Receive any shipment that arrived, then enter the month-end stock count.'],
+  ['Accruals', 'On General Journal: expenses used but not billed yet, set to reverse on the 1st of next month.'],
+  ['Depreciation', 'On Fixed Assets: Book the month.'],
+  ['The bank', 'Reconcile each bank account to its statement.'],
+  ['Books Health', 'As of the month end. Fix anything red; clear anything amber that’s due.'],
+  ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
+];
+const HELP_FAQ = [
+  ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
+  ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],
+  ['The invoice shows VAT. Do I type the amount with or without VAT?', 'With VAT, exactly as printed. Tick VAT and the hub takes it out for you.'],
+  ['What’s EWT, and why does the bill’s payable go down?', 'Expanded withholding tax: for some payees the company must hold back part of the payment and pay it to the BIR instead. Choose the ATC on the bill and the hub works it out. You pay the supplier the rest, and issue them a BIR Form 2307.'],
+  ['A customer paid less than the invoice. Why?', 'Usually they withheld tax (CWT). Enter it on the collection under “Withheld by the customer”, and keep their 2307. If they simply paid part, the rest stays unpaid.'],
+  ['What is Undeposited Funds?', 'Customers’ checks and cash the company is holding, not yet in the bank. A deposit moves them into the bank. Only collections go there.'],
+  ['Which department do I choose?', 'The one the spending is for. That’s how budgets are tracked, so be consistent.'],
+  ['Why can’t I enter or change something in an earlier month?', 'That month is locked, so the figures already reviewed can’t move. Someone who can lock months unlocks it on Monthly Summary.'],
+  ['I wrote the wrong check number, or the check got spoiled.', 'Void the voucher with the date and reason (“spoiled”), then enter a new one with the right check. The spoiled number stays on record.'],
+  ['A supplier gave us a discount or took goods back.', 'Enter a debit memo on Supplier Bills and apply it to the bill. It reduces what you owe them.'],
+  ['A customer returned goods.', 'Enter a credit memo on Sales Invoices and apply it to their invoice.'],
+  ['An owner paid for something with their own money.', 'For petty cash or a cash advance, choose “An owner, out of pocket”. It’s listed under Owed to Owners until the company pays them back with a check.'],
+  ['The bank statement doesn’t match the books.', 'That’s normal for checks not yet cashed and deposits made on the last day. Bank Reconciliation accounts for them. If it’s still off, look for a bank charge or interest the books don’t have.'],
+  ['What’s the difference between Cash on Hand and Undeposited Funds?', 'Both are cash in the office. Undeposited Funds is customers’ payments waiting for a deposit slip. Cash on Hand is any other cash, like the change from an advance.'],
+  ['Why is Books Health red?', 'A list doesn’t agree with its account, usually because something went through General Journal that should have used its own page, or the wrong account was picked. The card shows the difference and where to look.'],
+  ['Why don’t I see some pages or buttons?', 'Your role decides what you can do. Ask an Admin if you need more.'],
+  ['The hub signed me out, or says it can’t reach the books.', 'Sign in again; everything up to your last save is safe. If it keeps happening, tell the Admin: the Google Sheet’s script may need attention.'],
+  ['Two people saved at the same time. What happens?', 'The second save stops if it would overwrite the first, and the hub asks you to reload. Nothing is lost.'],
+  ['Can I delete something?', 'No. Documents are voided, not deleted, so there’s always a record. That’s what auditors and the BIR expect.'],
+  ['Where are the books kept, and are they backed up?', 'In the company’s Google Sheet. Every night a copy goes to the Backups folder in the owner’s Google Drive; Company and Printing shows when it last ran.'],
+  ['How do I send the books to the accountant?', 'Company and Printing, Rebuild the reports now; then open the Google Sheet, File, Download, Microsoft Excel. For the statements alone, Financial Reports, Download Excel.'],
+  ['Can I change last year once it’s closed?', 'No. A closed year is final. Before closing, make sure Books Health is all green for December.']
+];
+const HELP_WORDS = [
+  ['Account', 'A labelled jar the books sort money into, like Rental Expense or Cash in Bank.'],
+  ['Debit and credit', 'The two sides of every entry, left and right. They always add up to the same amount.'],
+  ['Entry', 'One event written in the books, with its debits and credits.'],
+  ['Asset', 'Something the company owns: cash, stock, equipment, what customers owe.'],
+  ['Liability', 'Something the company owes: suppliers, taxes, loans.'],
+  ['Equity', 'The owners’ share: what’s left of the assets after the liabilities.'],
+  ['Accounts payable', 'What the company owes suppliers and vendors (utang).'],
+  ['Accounts receivable', 'What customers owe the company.'],
+  ['Net income', 'Sales less all costs and expenses for a period: the profit, or a loss when it’s negative.'],
+  ['VAT', 'Value-added tax, 12%. On purchases it’s Input VAT, which the company claims back; on sales it’s Output VAT, which it owes the BIR.'],
+  ['EWT', 'Expanded withholding tax: tax the company holds back from a supplier and pays the BIR for them.'],
+  ['CWT', 'Creditable withholding tax: tax a customer held back from the company. The company uses it against its own income tax.'],
+  ['ATC', 'The BIR code for a kind of withholding, which sets its rate, like WC100 for rent at 5%.'],
+  ['Form 2307', 'The BIR certificate that proves tax was withheld. Give one for EWT; collect one for CWT.'],
+  ['Particulars', 'What a document is for, in a line. It prints on the document.'],
+  ['Void', 'Cancels a document but keeps it on record, with the date and reason. Its entry is reversed.'],
+  ['Debit memo / credit memo', 'A credit from a supplier (debit memo), or a credit to a customer (credit memo), used against their bills or invoices.'],
+  ['Undeposited Funds', 'Customers’ checks and cash not yet in the bank.'],
+  ['Cleared', 'A check the bank has paid; it shows on the statement.'],
+  ['Reconcile', 'Agree the bank’s statement with the books, item by item.'],
+  ['Petty cash fund', 'A fixed amount of cash for small expenses, kept by a custodian.'],
+  ['Custodian', 'The person who keeps a petty cash fund and answers for it.'],
+  ['Liquidation', 'An employee accounting for a cash advance with resibos and the change.'],
+  ['Goods in transit', 'The cost of imported goods bought but not yet arrived, kept by shipment.'],
+  ['Landed cost', 'Everything it took to get goods here: the goods, freight, brokerage, duties.'],
+  ['Cost of goods sold', 'What the goods that were sold cost the company.'],
+  ['Accrual', 'An expense booked in the month it was used, before its bill comes.'],
+  ['Depreciation', 'An asset’s cost spread over the months it’s used.'],
+  ['Book value', 'An asset’s cost less the depreciation booked so far.'],
+  ['Locked month', 'A month that’s been reviewed; nothing dated in it can change.'],
+  ['Trial balance', 'Every account’s balance on one list. Debits equal credits.']
+];
+/* The (i) beside a field, by its label (or its id and label, where a label means different things on different forms). */
+const FIELD_TIPS = {
+  'f-ref|Invoice no.': 'The supplier’s own number, as printed on their invoice.',
+  's-ref|Invoice no.': 'The company’s own invoice number, as printed on the invoice the customer got.',
+  'Due date (optional)': 'When it must be paid, from the invoice’s terms. The Unpaid Bills report in the Google Sheet ages each bill by it.',
+  'Payee': 'Start typing and pick from the list. A new name is added to Contacts when you save.',
+  'Payee TIN': 'From the invoice. It prints on the voucher and on the tax lists.',
+  'Input VAT (₱)': 'The VAT in the invoice, worked out from the lines when VAT is ticked. Change it only if the invoice shows a different amount.',
+  'EWT withheld (₱)': 'Worked out from the ATC: the tax held back and paid to the BIR instead.',
+  'Check no.': 'As printed on the check.',
+  'Check date': 'The date written on the check.',
+  'Bank account': 'The account the check is drawn on.',
+  'Bank reference no. (optional)': 'The transfer’s reference from online banking, so it can be found on the statement.',
+  'Apply it to': 'The bill or invoice this memo reduces.',
+  'Paid by': 'Checks and cash wait in Undeposited Funds for a deposit slip; a transfer goes straight to the bank.',
+  'Into': 'The bank account the deposit slip went into.',
+  'Paid from': 'The petty cash fund the money came out of.',
+  'Paid to (as on the receipt)': 'The name on the resibo, which may not be a contact.',
+  'Released by': 'How the employee got the money. Check, transfer and petty cash open that voucher filled in.',
+  'Into or out of': 'Where the change goes, or where extra money paid to the employee came from. Usually Cash on Hand.',
+  'Cash reimbursed to the employee (₱)': 'When they spent more than the advance and the company paid them the difference.',
+  'Refilled by': 'A check for what was spent, or an owner’s own money, which the company then owes them.',
+  'Owed to them on': 'The account that keeps what the company owes the owner until it pays them back.',
+  'Reverse it on (optional)': 'For an accrual: the day it undoes itself, usually the 1st of next month, when the real bill arrives.',
+  'Statement date': 'The last day the statement covers.',
+  'Starts in the month of': 'The first month it’s depreciated, usually the month after it was bought.',
+  'Fund amount (₱)': 'The fixed amount the fund is refilled back to.',
+  'Custodian': 'The person who keeps the cash and answers for it.',
+  'Usual withholding': 'Filled in on their next bill, so you don’t have to look it up.'
+};
+
+const anchor = s => 'h-' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+function helpPage() {
+  return pageHead('help', 'How the books work, every page explained (what to enter, what it writes in the books, where it shows up), the month-end checklist, questions and words. Every page also has a ? by its title that opens its part of this guide.')
+    + `<div class="toolbar"><input id="q" type="search" style="flex:1;max-width:560px" placeholder="Search the guide, for example deposit, VAT, void" aria-label="Search the guide" value="${esc(S.q || '')}"></div><div id="list">${helpBody()}</div>`;
+}
+const navItem = id => NAV.flatMap(g => g.items).find(n => n.id === id) || {};
+const guideText = id => { const x = GUIDE[id]; return [navItem(id).label, x.what, x.when, ...x.steps.flat(), x.book ? x.book.say + ' ' + x.book.note : '', ...x.shows, ...x.watch].join(' '); };
+/* One page's part of the guide: what it's for, when, the steps, the entry it writes, where it lands, what to watch. */
+function guideSection(id, inDrawer) {
+  const x = GUIDE[id]; if (!x) return '';
+  const book = x.book ? `<h4>What the hub writes in the books</h4><p class="gd-say">${esc(x.book.say)}</p>
+    <div class="tbl-wrap"><table class="compact gd-entry"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${x.book.rows.map(([a, d, c]) => !a ? '<tr class="gd-gap"><td colspan="3"></td></tr>'
+      : `<tr><td>${esc(a)}</td><td class="num">${d ? money(d) : ''}</td><td class="num">${c ? money(c) : ''}</td></tr>`).join('')}</tbody></table></div><p>${esc(x.book.note)}</p>` : '';
+  return `${inDrawer ? '' : ''}<p class="gd-what">${esc(x.what)}</p>
+    <h4>When you use it</h4><p>${esc(x.when)}</p>
+    <h4>Step by step</h4><ol class="hp-steps">${x.steps.map(([f, why]) => `<li><b>${esc(f)}.</b> ${esc(why)}</li>`).join('')}</ol>
+    ${book}
+    <h4>Where it shows up</h4><ul class="gd-list">${x.shows.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+    <h4>Watch out for</h4><ul class="gd-list gd-watch">${x.watch.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`;
+}
+const seesClosing = () => isAdmin() || can('months.lock') || can('reports.view') || canBooks('journal.edit');
+function helpBody() {
+  const q = (S.q || '').toLowerCase().trim(), hit = (...t) => !q || t.join(' ').toLowerCase().includes(q);
+  const det = (id, title, body, open, sub) => `<details class="hp" id="${anchor(id)}"${open ? ' open' : ''}><summary><span>${esc(title)}${sub ? `<span class="hp-sub">${esc(sub)}</span>` : ''}</span></summary><div class="hp-b">${body}</div></details>`;
+  const pages = id => allowedPage(id) && hit(guideText(id));
+  const start = hit('start first sign in password year sidebar save debit credit balance sheet income statement how the books work', GUIDE_START.replace(/<[^>]+>/g, ' '));
+  const groups = GUIDE_GROUPS.filter(([k]) => k !== 'close' || seesClosing()).map(([k, title, blurb]) => [title, blurb, Object.keys(GUIDE).filter(id => GUIDE[id].who === k && pages(id))]).filter(g => g[2].length);
+  const close = seesClosing() && hit('month end close checklist lock', ...HELP_CLOSE.flat()), faq = HELP_FAQ.filter(x => hit(...x)), words = HELP_WORDS.filter(x => hit(...x));
+  if (q && !start && !groups.length && !close && !faq.length && !words.length) return `<div class="empty"><b>Nothing on “${esc(S.q)}”</b>Try another word, or ask the Admin.</div>`;
+  return `${start ? `<section class="card hp-start"><span class="rp-eye">Start here</span><h2>Your first ten minutes</h2><ol class="hp-steps">${GUIDE_FIRST.map(x => `<li>${x}</li>`).join('')}</ol></section>
+      ${det('how-books-work', 'How the books work', GUIDE_START, !!q, 'Debits and credits, the two big reports, and the trip a peso takes. Five minutes.')}` : ''}
+    ${groups.map(([title, blurb, ids]) => `<h2 class="mt">${esc(title)}</h2><p class="hint" style="margin:-6px 0 12px">${esc(blurb)}</p>${ids.map(id => det('page-' + id, navItem(id).title || navItem(id).label, guideSection(id) + `<p style="margin-top:14px">${btn('nav', `Go to ${navItem(id).label}`, 'link sm', id)}</p>`, !!q, GUIDE[id].what.split('. ')[0].replace(/\.$/, '') + '.')).join('')}`).join('')}
+    ${close ? `<h2 class="mt">Closing a month</h2>${det('close', 'The month-end checklist', `<p>In this order. Books Health checks most of it for you.</p><ol class="hp-steps">${HELP_CLOSE.map(([t, d]) => `<li><b>${esc(t)}.</b> ${esc(d)}</li>`).join('')}</ol>`, !!q)}` : ''}
+    ${faq.length ? `<h2 class="mt">Questions</h2>${faq.map(([qq, a]) => det(qq, qq, `<p>${esc(a)}</p>`, !!q)).join('')}` : ''}
+    ${words.length ? `<h2 class="mt">Words you’ll see</h2><div class="card hp-words"><dl>${words.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join('')}</dl></div>` : ''}`;
+}
+/* The ? by each page's title opens that page's part of the guide in a panel at the side, so the page stays in view. */
+function openGuide(id) {
+  let d = document.getElementById('guide-drawer');
+  if (!d) { d = document.createElement('aside'); d.id = 'guide-drawer'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'How this page works'); document.body.appendChild(d); }
+  d.innerHTML = `<div class="gd-head"><div><span class="rp-eye">How this page works</span><h2>${esc(navItem(id).title || navItem(id).label)}</h2></div><button type="button" class="gd-x" data-act="guide-close" aria-label="Close">×</button></div>
+    <div class="gd-body">${guideSection(id, true)}</div><div class="gd-foot">${btn('guide-all', 'The whole guide', 'link sm')}</div>`;
+  d.scrollTop = 0; requestAnimationFrame(() => d.classList.add('open')); S.guideOpen = id;
+  const b = document.querySelector('.qhelp'); if (b) b.setAttribute('aria-expanded', 'true');
+  d.querySelector('.gd-x').focus();
+}
+function closeGuide() {
+  const d = document.getElementById('guide-drawer'); if (d) d.classList.remove('open'); S.guideOpen = '';
+  const b = document.querySelector('.qhelp'); if (b) { b.setAttribute('aria-expanded', 'false'); b.focus(); }
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.guideOpen && !document.querySelector('#modal-root .overlay')) closeGuide(); });
+/* A first sign-in: a note pointing to the guide, until it's dismissed on this device. */
+const WELCOME_KEY = () => `hub.welcomed.${(ME() || {}).user || ''}`;
+function welcomeLine() {
+  let seen = true; try { seen = !!localStorage.getItem(WELCOME_KEY()); } catch (e) { }
+  if (seen || S.page === 'help') return '';
+  return `<div class="welcome"><div><b>New here?</b> How to Use the Hub covers the everyday work in about ten minutes, and every page has a <span class="qhelp-demo">?</span> by its title with tips.</div>
+    <div class="welcome-acts">${btn('nav', 'Open the guide', 'sm', 'help')}<button type="button" class="btn link sm" data-act="welcome-done">Dismiss</button></div></div>`;
+}
+
 function budgetsPage() {
   const depts = D.departments || [], sel = depts.some(d => d.name === S.bd) ? S.bd : '';
   const acts = canBooks('budgets.edit') && D.hasDepartments ? `${btn('departments', 'Departments', 'ghost')}${depts.length ? btn('edit-budget', sel ? `Set ${esc(sel)} budget` : 'Set a budget', '', sel) : ''}` : '';
@@ -5908,9 +6402,29 @@ async function historyOf(id) {
 }
 
 /* ---------- Wiring ---------- */
-const PAGES = { recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
-const LISTS = { recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+const PAGES = { help: helpPage, recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
+const LISTS = { help: helpBody, recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+/* The (i) beside a field: one box for all of them, opened on hover, focus or a tap, kept inside the window. */
+(() => {
+  const box = document.createElement('div'); box.id = 'tipbox'; box.setAttribute('role', 'tooltip'); document.body.appendChild(box);
+  let cur = null, at = 0; // a tap also hovers and focuses: it opens the tip, and only a later tap closes it
+  const show = el => {
+    if (cur && cur !== el) cur.classList.remove('on');
+    if (cur !== el) at = Date.now();
+    cur = el; el.classList.add('on'); box.textContent = el.dataset.tip; box.style.maxWidth = Math.min(300, innerWidth - 24) + 'px'; box.classList.add('on');
+    const r = el.getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+    let x = Math.max(12, Math.min(r.left + r.width / 2 - bw / 2, innerWidth - bw - 12)), y = r.top - bh - 8; if (y < 8) y = r.bottom + 8;
+    box.style.left = x + 'px'; box.style.top = y + 'px';
+  };
+  const hide = () => { if (cur) cur.classList.remove('on'); cur = null; box.classList.remove('on'); };
+  document.addEventListener('mouseover', e => { const t = e.target.closest && e.target.closest('.tip'); if (t) show(t); else if (cur && document.activeElement !== cur) hide(); });
+  document.addEventListener('focusin', e => { if (e.target.classList && e.target.classList.contains('tip')) show(e.target); else if (cur) hide(); });
+  document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('.tip'); if (t) { e.preventDefault(); e.stopPropagation(); cur === t && Date.now() - at > 500 ? hide() : show(t); } else if (cur) hide(); }, true);
+  addEventListener('scroll', hide, true); addEventListener('resize', hide); window.hideTip = hide;
+})();
 const go = (page, fromHistory) => {
+  if (S.guideOpen) closeGuide();
+  window.hideTip && window.hideTip();
   document.body.classList.remove('nav-open');
   const changed = page !== S.page;
   S.page = page; S.q = ''; S.cr = ''; if (page === 'log' && LOG.rows) LOG.rows = null;
@@ -5947,6 +6461,10 @@ const ACT = {
   'void-pcv': id => voidPcv(id),
   'new-liq': () => liqForm(),
   liquidate: id => liqForm(null, id),
+  'page-help': () => { S.guideOpen === S.page ? closeGuide() : openGuide(S.page); },
+  'guide-close': () => closeGuide(),
+  'guide-all': () => { closeGuide(); S.q = ''; go('help'); },
+  'welcome-done': () => { try { localStorage.setItem(WELCOME_KEY(), '1'); } catch (e) { } const w = document.querySelector('.welcome'); if (w) w.remove(); },
   reconcile: id => reconForm(id),
   'view-recon': id => viewRecon(id),
   'undo-recon': id => undoRecon(id),

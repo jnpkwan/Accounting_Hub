@@ -37,6 +37,12 @@ h1,h2,h3{font-family:var(--display);color:var(--ink);margin:0}
 tr.more td{text-align:center;color:var(--muted);font-size:12.5px;padding:14px}
 .over{color:#B42318;font-weight:700}
 .field.gone{display:none}
+.apick{position:relative}.apick>select{position:absolute;inset:0;opacity:0;pointer-events:none}
+.apick-box{text-overflow:ellipsis}.apick-box:not(:focus){cursor:pointer}
+.apick-list{position:fixed;z-index:80;background:#fff;border:1px solid var(--silver);border-radius:10px;box-shadow:var(--lift);overflow-y:auto;padding:4px 0;font-size:14px}
+.apick-g{padding:8px 12px 4px;font:700 11px var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.apick-o{padding:7px 12px;cursor:pointer;line-height:1.35}.apick-o.cur{font-weight:700}.apick-o.hi{background:var(--blue05);color:var(--blue7)}
+.apick-none{padding:10px 12px;color:var(--muted)}
 .tbl-wrap.budget{overflow-x:auto}.budget table{font-size:12.5px}.budget th,.budget td{padding-left:8px;padding-right:8px;white-space:nowrap}.budget td:first-child{white-space:normal;min-width:180px}
 .logpart+.logpart{margin-top:8px}.logtab{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.logchg{white-space:pre-line;font-size:13px;overflow-wrap:anywhere}
 .mt{margin:40px 0 14px;font-size:18px;font-weight:700;letter-spacing:-.01em}
@@ -334,11 +340,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.6';
+const APP_VERSION = '3.7';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
-const HUB_BUILD = '2026-10-29';
+const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 7;
+const API_NEEDED = 8;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -403,6 +409,9 @@ const STATEMENT = {
   'Other Income': ['Income statement', 'Other income', -1], 'Other Expense': ['Income statement', 'Other expenses', 1]
 };
 const stmtOf = type => STATEMENT[type] || ['', '', 1];
+/* On the income statement a coded account sits in its code's section; the Sheet's statements are laid out the same way. */
+const IS_SECTION = { '4': 'Revenue', '5': 'Cost of sales', '6': 'Selling expenses', '7': 'General and administrative expenses', '8': 'Other income and expenses', '9': 'Income tax' };
+const stmtSection = a => { const [st, sec] = stmtOf(a.type); return st === 'Income statement' && a.code && IS_SECTION[a.code[0]] ? IS_SECTION[a.code[0]] : sec; };
 /* Contact roles. Suppliers and service providers are the two kinds of payee; they map to trade and
    non-trade payables when supplier bills are built. */
 const ROLES = [['supplier', 'Supplier', 'goods we resell'], ['service', 'Service provider', 'trucking, brokerage, rent, utilities'], ['customer', 'Customer', 'they pay us'], ['employee', 'Employee', 'advances, petty cash, reimbursements']];
@@ -411,7 +420,9 @@ const roleLabel = r => (ROLES.find(x => x[0] === r) || [r, r])[1];
 const isPayee = c => c.roles.some(r => PAYEE_ROLES.includes(r));
 /* Goods for resale post to cost of sales or inventory; anything else is a service. */
 const roleForAccount = (id, accounts) => { const a = (accounts || D.accounts).find(x => x.id === id), ctl = D.control || {}; return a && (a.type === 'Cost of Goods Sold' || id === ctl.transit || id === ctl.inventory || /inventor|purchase/i.test(a.name)) ? 'supplier' : 'service'; };
-const QB_ACCOUNTS = [["Cash", "Bank"], ["Cash in Bank - Eastwest", "Bank"], ["Cash in Bank - Metrobank", "Bank"], ["Deposits & Cash Bonds", "Bank"], ["Revolving Fund", "Bank"], ["Accounts Receivable - Others", "Accounts Receivable"], ["Accounts Receivable - Trade", "Accounts Receivable"], ["Allowance for Bad Debts", "Accounts Receivable"], ["Advances - Employees", "Other Current Asset"], ["Advances - Others", "Other Current Asset"], ["Advances - Trade", "Other Current Asset"], ["Creditable Tax At Source", "Other Current Asset"], ["Input VAT", "Other Current Asset"], ["Inventories", "Other Current Asset"], ["Inventory Asset", "Other Current Asset"], ["TEMPORARY ACCOUNT", "Other Current Asset"], ["Undeposited Funds", "Other Current Asset"], ["Goods in Transit", "Other Current Asset"], ["Accumulated Depreciation - FFTE", "Fixed Asset"], ["Building & Improvements", "Fixed Asset"], ["Furniture,Fixtures,Tools& Equip", "Fixed Asset"], ["Land", "Fixed Asset"], ["Warehouse Equipment", "Fixed Asset"], ["Investments", "Other Asset"], ["Prepaid Expense", "Other Asset"], ["Accounts Payable - Others", "Accounts Payable"], ["Accounts Payable - Trade", "Accounts Payable"], ["Accounts Payable -SSS,PHIC,H...", "Accounts Payable"], ["Due To / From Stockholders", "Other Current Liability"], ["Output VAT", "Other Current Liability"], ["Payroll Liabilities", "Other Current Liability"], ["WHT expanded", "Other Current Liability"], ["Loans Amortization", "Long Term Liability"], ["Loans Payable", "Long Term Liability"], ["Capital Stock", "Equity"], ["Dividends Paid", "Equity"], ["Opening Balance Equity", "Equity"], ["Retained Earnings", "Equity"], ["Concession Commission", "Income"], ["Interest Income-Bank", "Income"], ["Other Income", "Income"], ["Foreign Exchange Gain (Loss)", "Other Income"], ["Sales", "Income"], ["Sales - CT Hardware Bacolod Inc", "Income"], ["Sales - CT Hardware Gensan Inc.", "Income"], ["Sales - CT Hardware Gensan Z...", "Income"], ["Sales - CT Hardware Mindanao In", "Income"], ["Sales - Davao CT Hardware Inc.", "Income"], ["Sales - Decoarts Marketing Inc.", "Income"], ["Sales - Pangi LCY Trading Corp", "Income"], ["Sales - Shopee", "Income"], ["Sales - Toril LCY Trading Corp", "Income"], ["Shipping and Delivery Income", "Income"], ["Arrastre,Stev &Van Out-COGS", "Cost of Goods Sold"], ["Brokerage Fees-COGS", "Cost of Goods Sold"], ["Cost of Goods Sold", "Cost of Goods Sold"], ["Destination Charge-TruckingCO...", "Cost of Goods Sold"], ["Duties & VAT Expense-COGS", "Cost of Goods Sold"], ["Freight and Handling-COGS", "Cost of Goods Sold"], ["Freight Costs-COGS", "Cost of Goods Sold"], ["Import Documentation & Fee-C...", "Cost of Goods Sold"], ["Insurance-COGS", "Cost of Goods Sold"], ["Merchant Account Fees-COGS", "Cost of Goods Sold"], ["Ocean Freight-COGS", "Cost of Goods Sold"], ["Ppf Xray-COGS", "Cost of Goods Sold"], ["Service Fee -Citihardware-COGS", "Cost of Goods Sold"], ["Trade Facilitation/Custom/Port", "Cost of Goods Sold"], ["Advertising and Promotion", "Expense"], ["Agency Fee", "Expense"], ["Amortization Expense", "Expense"], ["Arrastre & Stevedoring Expense", "Expense"], ["Auto and Truck Expenses", "Expense"], ["Bad Debts, Loss & Damages", "Expense"], ["Computer and Internet Expenses", "Expense"], ["GA - Light, Power & Water Exp", "Expense"], ["GA - 13th Mo., Allowances & Ben", "Expense"], ["GA - Bank Service Charges", "Expense"], ["GA - Communict'n & Internet Exp", "Expense"], ["GA - Depreciation Expense", "Expense"], ["GA - Fuel & Oil", "Expense"], ["GA - HDMF Expense", "Expense"], ["GA - Home Dev Mutual Fund", "Expense"], ["GA - Insurance Expense", "Expense"], ["GA - Interest Exp &Bank Charges", "Expense"], ["GA - Job Order Expenses", "Expense"], ["GA - Management Fee", "Expense"], ["GA - Meal Expenses", "Expense"], ["GA - Meals and Entertainment", "Expense"], ["GA - Notarial Fee", "Expense"], ["GA - Office &Warehouse Supplies", "Expense"], ["GA - Office Supplies", "Expense"], ["GA - Other Taxes & Duties", "Expense"], ["GA - Permits & Licenses", "Expense"], ["GA - PHIC Expense", "Expense"], ["GA - Philippine Health Insu Co", "Expense"], ["GA - Printing and Reproduction", "Expense"], ["GA - Professional Fees", "Expense"], ["GA - Rental Expense", "Expense"], ["GA - Repairs & Maintenance", "Expense"], ["GA - Representation Expense", "Expense"], ["GA - Salaries & Wages", "Expense"], ["GA - Security Expense", "Expense"], ["GA - Service Fee", "Expense"], ["GA - SSS-Social Security System", "Expense"], ["GA - Taxes Expense", "Expense"], ["GA - Telephone Expense", "Expense"], ["GA - Travel Expense", "Expense"], ["SE - Barcode Expense", "Expense"], ["SE - Commission CT", "Expense"], ["SE - Commission, Bonus&Incen", "Expense"], ["SE - Freight Expense", "Expense"], ["SE - Labor & Handling Expense", "Expense"], ["SE - Marketing, Ads & Promo Exp", "Expense"], ["SE - Merchandising & Agency Fee", "Expense"], ["SE - Purchase Cost", "Expense"], ["SE - Sales Return", "Expense"], ["SE - Training, Travel & Transp", "Expense"], ["SE - Trucking &Dispatch Expense", "Expense"], ["SE - Universal Barcode", "Expense"], ["SE - Warranties, Returns & Disc", "Expense"], ["SE - Warranty Expense", "Expense"], ["Ask My Accountant", "Other Expense"], ["Employees Benefit", "Other Expense"]];
+/* The chart of accounts the books start with (2027): code, name, type, and what the hub posts to it on its own.
+   Codes are XXX-XXX: the first digit is the section, the next two the group, the last three the account, by tens. */
+const COA_2027 = [["110-010", "Cash on Hand", "Bank"], ["110-020", "Petty Cash Fund", "Bank"], ["110-090", "Undeposited Funds", "Other Current Asset", "undeposited"], ["111-010", "Cash in Bank - Metrobank", "Bank", "bank"], ["111-020", "Cash in Bank - Eastwest", "Bank"], ["111-030", "Cash in Bank - USD", "Bank"], ["120-010", "Accounts Receivable - Trade", "Accounts Receivable", "ar"], ["120-020", "Accounts Receivable - Others", "Accounts Receivable"], ["129-010", "Allowance for Bad Debts", "Accounts Receivable"], ["130-010", "Inventories", "Other Current Asset", "inventory"], ["131-010", "Goods in Transit - Supplier Cost", "Other Current Asset", "transit"], ["131-020", "Goods in Transit - Ocean Freight", "Other Current Asset"], ["131-030", "Goods in Transit - Freight & Handling", "Other Current Asset"], ["131-040", "Goods in Transit - Insurance", "Other Current Asset"], ["131-050", "Goods in Transit - Duties", "Other Current Asset"], ["131-060", "Goods in Transit - Brokerage Fees", "Other Current Asset"], ["131-070", "Goods in Transit - Import Documentation & Fees", "Other Current Asset"], ["131-080", "Goods in Transit - Arrastre, Stevedoring & Van Out", "Other Current Asset"], ["131-090", "Goods in Transit - PPF X-ray", "Other Current Asset"], ["131-100", "Goods in Transit - Trade Facilitation / Customs / Port", "Other Current Asset"], ["131-110", "Goods in Transit - Destination Charge - Trucking", "Other Current Asset"], ["139-010", "Allowance for Inventory Obsolescence", "Other Current Asset"], ["140-010", "Input VAT", "Other Current Asset", "inputVat"], ["140-020", "Creditable Withholding Tax", "Other Current Asset", "cwt"], ["140-030", "Prepaid Income Tax", "Other Current Asset"], ["141-010", "Advances - Employees", "Other Current Asset", "advances"], ["141-020", "Advances to Suppliers", "Other Current Asset"], ["141-030", "Advances - Others", "Other Current Asset"], ["142-010", "Prepaid Expenses", "Other Current Asset"], ["149-010", "Suspense - To Be Cleared", "Other Current Asset"], ["150-010", "Land", "Fixed Asset"], ["150-020", "Building & Improvements", "Fixed Asset"], ["150-030", "Warehouse Equipment", "Fixed Asset"], ["150-040", "Furniture, Fixtures, Tools & Equipment", "Fixed Asset"], ["150-050", "Transportation Equipment", "Fixed Asset"], ["150-060", "Leasehold Improvements", "Fixed Asset"], ["159-020", "Accumulated Depreciation - Building & Improvements", "Fixed Asset"], ["159-030", "Accumulated Depreciation - Warehouse Equipment", "Fixed Asset"], ["159-040", "Accumulated Depreciation - Furniture, Fixtures, Tools & Equipment", "Fixed Asset"], ["159-050", "Accumulated Depreciation - Transportation Equipment", "Fixed Asset"], ["159-060", "Accumulated Depreciation - Leasehold Improvements", "Fixed Asset"], ["170-010", "Refundable Deposits", "Other Asset"], ["170-020", "Investments", "Other Asset"], ["210-010", "Accounts Payable - Trade", "Accounts Payable", "apTrade"], ["210-020", "Accounts Payable - Others", "Accounts Payable", "apOther"], ["220-010", "Output VAT", "Other Current Liability", "outputVat"], ["220-020", "Expanded Withholding Tax Payable", "Other Current Liability", "ewt"], ["220-030", "Withholding Tax on Compensation Payable", "Other Current Liability"], ["220-040", "Income Tax Payable", "Other Current Liability"], ["221-010", "SSS Contributions Payable", "Other Current Liability"], ["221-020", "PhilHealth Contributions Payable", "Other Current Liability"], ["221-030", "Pag-IBIG Contributions Payable", "Other Current Liability"], ["230-010", "Accrued Expenses Payable", "Other Current Liability"], ["230-020", "Salaries Payable", "Other Current Liability"], ["230-030", "Advances from Customers", "Other Current Liability"], ["240-010", "Due to / from Stockholders", "Other Current Liability"], ["250-010", "Loans Payable - Current Portion", "Other Current Liability"], ["250-020", "Short-term Loans and Trust Receipts Payable", "Other Current Liability"], ["260-010", "Loans Payable - Noncurrent", "Long Term Liability"], ["260-020", "Retirement Benefit Obligation", "Long Term Liability"], ["310-010", "Capital Stock", "Equity"], ["320-010", "Additional Paid-in Capital", "Equity"], ["330-010", "Retained Earnings", "Equity", "retained"], ["340-010", "Dividends", "Equity"], ["410-010", "Sales - CitiHardware Bacolod Inc", "Income"], ["410-020", "Sales - CitiHardware Gensan Inc.", "Income"], ["410-030", "Sales - CitiHardware Gensan Zamboanga", "Income"], ["410-040", "Sales - CitiHardware Mindanao Inc", "Income"], ["410-050", "Sales - Davao CitiHardware Inc.", "Income"], ["410-060", "Sales - Decoarts Marketing Inc.", "Income"], ["410-070", "Sales - Pangi LCY Trading Corp", "Income"], ["410-080", "Sales - Toril LCY Trading Corp", "Income"], ["410-090", "Sales - Shopee", "Income"], ["410-900", "Sales - Others", "Income"], ["420-010", "Sales Returns and Allowances", "Income"], ["420-020", "Sales Discounts", "Income"], ["430-010", "Shipping and Delivery Income", "Income"], ["440-010", "Concession Commission Income", "Income"], ["510-010", "Cost of Goods Sold", "Cost of Goods Sold", "cogs"], ["610-010", "Commission, Bonus & Incentives", "Expense"], ["620-010", "Commission - CitiHardware", "Expense"], ["620-020", "Service Fee - CitiHardware", "Expense"], ["620-030", "Merchant Account Fees", "Expense"], ["620-040", "Barcode Expense", "Expense"], ["630-010", "Marketing, Advertising & Promotions", "Expense"], ["630-020", "Merchandising & Agency Fees", "Expense"], ["640-010", "Delivery and Freight Out", "Expense"], ["640-020", "Labor & Handling", "Expense"], ["650-010", "Warranty Expense", "Expense"], ["650-020", "Training, Travel & Transportation - Selling", "Expense"], ["710-010", "Salaries & Wages", "Expense"], ["710-020", "13th Month, Allowances & Benefits", "Expense"], ["710-030", "SSS Contributions", "Expense"], ["710-040", "PhilHealth Contributions", "Expense"], ["710-050", "Pag-IBIG Contributions", "Expense"], ["710-060", "Meal Expenses", "Expense"], ["710-070", "Retirement Benefit Expense", "Expense"], ["720-010", "Rental Expense", "Expense"], ["720-020", "Light, Power & Water", "Expense"], ["720-030", "Security Services", "Expense"], ["720-040", "Repairs & Maintenance", "Expense"], ["730-010", "Office & Warehouse Supplies", "Expense"], ["730-020", "Communication & Internet", "Expense"], ["730-030", "Printing and Reproduction", "Expense"], ["730-040", "Fuel, Oil & Transportation", "Expense"], ["740-010", "Professional Fees", "Expense"], ["740-020", "Management Fee", "Expense"], ["740-030", "Service Fees", "Expense"], ["740-040", "Notarial Fees", "Expense"], ["740-050", "Job Order Expenses", "Expense"], ["750-010", "Taxes & Duties", "Expense"], ["750-020", "Permits & Licenses", "Expense"], ["760-010", "Depreciation Expense", "Expense"], ["760-020", "Amortization Expense", "Expense"], ["770-010", "Insurance Expense", "Expense"], ["780-010", "Representation & Entertainment", "Expense"], ["790-010", "Bank Service Charges", "Expense", "bankCharges"], ["790-020", "Bad Debts", "Expense"], ["790-030", "Inventory Losses & Damages", "Expense"], ["810-010", "Interest Income - Bank", "Other Income"], ["810-020", "Foreign Exchange Gain (Loss)", "Other Income", "fx"], ["810-030", "Other Income", "Other Income"], ["810-040", "Gain (Loss) on Sale of Assets", "Other Income"], ["850-010", "Interest Expense - Loans", "Other Expense"], ["850-020", "Penalties & Surcharges", "Other Expense"], ["910-010", "Income Tax Expense", "Other Expense"]];
 
 /* ---------- Helpers ---------- */
 const round2 = n => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
@@ -465,17 +476,15 @@ function inWords(n) {
 /* ---------- The books in memory ----------
    D is the hub's copy of the books, rebuilt from the Google Sheet on every load. */
 function freshData() {
-  const accounts = QB_ACCOUNTS.map(([name, type], i) => ({ id: 'a' + (i + 1), name, type, active: true }));
-  const idOf = n => (accounts.find(a => a.name === n) || {}).id || '';
+  const accounts = COA_2027.map(([code, name, type], i) => ({ id: 'a' + (i + 1), code, name, type, active: true }));
+  const control = {}; COA_2027.forEach(([, , , role], i) => { if (role) control[role] = accounts[i].id; });
   return {
     seq: { a: accounts.length, p: 0, v: 0, b: 0 },
     company: { name: COMPANY, tin: '', address: '' },
     bankName: 'Metrobank',
-    control: { bank: idOf('Cash in Bank - Metrobank'), inputVat: idOf('Input VAT'), ewt: idOf('WHT expanded'), apTrade: idOf(CONTROL_DEFAULT.apTrade), apOther: idOf(CONTROL_DEFAULT.apOther), retained: idOf(CONTROL_DEFAULT.retained),
-      bankCharges: idOf(CONTROL_DEFAULT.bankCharges), fx: idOf(CONTROL_DEFAULT.fx), ar: idOf(CONTROL_DEFAULT.ar), outputVat: idOf(CONTROL_DEFAULT.outputVat), cwt: idOf(CONTROL_DEFAULT.cwt), undeposited: idOf(CONTROL_DEFAULT.undeposited),
-      inventory: idOf(CONTROL_DEFAULT.inventory), transit: idOf(CONTROL_DEFAULT.transit), cogs: idOf(CONTROL_DEFAULT.cogs), advances: idOf(CONTROL_DEFAULT.advances) },
+    control,
     signers: { prepared: '', checked: '', approved: '' },
-    accounts, contacts: [], bills: [], vouchers: [], journals: [], banks: {}, invoices: [], collections: [], deposits: [], shipments: [], pettyCash: [], liquidations: [], tagsBefore: {},
+    accounts, contacts: [], bills: [], vouchers: [], journals: [], banks: {}, invoices: [], collections: [], deposits: [], shipments: [], pettyCash: [], liquidations: [], tagsBefore: {}, tagAcctsBefore: {},
     departments: DEPARTMENTS_START.map(name => ({ name, active: true })), hasDepartments: true, budgets: [],
     switchOpening: { date: '', lines: [] },   // the balances typed in at the switch from QuickBooks (Opening balances tab)
     yearOpening: { date: '', lines: [] },     // this year's opening, written when the year before was closed (Year opening tab)
@@ -679,7 +688,12 @@ const saveNow = (kind, mutate, done) => save(kind, mutate, done).then(err => { i
 
 /* ---------- Lookups ---------- */
 const acct = id => D.accounts.find(a => a.id === id);
-const acctName = id => (acct(id) || { name: '(missing account)' }).name;
+/* An account is shown by its code and name together, "120-010 · Accounts Receivable - Trade", everywhere on screen.
+   The sheet keeps them in two columns, so its derived Account columns take the name alone (acctPlain). */
+const acctLabel = a => a ? (a.code ? `${a.code} · ${a.name}` : a.name) : '(missing account)';
+const acctName = id => acctLabel(acct(id));
+const acctPlain = id => (acct(id) || { name: '(missing account)' }).name;
+const acctCode = id => (acct(id) || {}).code || '';
 const contact = id => D.contacts.find(p => p.id === id);
 const contactByName = n => D.contacts.find(p => p.name.trim().toLowerCase() === String(n).trim().toLowerCase());
 const voucher = id => D.vouchers.find(v => v.id === id);
@@ -766,7 +780,7 @@ function usdOutRate(id, date, exceptId, total) {
   const pesos = total >= b.usd ? b.php : round2(b.php * total / b.usd);
   return pesos / total;
 }
-const bankOptions = (cur, list = bankAccounts()) => list.map(a => opt(a.id, `${a.name}${bankCur(a.id) === 'USD' ? ' (US$)' : ''}`, cur)).join('');
+const bankOptions = (cur, list = bankAccounts()) => list.map(a => opt(a.id, `${acctLabel(a)}${bankCur(a.id) === 'USD' ? ' (US$)' : ''}`, cur)).join('');
 const controlIds = () => [D.control.bank, D.control.inputVat, D.control.ewt, D.control.apTrade, D.control.apOther];
 const postableAccounts = () => D.accounts.filter(a => a.active && !controlIds().includes(a.id));
 /* Each document offers only the accounts that fit it. Accounts the hub posts to on its own (receivables, output VAT,
@@ -778,12 +792,31 @@ const INCOME_T = ['Income', 'Other Income'];
 const COGS_T = 'Cost of Goods Sold';
 const isCogs = id => !!id && (acct(id) || {}).type === COGS_T;
 const purchaseAccounts = () => postableAccounts().filter(a => !autoIds().includes(a.id) && !INCOME_T.includes(a.type) && a.type !== COGS_T);
-const cogsMsg = id => `${acctName(id)} is a cost of sales account, and cost of sales comes only from the monthly stock count. Charge import costs to ${D.control.transit && acct(D.control.transit) ? acctName(D.control.transit) : 'Goods in Transit'} with the shipment, and stock bought here to ${D.control.inventory && acct(D.control.inventory) ? acctName(D.control.inventory) : 'Inventories'}.`;
+const cogsMsg = id => `${acctName(id)} is a cost of sales account, and cost of sales comes only from the monthly stock count. Charge import costs to ${transitWord()}, the account for the kind of cost, with the shipment, and stock bought here to ${D.control.inventory && acct(D.control.inventory) ? acctName(D.control.inventory) : 'Inventories'}.`;
 const purchaseNotFor = (id, what) => isCogs(id) ? cogsMsg(id) : notFor(id, purchaseAccounts(), what);
 const salesAccounts = memo => postableAccounts().filter(a => !autoIds().includes(a.id) && (INCOME_T.includes(a.type) || (memo && DEPT_TYPES.includes(a.type))));
 const feeAccounts = () => postableAccounts().filter(a => !autoIds().includes(a.id) && ['Expense', 'Other Expense', 'Cost of Goods Sold'].includes(a.type));
 const notFor = (id, list, what) => id && !list.some(a => a.id === id) ? `${acctName(id)} isn’t used on ${what}. Pick another account.` : '';
-const sortAccounts = list => list.slice().sort((a, b) => typeRank(a.type) - typeRank(b.type) || a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
+/* By code. An account without one (books from before codes) sorts at the end of the section its type belongs to. */
+const TYPE_DIGIT = { 'Bank': 1, 'Accounts Receivable': 1, 'Other Current Asset': 1, 'Fixed Asset': 1, 'Other Asset': 1, 'Accounts Payable': 2, 'Credit Card': 2, 'Other Current Liability': 2, 'Long Term Liability': 2,
+  'Equity': 3, 'Income': 4, 'Cost of Goods Sold': 5, 'Expense': 7, 'Other Income': 8, 'Other Expense': 8 };
+const acctSortKey = a => a.code || `${TYPE_DIGIT[a.type] || 9}99-999 ${pad(typeRank(a.type) + 10, 3)} ${a.name}`;
+const sortAccounts = list => list.slice().sort((a, b) => acctSortKey(a).localeCompare(acctSortKey(b)));
+/* Codes: what each section (the first digit) is called, and the account types it takes. Code.gs checks the same. */
+const CODE_SECTIONS = { '1': 'Assets', '2': 'Liabilities', '3': 'Equity', '4': 'Revenue', '5': 'Cost of Sales', '6': 'Selling Expenses', '7': 'General and Administrative Expenses', '8': 'Other Income and Expenses', '9': 'Income Tax' };
+const CODE_TYPES = { '1': ['Bank', 'Accounts Receivable', 'Other Current Asset', 'Fixed Asset', 'Other Asset'], '2': ['Accounts Payable', 'Credit Card', 'Other Current Liability', 'Long Term Liability'],
+  '3': ['Equity'], '4': ['Income'], '5': ['Cost of Goods Sold'], '6': ['Expense'], '7': ['Expense'], '8': ['Other Income', 'Other Expense'], '9': ['Other Expense', 'Expense'] };
+const CODE_RE = /^\d{3}-\d{3}$/;
+const codeErr = (code, type) => !code ? '' : !CODE_RE.test(code) ? `Code ${code} must be written 000-000, like 730-050.`
+  : !(CODE_TYPES[code[0]] || []).includes(type) ? `Code ${code} starts with ${code[0]}, which is for ${(CODE_TYPES[code[0]] || []).join(' or ') || 'no account type'}, not ${type}.` : '';
+const acctGroup = a => a.code ? `${a.code[0]} · ${CODE_SECTIONS[a.code[0]] || ''}` : a.type;
+/* Goods in transit is a group of accounts, one per kind of import cost: every account whose code shares the group
+   of the one marked Goods in transit (131-010 · Supplier Cost, 131-020 · Ocean Freight…). */
+const transitGroup = (accounts, transitId) => { const t = accounts.find(a => a.id === transitId), g = t && t.code ? t.code.slice(0, 4) : ''; return transitId ? accounts.filter(a => a.id === transitId || (g && (a.code || '').startsWith(g))).map(a => a.id) : []; };
+const TRANSIT = new WeakMap();
+const transitIds = () => { let x = TRANSIT.get(D); if (!x) { x = transitGroup(D.accounts, D.control.transit); TRANSIT.set(D, x); } return x; };
+const isTransit = id => !!id && transitIds().includes(id);
+const transitWord = () => { const t = acct(D.control.transit); return t && t.code ? `Goods in Transit (${t.code.slice(0, 3)}-xxx)` : 'Goods in Transit'; };
 
 /* ---------- Check voucher math and journal entry ----------
    Type what the invoice says. Everything else follows:
@@ -910,10 +943,17 @@ function calcLiq(x, ctl = D.control) {
     { acct: ctl.advances, memo: '', dr: cleared < 0 ? -cleared : 0, cr: cleared > 0 ? cleared : 0, ...(x.employee ? { tag: x.employee } : {}) }]);
 }
 /* A shipment received: its landed cost, from the costing system, moves out of goods in transit into inventory.
-   A negative amount moves a cost difference the other way. */
-function calcReceipt(x, ctl = D.control) {
-  const a = round2(numIn(x.amount) || 0);
-  return totals({ a }, [{ acct: ctl.inventory, memo: '', dr: a > 0 ? a : 0, cr: a < 0 ? -a : 0 }, { acct: ctl.transit, memo: '', dr: a < 0 ? -a : 0, cr: a > 0 ? a : 0, ...(x.shipment ? { tag: x.shipment } : {}) }]);
+   Goods in transit is one account per kind of cost, so the landed cost comes off each in proportion to what the
+   shipment has on it (parts: account → balance); with nothing on any yet, off the supplier cost account.
+   Clearing a difference (clear) takes each account's balance to zero, and the net goes to inventory, either way. */
+function calcReceipt(x, ctl = D.control, parts = {}, clear = false) {
+  const a = round2(numIn(x.amount) || 0), tag = x.shipment ? { tag: x.shipment } : {};
+  const ids = Object.keys(parts).filter(k => clear ? Math.abs(parts[k]) >= 0.005 : parts[k] > 0);
+  const amts = clear ? ids.map(k => round2(parts[k])) : ids.length ? spread(ids.map(k => parts[k]), a) : [];
+  const off = ids.length ? ids.map((k, i) => ({ acct: k, n: amts[i] })) : [{ acct: ctl.transit, n: a }];
+  const net = round2(sum(off.map(o => o.n)));
+  return totals({ a: clear ? net : a }, [{ acct: ctl.inventory, memo: '', dr: net > 0 ? net : 0, cr: net < 0 ? -net : 0 },
+    ...sortAccounts(off.map(o => ({ ...(acct(o.acct) || { id: o.acct, name: '', type: '' }), n: o.n }))).map(o => ({ acct: o.id, memo: '', dr: o.n < 0 ? -o.n : 0, cr: o.n > 0 ? o.n : 0, ...tag }))]);
 }
 /* A month-end stock count: inventory per books, less what the count says it's worth, is the month's cost of goods sold. */
 function calcCount(x, bookBal, ctl = D.control) {
@@ -1175,11 +1215,13 @@ const pill = s => `<span class="pill p-${s.toLowerCase().replace(/\s+/g, '-')}">
 const btn = (a, label, cls = '', id = '') => `<button class="btn ${cls}" data-act="${a}" ${id ? `data-id="${esc(id)}"` : ''}>${label}</button>`;
 const rowActs = list => `<div class="acts">${list.filter(Boolean).map(([a, id, l]) => `<button class="btn link sm" data-act="${a}" data-id="${esc(id)}">${l}</button>`).join('')}</div>`;
 const head = (eyebrow, t, sub, actions = '') => `<header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>${t}</h1>${sub ? `<p>${sub}</p>` : ''}</div><div class="head-acts">${actions}</div></header>`;
+/* Account pickers list accounts by code, under their section. The search box laid over them (acctPickers) finds
+   an account by any part of its code or name. */
 function acctOptions(cur, list = postableAccounts(), blank = 'Choose an account') {
   list = sortAccounts(list);
-  const types = [...new Set(list.map(a => a.type))];
+  const groups = [...new Set(list.map(acctGroup))];
   const curA = cur && !list.some(a => a.id === cur) ? acct(cur) : null;
-  return `<option value="">${blank}</option>` + (curA ? `<option value="${curA.id}" selected>${esc(curA.name)} (${curA.active ? 'not used here' : 'hidden'})</option>` : '') + types.map(t => `<optgroup label="${esc(t)}">${list.filter(a => a.type === t).map(a => opt(a.id, a.name, cur)).join('')}</optgroup>`).join('');
+  return `<option value="">${blank}</option>` + (curA ? `<option value="${curA.id}" selected>${esc(acctLabel(curA))} (${curA.active ? 'not used here' : 'hidden'})</option>` : '') + groups.map(g => `<optgroup label="${esc(g)}" data-acct="1">${list.filter(a => acctGroup(a) === g).map(a => opt(a.id, acctLabel(a), cur)).join('')}</optgroup>`).join('');
 }
 const atcOptions = cur => `<option value="">No withholding</option>` + ATC.map(a => opt(a.code, `${a.code}, ${Math.round(a.rate * 100)}%, ${a.label}`, cur)).join('');
 function monthOptions(cur, extra = [], all = '') {
@@ -1299,7 +1341,7 @@ function gateScreen() {
     case 'loading': return gate(`<p class="lead" style="text-align:center">Loading the books…</p>`);
     case 'failed': return gate(`<h1>Can’t reach the books</h1><p class="lead">${esc(S0.msg)}</p><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="sign-out">Sign out</button>`);
     case 'setup': return isAdmin()
-      ? gate(`<h1>Set up the books</h1><p class="lead">The Google Sheet has no books yet. This adds the tabs (bills, vouchers, journal, contacts, accounts and settings) and the ${QB_ACCOUNTS.length} accounts from QuickBooks.</p>${err}<button class="btn" id="setup-btn" data-act="setup-books">Set up the books</button><button class="btn ghost" data-act="sign-out">Sign out</button>`)
+      ? gate(`<h1>Set up the books</h1><p class="lead">The Google Sheet has no books yet. This adds the tabs (bills, vouchers, journal, contacts, accounts and settings) and the ${COA_2027.length} accounts of the chart of accounts, each with its code.</p>${err}<button class="btn" id="setup-btn" data-act="setup-books">Set up the books</button><button class="btn ghost" data-act="sign-out">Sign out</button>`)
       : gate(`<h1>Not set up yet</h1><p class="lead">The books haven’t been set up in the Google Sheet. An admin signs in first to set them up.</p><button class="btn" data-act="reload">Check again</button><button class="btn ghost" data-act="sign-out">Sign out</button>`);
     case 'problems': return gate(`<h1>The Google Sheet has problems</h1><p class="lead">Something in the sheet doesn’t add up, so the hub won’t open the books until it’s fixed. Nothing was changed. ${isAdmin() ? 'Fix these in the sheet, then reload:' : 'Send this list to an admin:'}</p><ul class="errlist">${S0.errs.map(e => `<li>${esc(e)}</li>`).join('')}</ul><button class="btn" data-act="reload">Reload</button><button class="btn ghost" data-act="sign-out">Sign out</button>`, true);
   }
@@ -1378,7 +1420,7 @@ const settlerRef = x => x.cv || `Debit memo ${x.ref}`;
 const deptOptions = cur => `<option value="">None</option>` + [...new Set((D.departments || []).filter(d => d.active).map(d => d.name).concat(cur ? [cur] : []))].map(n => opt(n, n, cur)).join('');
 const needsDept = accountId => (D.departments || []).some(d => d.active) && DEPT_TYPES.includes((acct(accountId) || {}).type);
 /* Goods in transit is kept by shipment and employee advances by employee: a line on either says which one. */
-const tagKind = id => !id ? '' : id === D.control.transit ? 'ship' : id === D.control.advances ? 'emp' : '';
+const tagKind = id => !id ? '' : isTransit(id) ? 'ship' : id === D.control.advances ? 'emp' : '';
 const shipmentOf = id => (D.shipments || []).find(s => s.id === id);
 const employees = () => D.contacts.filter(c => c.roles.includes('employee')).sort((a, b) => a.name.localeCompare(b.name));
 const tagName = t => { const s = shipmentOf(t); if (s) return `Shipment ${s.no}`; const p = contact(t); return p ? p.name : t || ''; };
@@ -2058,7 +2100,7 @@ const yearMonths = () => { const last = YEAR === THIS_YEAR() ? TODAY().getMonth(
 function accountTotals(ym) {
   const t = {};
   journal(ym).forEach(d => d.lines.forEach(l => { const x = t[l.acct] || (t[l.acct] = { dr: 0, cr: 0 }); x.dr = round2(x.dr + l.dr); x.cr = round2(x.cr + l.cr); }));
-  return Object.entries(t).map(([id, x]) => ({ id, a: acct(id) || { name: '(missing account)', type: '' }, ...x })).sort((p, q) => typeRank(p.a.type) - typeRank(q.a.type) || p.a.name.localeCompare(q.a.name));
+  return Object.entries(t).map(([id, x]) => ({ id, a: acct(id) || { name: '(missing account)', type: '' }, ...x })).sort((p, q) => acctSortKey(p.a).localeCompare(acctSortKey(q.a)));
 }
 /* A month's documents as booked: each entry dated in the month counts, and a void in the month takes it back out. */
 const signedSum = (xs, f) => round2(sum(xs.map(({ d, s }) => s * f(d))));
@@ -2106,7 +2148,7 @@ function summaryBody() {
   // taxes straight from the month's bill and check entries and their reversals, so they always match the journal
   const docs = journal(S.sm).filter(d => ['bill', 'billVoid', 'dm', 'dmVoid', 'cv', 'cvVoid', 'pt', 'ptVoid', 'si', 'siVoid', 'cm', 'cmVoid', 'col', 'colVoid'].includes(d.src)), o = otherSummary(S.sm);
   const net = id => round2(sum(docs.flatMap(d => d.lines.filter(l => l.acct === id).map(l => (l.dr || 0) - (l.cr || 0)))));
-  return `${exceptionsBlock(S.sm)}${rows.length ? `<h2 class="mt">Totals by Account</h2><div class="tbl-wrap"><table><thead><tr><th>Account</th><th>Type</th><th class="num">Debits</th><th class="num">Credits</th><th class="num">Net</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(r.a.name)}</td><td>${esc(r.a.type)}</td><td class="num">${r.dr ? money(r.dr) : ''}</td><td class="num">${r.cr ? money(r.cr) : ''}</td><td class="num">${money(r.dr - r.cr)}</td></tr>`).join('')}</tbody>
+  return `${exceptionsBlock(S.sm)}${rows.length ? `<h2 class="mt">Totals by Account</h2><div class="tbl-wrap"><table><thead><tr><th>Account</th><th>Type</th><th class="num">Debits</th><th class="num">Credits</th><th class="num">Net</th></tr></thead><tbody>${rows.map(r => `<tr><td>${esc(acctLabel(r.a))}</td><td>${esc(r.a.type)}</td><td class="num">${r.dr ? money(r.dr) : ''}</td><td class="num">${r.cr ? money(r.cr) : ''}</td><td class="num">${money(r.dr - r.cr)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td colspan="2">Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td><td class="num">${money(dr - cr)}</td></tr></tfoot></table></div>${balLine(dr, cr)}` : ''}
     ${(D.invoices || []).length || (D.collections || []).length ? `<h2 class="mt">Sales and Collections</h2>
     <div class="tbl-wrap"><table><tbody>
@@ -2263,8 +2305,9 @@ function contactForm(id) {
 /* ---------- Lists: chart of accounts (view and add) ---------- */
 function accountsPage() {
   const auto = id => { const k = Object.keys(D.control).find(x => D.control[x] === id); return k ? CONTROL_LABEL[k] : ''; };
-  return pageHead('accounts', `All ${D.accounts.length} accounts, grouped by type.`, can('accounts.add') ? btn('new-account', 'Add account') : '')
+  return pageHead('accounts', `All ${D.accounts.length} accounts, by code. The first digit is the section: 1 assets, 2 liabilities, 3 equity, 4 revenue, 5 cost of sales, 6 selling, 7 general and admin, 8 other income and expenses, 9 income tax.`, can('accounts.add') ? btn('new-account', 'Add account') : '')
     + `<div id="list">${table([
+      { h: 'Code', k: a => a.code ? `<b style="white-space:nowrap">${esc(a.code)}</b>` : '' },
       { h: 'Account', k: a => `${esc(a.name)}${auto(a.id) ? `<span class="sub">Posted automatically: ${esc(auto(a.id).toLowerCase())}</span>` : ''}` },
       { h: 'Type', k: a => esc(a.type) },
       { h: 'Bank details', k: a => a.type !== 'Bank' ? '' : `${bankCur(a.id) === 'USD' ? 'US dollars' : 'Pesos'}<span class="sub">${esc([bankInfo(a.id).printed, bankInfo(a.id).number].filter(Boolean).join(' · '))}</span>` },
@@ -2273,20 +2316,36 @@ function accountsPage() {
 }
 const bankFields = (b = {}) => `${F('a-cur', 'Currency', `<select id="a-cur">${opt('PHP', 'Pesos', b.currency || 'PHP')}${opt('USD', 'US dollars', b.currency)}</select>`)}
   ${F('a-print', 'Bank name as printed on vouchers', inp('a-print', b.printed || '', 'text', 'placeholder="e.g. EastWest Bank"'), 'span2')}${F('a-no', 'Account no. (optional)', inp('a-no', b.number || '', 'text'))}`;
+/* The next free code in a group, counting by tens: 730-050 after 730-040. */
+const nextCode = grp => { const used = D.accounts.map(a => a.code).filter(c => c && c.startsWith(grp + '-')).map(c => Number(c.slice(4))); let n = (used.length ? Math.max(...used) : 0) + 10; n = n - n % 10; return n <= 999 ? `${grp}-${pad(n, 3)}` : ''; };
 function accountForm() {
-  const types = TYPE_ORDER;
+  const types = TYPE_ORDER, coded = D.accounts.some(a => a.code);
   openModal('Add Account', `<div class="fields">
-    ${F('a-name', 'Account name', inp('a-name', ''), 'full')}
     ${F('a-type', 'Type', `<select id="a-type">${types.map(t => opt(t, t, 'Expense')).join('')}</select>`, 'span2')}
-  </div><div class="fields" id="a-bank" hidden style="margin-top:16px">${bankFields()}</div>`, () => {
-    const name = val('a-name'), type = val('a-type');
+    ${F('a-code', 'Code', inp('a-code', '', 'text', 'autocomplete="off" inputmode="numeric" placeholder="000-000"'))}
+    ${F('a-name', 'Account name', inp('a-name', ''), 'full')}
+  </div><p class="hint" id="a-hint" style="margin-top:8px"></p>
+  <div class="fields" id="a-bank" hidden style="margin-top:16px">${bankFields()}</div>`, () => {
+    const name = val('a-name'), type = val('a-type'), code = val('a-code');
+    if (!code && coded) return 'Enter the code, written 000-000.';
+    if (codeErr(code, type)) return codeErr(code, type);
+    const dup = D.accounts.find(x => x.code && x.code === code); if (dup) return `${code} is already ${dup.name}.`;
     if (!name) return 'Enter the account name.';
     if (D.accounts.some(x => x.name.toLowerCase() === name.toLowerCase())) return `${name} is already on the list.`;
     return save('addAccount', () => {
-      const id = nextId('a'); D.accounts.push({ id, name, type, active: true });
+      const id = nextId('a'); D.accounts.push({ id, code, name, type, active: true });
       if (type === 'Bank') D.banks = { ...(D.banks || {}), [id]: { currency: val('a-cur'), printed: val('a-print'), number: val('a-no') } };
-    }, () => toast(`${name} added`));
-  }, 'Add account', { onOpen: () => { const s = document.getElementById('a-type'), w = document.getElementById('a-bank'); s.addEventListener('change', () => { w.hidden = s.value !== 'Bank'; }); } });
+    }, () => toast(`${code ? code + ' · ' : ''}${name} added`));
+  }, 'Add account', { onOpen: () => {
+    const s = document.getElementById('a-type'), w = document.getElementById('a-bank'), c = document.getElementById('a-code'), h = document.getElementById('a-hint');
+    const hint = () => {
+      const code = c.value.trim(), e = codeErr(code, s.value), g = code.slice(0, 3), near = /^\d{3}/.test(g) ? D.accounts.filter(a => (a.code || '').startsWith(g + '-')) : [];
+      h.textContent = e && CODE_RE.test(code) ? e : near.length ? `Group ${g} has ${sortAccounts(near).map(acctLabel).join('; ')}.${nextCode(g) ? ` The next free code is ${nextCode(g)}.` : ''}` : `${s.value} takes a code starting with ${Object.keys(CODE_TYPES).filter(k => CODE_TYPES[k].includes(s.value)).join(' or ')}. Type the first three digits to see that group.`;
+    };
+    s.addEventListener('change', () => { w.hidden = s.value !== 'Bank'; hint(); });
+    c.addEventListener('input', hint);
+    hint();
+  } });
 }
 /* A bank account's currency can't change once anything is posted to it. */
 function bankForm(id) {
@@ -2477,8 +2536,8 @@ const TABLES = [
       b.apAccount, b.status === 'void' ? 'Void' : 'Active', b.from || null, b.from ? b.paidBefore || 0 : null, b.voidReason || null, b.voidedOn || null, b.notes || null, b.createdAt || null, b.createdBy || null, b.updatedAt || null, b.updatedBy || null,
       b.currency === 'USD' ? 'USD' : null, b.currency === 'USD' ? String(b.rate) : null, isMemo(b) ? 'Debit memo' : null, b.appliesTo || null]) },
   { name: 'Bill lines', key: 'Bill ID', yearly: true, optional: true, subtitle: 'What each bill is for, one row per account line, as typed from the invoice.',
-    cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => D.bills.filter(own).sort(byDateRef).flatMap(b => b.lines.map((l, i) => [b.id, b.ref, i + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
+    rows: () => D.bills.filter(own).sort(byDateRef).flatMap(b => b.lines.map((l, i) => [b.id, b.ref, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
   { name: 'Vouchers', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'One row per check voucher or payment by transfer (Method). Status and Cleared on are what Check Monitoring shows. For a transfer, Check no. holds the bank’s reference and Check date the day it was sent.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15], ['Voucher date', 'd', 13], ['Check no.', 's', 16], ['Check date', 'd', 13], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Bills paid', 'n', 15, 'derived'], ['Check amount', 'n', 15],
@@ -2489,8 +2548,8 @@ const TABLES = [
       vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null,
       v.method || null, v.bankAcct || null, v.currency === 'USD' ? 'USD' : null, v.currency === 'USD' ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null]) },
   { name: 'Voucher lines', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'What each voucher pays for, one row per account line, as typed from the invoice.',
-    cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
+    rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
   { name: 'Bill payments', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'Which bills each check voucher pays, and how much. A bill from an earlier year can be paid here.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Amount', 'n', 15], ['Pesos', 'n', 15, 'optional']],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => (v.bills || []).map(p => [v.id, v.cv, p.billId, (billOf(p.billId) || {}).ref || null, p.amount, p.peso || null])) },
@@ -2503,8 +2562,8 @@ const TABLES = [
       yn(i.vatable), vGross(i), i.vat, yn(i.vatManual), i.receivable, i.arAccount, i.appliesTo || null,
       i.status === 'void' ? 'Void' : 'Active', i.from || null, i.from ? i.paidBefore || 0 : null, i.voidReason || null, i.voidedOn || null, i.notes || null, i.createdAt || null, i.createdBy || null, i.updatedAt || null, i.updatedBy || null]) },
   { name: 'Sales invoice lines', key: 'Invoice ID', yearly: true, optional: true, subtitle: 'What each invoice or credit memo is for, one row per account line, as on the invoice.',
-    cols: [['Invoice ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18]],
-    rows: () => (D.invoices || []).filter(own).sort(byDateRef).flatMap(i => i.lines.map((l, n) => [i.id, i.ref, n + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null])) },
+    cols: [['Invoice ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18]],
+    rows: () => (D.invoices || []).filter(own).sort(byDateRef).flatMap(i => i.lines.map((l, n) => [i.id, i.ref, n + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null])) },
   { name: 'Collections', key: 'Collection ID', yearly: true, optional: true, subtitle: 'One row per payment received from a customer. Checks and cash go to Undeposited Funds until a deposit; a transfer goes straight to the bank.',
     cols: [['Collection ID', 's', 12], ['CR no.', 's', 15], ['Date received', 'd', 13], ['Customer ID', 's', 10], ['Customer', 's', 30], ['Method', 's', 10], ['Reference no.', 's', 18], ['Customer bank', 's', 18], ['Particulars', 's', 40],
       ['Invoices settled', 'n', 15, 'derived'], ['Withheld (CWT)', 'n', 14], ['Deductions', 'n', 13, 'derived'], ['Amount received', 'n', 15], ['Received into account ID', 's', 12],
@@ -2517,13 +2576,13 @@ const TABLES = [
     cols: [['Collection ID', 's', 12], ['CR no.', 's', 15, 'derived'], ['Invoice ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Amount', 'n', 15]],
     rows: () => (D.collections || []).filter(own).sort((a, b) => a.date.localeCompare(b.date) || a.cr.localeCompare(b.cr)).flatMap(c => (c.invoices || []).map(p => [c.id, c.cr, p.invoiceId, (invoiceOf(p.invoiceId) || {}).ref || null, p.amount])) },
   { name: 'Collection deductions', key: 'Collection ID', yearly: true, optional: true, subtitle: 'Amounts the customer or platform kept back that aren’t withholding: platform fees, bank charges, discounts.',
-    cols: [['Collection ID', 's', 12], ['CR no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount', 'n', 15], ['Department', 's', 18]],
-    rows: () => (D.collections || []).filter(own).sort((a, b) => a.date.localeCompare(b.date) || a.cr.localeCompare(b.cr)).flatMap(c => (c.deductions || []).map((l, n) => [c.id, c.cr, n + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null])) },
+    cols: [['Collection ID', 's', 12], ['CR no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount', 'n', 15], ['Department', 's', 18]],
+    rows: () => (D.collections || []).filter(own).sort((a, b) => a.date.localeCompare(b.date) || a.cr.localeCompare(b.cr)).flatMap(c => (c.deductions || []).map((l, n) => [c.id, c.cr, n + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null])) },
   { name: 'Deposits', key: 'Deposit ID', yearly: true, optional: true, subtitle: 'One row per deposit slip: checks and cash taken from Undeposited Funds to a bank account. Which receipts are on it is on the Deposit items tab.',
     cols: [['Deposit ID', 's', 12], ['Deposit no.', 's', 15], ['Date', 'd', 13], ['Bank account ID', 's', 12], ['Bank account', 's', 30, 'derived'], ['Reference no.', 's', 18], ['Amount', 'n', 15],
       ['Status', 's', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30],
       ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
-    rows: () => (D.deposits || []).slice().sort((a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no)).map(d => [d.id, d.no, d.date, d.bank, acctName(d.bank), d.refNo || null, d.amount,
+    rows: () => (D.deposits || []).slice().sort((a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no)).map(d => [d.id, d.no, d.date, d.bank, acctPlain(d.bank), d.refNo || null, d.amount,
       d.status === 'void' ? 'Void' : 'Active', d.voidReason || null, d.voidedOn || null, d.notes || null, d.createdAt || null, d.createdBy || null, d.updatedAt || null, d.updatedBy || null]) },
   { name: 'Deposit items', key: 'Deposit ID', yearly: true, optional: true, subtitle: 'The receipts on each deposit slip. A receipt from an earlier year can be deposited here.',
     cols: [['Deposit ID', 's', 12], ['Deposit no.', 's', 15, 'derived'], ['Collection ID', 's', 12], ['CR no.', 's', 15, 'derived'], ['Amount', 'n', 15]],
@@ -2531,11 +2590,11 @@ const TABLES = [
   { name: 'Petty cash vouchers', key: 'PCV ID', yearly: true, optional: true, subtitle: 'One row per petty cash voucher: what a custodian paid out of the fund. A check that replenishes the fund is a check voucher.',
     cols: [['PCV ID', 's', 12], ['PCV no.', 's', 15], ['Date', 'd', 13], ['Fund account ID', 's', 12], ['Fund', 's', 30, 'derived'], ['Paid to', 's', 30], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['Status', 's', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
-    rows: () => (D.pettyCash || []).slice().sort(byDateNo).map(x => [x.id, x.no, x.date, x.fund, acctName(x.fund), x.paidTo || null, x.particulars, yn(x.vatable), vGross(x), x.vat, yn(x.vatManual),
+    rows: () => (D.pettyCash || []).slice().sort(byDateNo).map(x => [x.id, x.no, x.date, x.fund, acctPlain(x.fund), x.paidTo || null, x.particulars, yn(x.vatable), vGross(x), x.vat, yn(x.vatManual),
       stat(x), x.voidReason || null, x.voidedOn || null, x.notes || null, x.createdAt || null, x.createdBy || null, x.updatedAt || null, x.updatedBy || null]) },
   { name: 'Petty cash lines', key: 'PCV ID', yearly: true, optional: true, subtitle: 'What each petty cash voucher paid for, one row per account line, as on the receipts.',
-    cols: [['PCV ID', 's', 12], ['PCV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per receipt', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => (D.pettyCash || []).slice().sort(byDateNo).flatMap(x => x.lines.map((l, i) => [x.id, x.no, i + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['PCV ID', 's', 12], ['PCV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per receipt', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
+    rows: () => (D.pettyCash || []).slice().sort(byDateNo).flatMap(x => x.lines.map((l, i) => [x.id, x.no, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
   { name: 'Liquidations', key: 'Liquidation ID', yearly: true, optional: true, subtitle: 'One row per liquidation of an employee’s cash advance: the receipts, and any cash returned or reimbursed.',
     cols: [['Liquidation ID', 's', 12], ['Liquidation no.', 's', 15], ['Date', 'd', 13], ['Employee ID', 's', 10], ['Employee', 's', 30, 'derived'], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Receipts total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['Returned', 'n', 13], ['Reimbursed', 'n', 13], ['Cash account ID', 's', 12], ['Advance cleared', 'n', 15, 'derived'],
@@ -2543,8 +2602,8 @@ const TABLES = [
     rows: () => (D.liquidations || []).slice().sort(byDateNo).map(x => [x.id, x.no, x.date, x.employee, (contact(x.employee) || {}).name || null, x.particulars, yn(x.vatable), vGross(x), x.vat, yn(x.vatManual),
       x.returned || null, x.reimbursed || null, x.cashAcct || null, round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0)), stat(x), x.voidReason || null, x.voidedOn || null, x.notes || null, x.createdAt || null, x.createdBy || null, x.updatedAt || null, x.updatedBy || null]) },
   { name: 'Liquidation lines', key: 'Liquidation ID', yearly: true, optional: true, subtitle: 'The receipts on each liquidation, one row per account line.',
-    cols: [['Liquidation ID', 's', 12], ['Liquidation no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per receipt', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => (D.liquidations || []).slice().sort(byDateNo).flatMap(x => x.lines.map((l, i) => [x.id, x.no, i + 1, l.accountId, acctName(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['Liquidation ID', 's', 12], ['Liquidation no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per receipt', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
+    rows: () => (D.liquidations || []).slice().sort(byDateNo).flatMap(x => x.lines.map((l, i) => [x.id, x.no, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
   { name: 'Journal entries', key: 'JE ID', yearly: true, optional: true, subtitle: 'Entries made by hand on the General Journal page (Kind Entry), transfers between the company’s own accounts (Kind Transfer), shipments received into inventory at landed cost (Kind Receipt) and month-end stock counts (Kind Count). Their lines are on the Journal tab.',
     cols: [['JE ID', 's', 12], ['JE no.', 's', 15], ['Date', 'd', 13], ['Kind', 's', 10], ['Name', 's', 28], ['Memo', 's', 40], ['From account ID', 's', 12], ['To account ID', 's', 12], ['Amount out', 'n', 15], ['Amount in', 'n', 15],
       ['Rate', 's', 10], ['Bank charges', 'n', 13], ['Reference no.', 's', 18], ['Reverses JE ID', 's', 12], ['Status', 's', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30],
@@ -2554,35 +2613,35 @@ const TABLES = [
       j.status === 'void' ? 'Void' : 'Active', j.voidReason || null, j.voidedOn || null, j.notes || null, j.createdAt || null, j.createdBy || null, j.updatedAt || null, j.updatedBy || null,
       j.kind === 'Receipt' ? j.shipment : null, j.kind === 'Receipt' || j.kind === 'Count' ? j.amount : null]; }) },
   { name: 'Journal', key: 'Document ID', yearly: true, optional: true, subtitle: 'Every accounting entry line from the hub’s sections. Checks are dated on the check date. A void document keeps its lines and gets a reversal dated the day it was voided. Opening balances are on their own tab.',
-    cols: [['Date', 'd', 13], ['Section', 's', 16], ['Document ID', 's', 12], ['Ref.', 's', 15, 'derived'], ['Line', 'i', 6], ['Name', 's', 30, 'derived'], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Account type', 's', 22, 'derived'], ['Debit', 'n', 15], ['Credit', 'n', 15], ['Memo', 's', 34],
+    cols: [['Date', 'd', 13], ['Section', 's', 16], ['Document ID', 's', 12], ['Ref.', 's', 15, 'derived'], ['Line', 'i', 6], ['Name', 's', 30, 'derived'], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Account type', 's', 22, 'derived'], ['Debit', 'n', 15], ['Credit', 'n', 15], ['Memo', 's', 34],
       ['Department', 's', 18, 'optional'], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
-    rows: () => journal().filter(d => d.src !== 'ob').flatMap(d => d.lines.map((l, i) => [d.date, SOURCES[d.src].label, d.id, d.ref, i + 1, d.contact || null, l.acct, acctName(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.memo || null, l.dept || null, l.usd || null, ...tagVals(l.acct, l.tag)])) },
+    rows: () => journal().filter(d => d.src !== 'ob').flatMap(d => d.lines.map((l, i) => [d.date, SOURCES[d.src].label, d.id, d.ref, i + 1, d.contact || null, l.acct, acctCode(l.acct) || null, acctPlain(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.memo || null, l.dept || null, l.usd || null, ...tagVals(l.acct, l.tag)])) },
   { name: 'Year opening', key: 'Account ID', yearly: true, optional: true, subtitle: 'Each account’s balance on January 1, written when the year before was closed. Income and expenses are closed to retained earnings.',
-    cols: [['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
-    rows: () => (D.yearOpening.lines || []).map(l => [l.acct, acctName(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.usd || null, ...tagVals(l.acct, l.tag)]) },
+    cols: [['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
+    rows: () => (D.yearOpening.lines || []).map(l => [l.acct, acctCode(l.acct) || null, acctPlain(l.acct), (acct(l.acct) || {}).type || null, l.dr || null, l.cr || null, l.usd || null, ...tagVals(l.acct, l.tag)]) },
   { name: 'Budgets', key: 'Department', yearly: true, optional: true, subtitle: 'Each department’s budget for the year, by expense account. Spending is what the Journal tab shows for that department and account.',
-    cols: [['Department', 's', 22], ['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Yearly budget', 'n', 16]],
-    rows: () => (D.budgets || []).slice().sort((a, b) => a.dept.localeCompare(b.dept) || acctName(a.acct).localeCompare(acctName(b.acct))).map(x => [x.dept, x.acct, acctName(x.acct), x.amount]) },
+    cols: [['Department', 's', 22], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Yearly budget', 'n', 16]],
+    rows: () => (D.budgets || []).slice().sort((a, b) => a.dept.localeCompare(b.dept) || acctPlain(a.acct).localeCompare(acctPlain(b.acct))).map(x => [x.dept, x.acct, acctCode(x.acct) || null, acctPlain(x.acct), x.amount]) },
   { name: 'Contacts', key: 'Contact ID', subtitle: 'Everyone the company pays or bills.',
     cols: [['Contact ID', 's', 11], ['Name', 's', 34], ['Roles', 's', 26], ['TIN', 's', 18], ['Address', 's', 40], ['Usual account ID', 's', 12], ['Usual account', 's', 34, 'derived'], ['Usual ATC', 's', 10], ['Usually charges VAT', 's', 12]],
-    rows: () => D.contacts.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.id, p.name, p.roles.map(roleLabel).join(', '), p.tin || null, p.address || null, p.accountId || null, p.accountId ? acctName(p.accountId) : null, p.atc || null, yn(p.vatable !== false)]) },
+    rows: () => D.contacts.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => [p.id, p.name, p.roles.map(roleLabel).join(', '), p.tin || null, p.address || null, p.accountId || null, p.accountId ? acctPlain(p.accountId) : null, p.atc || null, yn(p.vatable !== false)]) },
   { name: 'Accounts', key: 'Account ID', subtitle: 'The chart of accounts. Entries store the Account ID, so a renamed account keeps its history.',
-    cols: [['Account ID', 's', 11], ['Account', 's', 40], ['Type', 's', 24], ['Shown in lists', 's', 12], ['Posted automatically as', 's', 24], ['Statement', 's', 16, 'derived'], ['Section', 's', 22, 'derived'], ['Normal balance', 's', 10, 'derived']],
-    rows: () => sortAccounts(D.accounts).map(a => { const [st, sec, sign] = stmtOf(a.type); return [a.id, a.name, a.type, yn(a.active), CONTROL_LABEL[Object.keys(D.control).find(k => D.control[k] === a.id)] || null, st || null, sec || null, sign > 0 ? 'Debit' : 'Credit']; }) },
+    cols: [['Account ID', 's', 11], ['Code', 's', 10, 'optional'], ['Account', 's', 40], ['Type', 's', 24], ['Shown in lists', 's', 12], ['Posted automatically as', 's', 24], ['Statement', 's', 16, 'derived'], ['Section', 's', 22, 'derived'], ['Normal balance', 's', 10, 'derived']],
+    rows: () => sortAccounts(D.accounts).map(a => { const [st, , sign] = stmtOf(a.type), sec = stmtSection(a); return [a.id, a.code || null, a.name, a.type, yn(a.active), CONTROL_LABEL[Object.keys(D.control).find(k => D.control[k] === a.id)] || null, st || null, sec || null, sign > 0 ? 'Debit' : 'Credit']; }) },
   { name: 'Departments', key: 'Department', optional: true, subtitle: 'The departments expense lines are charged to. Hidden ones keep their history but can’t be chosen for new lines.',
     cols: [['Department', 's', 24], ['Shown in lists', 's', 12]],
     rows: () => (D.departments || []).map(d => [d.name, yn(d.active)]) },
   { name: 'Bank accounts', key: 'Account ID', optional: true, subtitle: 'Details for accounts of type Bank: currency, the name printed on vouchers, the account no. A Bank account not listed here is in pesos.',
-    cols: [['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Currency', 's', 9], ['Printed as', 's', 30], ['Account no.', 's', 22], ['Custodian ID', 's', 11, 'optional'], ['Custodian', 's', 28, 'derived'], ['Fund amount', 'n', 15, 'optional']],
-    rows: () => Object.entries(D.banks || {}).filter(([id]) => acct(id)).sort((a, b) => acctName(a[0]).localeCompare(acctName(b[0]))).map(([id, b]) => [id, acctName(id), b.currency || 'PHP', b.printed || null, b.number || null,
+    cols: [['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Currency', 's', 9], ['Printed as', 's', 30], ['Account no.', 's', 22], ['Custodian ID', 's', 11, 'optional'], ['Custodian', 's', 28, 'derived'], ['Fund amount', 'n', 15, 'optional']],
+    rows: () => Object.entries(D.banks || {}).filter(([id]) => acct(id)).sort((a, b) => acctPlain(a[0]).localeCompare(acctPlain(b[0]))).map(([id, b]) => [id, acctCode(id) || null, acctPlain(id), b.currency || 'PHP', b.printed || null, b.number || null,
       b.custodian || null, b.custodian ? (contact(b.custodian) || {}).name || null : null, b.custodian ? b.fund || 0 : null]) },
   { name: 'Shipments', key: 'Shipment ID', optional: true, subtitle: 'Each import shipment. Bills for its goods, freight, brokerage and duties post to Goods in Transit under its Shipment ID; on arrival, its landed cost moves into inventory.',
     cols: [['Shipment ID', 's', 11], ['Shipment no.', 's', 20], ['Description', 's', 40], ['Notes', 's', 30]],
     rows: () => (D.shipments || []).slice().sort((a, b) => a.no.localeCompare(b.no)).map(s => [s.id, s.no, s.desc || null, s.notes || null]) },
   { name: 'Opening balances', key: 'Account ID', optional: true, subtitle: 'Each account’s balance when the hub takes over, from QuickBooks. Type a debit or a credit next to the account and the date in Settings; debits must equal credits.',
-    cols: [['Account ID', 's', 11], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
+    cols: [['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Type', 's', 24, 'derived'], ['Debit', 'n', 16], ['Credit', 'n', 16], ['USD amount', 'n', 14, 'optional'], ...TAG_COLS],
     rows: () => { const ob = {}; (D.switchOpening.lines || []).forEach(l => { (ob[l.acct] = ob[l.acct] || []).push(l); });
-      return sortAccounts(D.accounts).flatMap(a => (ob[a.id] || [{}]).map(l => [a.id, a.name, a.type, l.dr || null, l.cr || null, l.usd || null, ...tagVals(a.id, l.tag)])); } },
+      return sortAccounts(D.accounts).flatMap(a => (ob[a.id] || [{}]).map(l => [a.id, a.code || null, a.name, a.type, l.dr || null, l.cr || null, l.usd || null, ...tagVals(a.id, l.tag)])); } },
   { name: 'Settings', key: 'Setting', subtitle: 'Company details printed on vouchers.',
     cols: [['Setting', 's', 30], ['Value', 's', 60]],
     rows: () => [['Company name', D.company.name], ['Company TIN', D.company.tin || null], ['Address', D.company.address || null], ['Bank, as printed', D.bankName],
@@ -2624,8 +2683,11 @@ function dataFromTables(sheets, ctx = {}) {
   const isYes = (o, h) => { const v = String(o[h] || '').toLowerCase(); if (v !== 'yes' && v !== 'no') E(o, `${h} must be Yes or No.`); return v === 'yes'; };
   const uniq = (list, key, label, blankOk) => { const seen = new Set(); list.forEach(o => { const k = String(o[key] || '').toLowerCase(); if (!k) { if (!blankOk) E(o, `${label} is blank.`); } else if (seen.has(k)) E(o, `${label} ${o[key]} appears twice.`); seen.add(k); }); };
   // accounts
-  uniq(T.Accounts, 'Account ID', 'Account ID'); uniq(T.Accounts, 'Account', 'Account');
-  const accounts = T.Accounts.map(o => { if (!o.Type) E(o, 'Type is blank.'); else if (!STATEMENT[o.Type]) E(o, `Type “${o.Type}” isn’t one of: ${TYPE_ORDER.join(', ')}.`); return { id: o['Account ID'], name: o.Account, type: o.Type, active: isYes(o, 'Shown in lists') }; });
+  uniq(T.Accounts, 'Account ID', 'Account ID'); uniq(T.Accounts, 'Account', 'Account'); uniq(T.Accounts, 'Code', 'Code', true);
+  const accounts = T.Accounts.map(o => {
+    if (!o.Type) E(o, 'Type is blank.'); else if (!STATEMENT[o.Type]) E(o, `Type “${o.Type}” isn’t one of: ${TYPE_ORDER.join(', ')}.`); else if (codeErr(o.Code, o.Type)) E(o, codeErr(o.Code, o.Type));
+    return { id: o['Account ID'], code: o.Code || '', name: o.Account, type: o.Type, active: isYes(o, 'Shown in lists') };
+  });
   const aid = new Set(accounts.map(a => a.id)), aType = Object.fromEntries(accounts.map(a => [a.id, a.type]));
   const control = {};
   for (const [k, lbl] of Object.entries(CONTROL_LABEL)) {
@@ -2678,9 +2740,10 @@ function dataFromTables(sheets, ctx = {}) {
   uniq(T.Shipments, 'Shipment ID', 'Shipment ID'); uniq(T.Shipments, 'Shipment no.', 'Shipment no.');
   const shipments = T.Shipments.map(o => ({ id: o['Shipment ID'], no: o['Shipment no.'], desc: o.Description || '', notes: o.Notes || '' }));
   const shipIds = new Set(shipments.map(s => s.id));
+  const transitSet = new Set(transitGroup(accounts, control.transit));
   const readTag = (l, a, required = true) => {
-    const k = a && a === control.transit ? 'ship' : a && a === control.advances ? 'emp' : '', s = l['Shipment ID'] || '', m = l['Employee ID'] || '';
-    if (k !== 'ship' && s) E(l, 'Shipment ID is only for lines on the goods in transit account.');
+    const k = a && transitSet.has(a) ? 'ship' : a && a === control.advances ? 'emp' : '', s = l['Shipment ID'] || '', m = l['Employee ID'] || '';
+    if (k !== 'ship' && s) E(l, 'Shipment ID is only for lines on the goods in transit accounts.');
     if (k !== 'emp' && m) E(l, 'Employee ID is only for lines on the employee advances account.');
     if (k === 'ship') { if (!s) { if (required) E(l, 'a goods in transit line needs the Shipment ID it’s for.'); } else if (!shipIds.has(s)) E(l, `Shipment ID ${s} isn’t on the Shipments tab.`); return s; }
     // advances posted before the hub kept them by employee have none; new ones always do
@@ -2925,8 +2988,7 @@ function dataFromTables(sheets, ctx = {}) {
     } else if (o['From account ID'] || o['To account ID'] || o['Amount out'] || o['Amount in'] || o.Rate || o['Bank charges']) E(o, 'From, To, amounts, rate and bank charges are only for transfers.');
     if (receipt) {
       if (!j.shipment || !shipIds.has(j.shipment)) E(o, 'A receipt needs the Shipment ID it’s for, from the Shipments tab.');
-      if (!j.amount) E(o, 'Amount is the landed cost received, and can’t be blank or zero.');
-      expect = () => calcReceipt(j, control);
+      if (j.amount == null) E(o, 'Amount is the landed cost received, or the cost difference cleared, and can’t be blank.');
     } else if (j.shipment) E(o, 'Shipment ID is only for receipts.');
     if (count) {
       if (!(j.amount >= 0)) E(o, 'Amount is the stock count’s value, zero or more.');
@@ -2938,6 +3000,13 @@ function dataFromTables(sheets, ctx = {}) {
     readEntry(src, j, o, expect, j.date, 'the entry date', j.no);
     // a count's cost of goods sold was worked out against the books when it was saved; its shape is checked here
     if (count && j.entry.length && (j.entry.length !== 2 || !j.entry.some(l => l.acct === control.cogs) || !j.entry.some(l => l.acct === control.inventory))) E(o, `${j.no} must have two lines: cost of goods sold and inventory.`);
+    // a receipt's split across the goods in transit accounts was worked out against the shipment when it was saved;
+    // here: inventory takes the amount, and every other line is a goods in transit account, for this shipment
+    if (receipt && j.entry.length) {
+      const inv = sum(j.entry.filter(l => l.acct === control.inventory).map(l => (l.dr || 0) - (l.cr || 0)));
+      if (Math.abs(inv - (j.amount || 0)) >= 0.005) E(o, `${j.no}: Amount must equal what goes into inventory, ${money(inv)}.`);
+      if (j.entry.some(l => l.acct !== control.inventory && (!transitSet.has(l.acct) || l.tag !== j.shipment))) E(o, `${j.no} must have inventory and goods in transit lines only, each for shipment ${j.shipment}.`);
+    }
     if (kind === 'Entry' && j.entry.length) {
       if (j.entry.length < 2) E(o, `${j.no} needs at least two lines.`);
       j.entry.forEach(l => {
@@ -3176,6 +3245,7 @@ function dataFromTables(sheets, ctx = {}) {
     shipments, pettyCash, liquidations,
     acctBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.accts || {}).forEach(([k, x]) => { const y = m[k] = m[k] || { php: 0, usd: 0 }; y.php = round2(y.php + (x.php || 0)); y.usd = round2(y.usd + (x.usd || 0)); }); return m; }, {}),
     tagsBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.tags || {}).forEach(([k, n]) => { m[k] = round2((m[k] || 0) + n); }); return m; }, {}),
+    tagAcctsBefore: (ctx.foreign || []).reduce((m, g) => { Object.entries(g.tagAccts || {}).forEach(([k, n]) => { m[k] = round2((m[k] || 0) + n); }); return m; }, {}),
     switchOpening, yearOpening, opening, lockedThrough: lockDate, closedThrough: Math.max(closedThrough, ctx.closedThrough || 0), years: ctx.years || [] } };
 }
 
@@ -3411,7 +3481,7 @@ function collectionForm(c0) {
   const x = edit ? JSON.parse(JSON.stringify(c0)) : { cr: nextNo(D.collections || [], 'cr', 'CR', defaultDate()), date: defaultDate(), customerName: '', method: 'Check', refNo: '', custBank: '', into: D.control.undeposited, particulars: '', invoices: [], cwt: '', deductions: [], notes: '' };
   x.invoices = (x.invoices || []).map(p => ({ invoiceId: p.invoiceId, amount: p.amount }));
   const depts = (D.departments || []).length > 0, customers = D.contacts.filter(isCustomer);
-  const intoOptions = () => opt(D.control.undeposited, 'Undeposited Funds', x.into) + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, a.name, x.into)).join('');
+  const intoOptions = () => opt(D.control.undeposited, acctName(D.control.undeposited), x.into) + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, acctLabel(a), x.into)).join('');
   const body = `<div class="vform"><div class="section"><h3>Collection</h3><div class="fields">
       ${F('c-cr', 'CR no.', inp('c-cr', x.cr, 'text', 'autocomplete="off"'))}${F('c-date', 'Date received', inp('c-date', x.date, 'date'))}
       ${F('c-cust', 'Customer', inp('c-cust', x.customerName, 'text', 'list="dl-ccust" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-ccust">${customers.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>`, 'span2')}
@@ -3632,6 +3702,14 @@ function tagBalances(asOf, exceptId) {
   return m;
 }
 const tagBalance = (tag, asOf, exceptId) => round2(tagBalances(asOf, exceptId)[tag] || 0);
+/* A shipment's costs by goods in transit account: what a receipt clears from each. */
+function shipParts(sid, asOf, exceptId) {
+  const m = {};
+  Object.entries(D.tagAcctsBefore || {}).forEach(([k, n]) => { const [a, t] = k.split('|'); if (t === sid) m[a] = round2((m[a] || 0) + n); });
+  journal().forEach(d => { if ((asOf && d.date > asOf) || (exceptId && d.id === exceptId)) return; d.lines.forEach(l => { if (l.tag === sid && isTransit(l.acct)) m[l.acct] = round2((m[l.acct] || 0) + (l.dr || 0) - (l.cr || 0)); }); });
+  Object.keys(m).forEach(a => { if (Math.abs(m[a]) < 0.005) delete m[a]; });
+  return m;
+}
 /* Account balance on a date, in pesos, leaving one document out. */
 const acctBalance = (id, asOf, exceptId) => { let n = ((D.acctBefore || {})[id] || {}).php || 0; journal().forEach(d => { if ((asOf && d.date > asOf) || (exceptId && d.id === exceptId)) return; d.lines.forEach(l => { if (l.acct === id) n = round2(n + (l.dr || 0) - (l.cr || 0)); }); }); return n; };
 /* A shared line table for petty cash vouchers and liquidations: account, what it's charged to, description, amount. */
@@ -3695,7 +3773,7 @@ function fundStrip() {
   const fs = funds();
   if (!fs.length) return `<div class="empty"><b>No petty cash funds yet</b>${canBooks('accounts.add') ? `A fund is an account of type Bank, such as Petty Cash - Maria, with a custodian and a fixed amount. ${btn('new-fund', 'Set up a fund', 'sm')}` : 'An admin sets one up: an account of type Bank with a custodian and a fixed amount.'}</div>`;
   return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Petty Cash Funds <span class="hint" style="font-weight:400">on hand per the books</span></h2>${table([
-    { h: 'Fund', k: a => `<b>${esc(a.name)}</b><span class="sub">${esc((contact(fundOf(a.id).custodian) || {}).name || '')}</span>` },
+    { h: 'Fund', k: a => `<b>${esc(acctLabel(a))}</b><span class="sub">${esc((contact(fundOf(a.id).custodian) || {}).name || '')}</span>` },
     { h: 'Fund amount', num: 1, k: a => money(fundOf(a.id).amount) },
     { h: 'On hand', num: 1, k: a => peso(bankBalance(a.id).php) },
     { h: 'To replenish', num: 1, k: a => { const gap = round2(fundOf(a.id).amount - bankBalance(a.id).php); return gap > 0 ? `<b>${money(gap)}</b>` : gap < 0 ? `(${money(-gap)})<span class="sub">over the fund</span>` : ''; } },
@@ -3750,7 +3828,7 @@ function fundForm(id) {
   if (!f && !choices.length) { toast('Add an account of type Bank for the fund first, in Chart of Accounts, such as Petty Cash - Maria.', true); return; }
   if (!emps.length) { toast('Mark the custodian as an Employee in Contacts first.', true); return; }
   openModal(f ? `Petty Cash Fund: ${esc(f.name)}` : 'Set Up a Petty Cash Fund', `<div class="fields">
-    ${F('pf-acct', 'Account (type Bank)', `<select id="pf-acct" ${f ? 'disabled' : ''}>${choices.map(a => opt(a.id, a.name, id)).join('')}</select>`, 'span2')}
+    ${F('pf-acct', 'Account (type Bank)', `<select id="pf-acct" ${f ? 'disabled' : ''}>${choices.map(a => opt(a.id, acctLabel(a), id)).join('')}</select>`, 'span2')}
     ${F('pf-cust', 'Custodian', `<select id="pf-cust">${emps.map(p => opt(p.id, p.name, f && f.custodian)).join('')}</select>`)}
     ${F('pf-amt', 'Fund amount (₱)', inp('pf-amt', f ? f.amount : '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}</div>
     <p class="hint" style="margin-top:8px">${f ? 'A new amount takes effect from the next replenishment.' : 'Fund it with Replenish: a check for the whole amount, to the custodian.'} Not in Chart of Accounts yet? Add the account there first (type Bank), then come back.</p>`, () => {
@@ -3776,7 +3854,7 @@ function pcvForm(x0) {
   if (!x.lines.length) x.lines.push(blank());
   const body = `<div class="vform"><div class="section"><h3>Petty cash voucher</h3><div class="fields">
       ${F('k-no', 'PCV no.', inp('k-no', x.no, 'text', 'autocomplete="off"'))}${F('k-date', 'Date', inp('k-date', x.date, 'date'))}
-      ${F('k-fund', 'Paid from', `<select id="k-fund">${(edit && !fs.some(a => a.id === x.fund) ? [acct(x.fund)] : fs).map(a => opt(a.id, a.name, x.fund)).join('')}</select>`, 'span2')}
+      ${F('k-fund', 'Paid from', `<select id="k-fund">${(edit && !fs.some(a => a.id === x.fund) ? [acct(x.fund)] : fs).map(a => opt(a.id, acctLabel(a), x.fund)).join('')}</select>`, 'span2')}
       ${F('k-to', 'Paid to (as on the receipt)', inp('k-to', x.paidTo, 'text', 'placeholder="e.g. Mercury Drug, Grab"'), 'span2')}
       ${F('k-part', 'Particulars', inp('k-part', x.particulars, 'text', 'placeholder="e.g. Office supplies, courier to Davao"'), 'span2')}
     </div><p class="hint" id="k-note" style="margin-top:8px"></p></div>
@@ -3845,7 +3923,7 @@ function liqForm(x0, empId) {
   const blank = () => ({ accountId: '', desc: '', amount: '', dept: '', tag: '' });
   const x = edit ? JSON.parse(JSON.stringify(x0)) : { no: nextNo(D.liquidations || [], 'no', 'LQ', defaultDate()), date: defaultDate(), employee: empId || emps[0].id, particulars: '', lines: [blank()], vatable: false, vat: '', vatManual: false, returned: '', reimbursed: '', cashAcct: '', notes: '' };
   if (!x.lines.length) x.lines.push(blank());
-  const cashOptions = cur => opt(D.control.undeposited, 'Undeposited Funds (cash to deposit)', cur) + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, a.name, cur)).join('');
+  const cashOptions = cur => opt(D.control.undeposited, `${acctName(D.control.undeposited)} (cash to deposit)`, cur) + bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => opt(a.id, acctLabel(a), cur)).join('');
   const body = `<div class="vform"><div class="section"><h3>Liquidation</h3><div class="fields">
       ${F('q-no', 'Liquidation no.', inp('q-no', x.no, 'text', 'autocomplete="off"'))}${F('q-date', 'Date', inp('q-date', x.date, 'date'))}
       ${F('q-emp', 'Employee', `<select id="q-emp">${emps.concat(edit && !emps.some(p => p.id === x.employee) && contact(x.employee) ? [contact(x.employee)] : []).map(p => opt(p.id, p.name, x.employee)).join('')}</select>`, 'span2')}
@@ -3928,14 +4006,16 @@ function voidLiq(id) {
    Bills and payments for a shipment post to Goods in Transit under its name. On arrival, the landed cost from the
    costing system moves into inventory; what's left after the last bill is a cost difference, cleared to inventory too. */
 const receiptsOf = sid => (D.journals || []).filter(j => j.kind === 'Receipt' && j.shipment === sid);
+/* Received once nothing is left on any of its goods in transit accounts. A difference that nets to zero across
+   them (a cost billed after the receipt, on another account) still shows, so it can be cleared. */
 function shipmentRow(s) {
-  const left = tagBalance(s.id), rec = receiptsOf(s.id).filter(live), received = round2(sum(rec.map(j => j.amount))), costs = round2(left + received);
-  const st = !rec.length ? (Math.abs(costs) < 0.005 ? 'No costs yet' : 'In transit') : Math.abs(left) < 0.005 ? 'Received' : 'Cost difference';
-  return { s, costs, received, left, st, last: rec.map(j => j.date).sort().pop() || '' };
+  const left = tagBalance(s.id), rec = receiptsOf(s.id).filter(live), received = round2(sum(rec.map(j => j.amount))), costs = round2(left + received), parts = shipParts(s.id);
+  const st = !rec.length ? (Math.abs(costs) < 0.005 ? 'No costs yet' : 'In transit') : !Object.keys(parts).length ? 'Received' : 'Cost difference';
+  return { s, costs, received, left, parts, st, last: rec.map(j => j.date).sort().pop() || '' };
 }
 function shipmentsPage() {
   const acts = canBooks('inventory.edit') ? `${btn('new-receipt', 'Receive a shipment', 'ghost')}${btn('new-shipment', 'New shipment')}` : '';
-  return pageHead('shipments', `Bills and payments for an import post to ${esc(acctName(D.control.transit))} under its shipment. When it arrives, enter its landed cost from the costing system and it moves into inventory.`, acts)
+  return pageHead('shipments', `Bills and payments for an import post to ${esc(transitWord())} under its shipment, one account per kind of cost. When it arrives, enter its landed cost from the costing system and it moves into inventory.`, acts)
     + `<div class="toolbar"><input id="q" type="search" placeholder="Search shipment no., description" value="${esc(S.q)}" aria-label="Search">
       <select id="sf" aria-label="Show">${opt('open', 'Open: in transit or with a difference', S.sf)}${opt('all', 'All shipments', S.sf)}</select></div>
     <div id="list">${shipmentList()}</div>`;
@@ -3974,7 +4054,7 @@ function viewShipment(id) {
   openModal(`Shipment ${esc(r.s.no)}`, `<p class="lead">${esc(r.s.desc)}${r.s.notes ? ` · ${esc(r.s.notes)}` : ''}</p>
     <div class="tbl-wrap"><table class="compact"><thead><tr><th>Date</th><th>Document</th><th>For</th><th class="num">In</th><th class="num">Out</th></tr></thead><tbody>
       ${before ? `<tr><td></td><td>Earlier years’ books</td><td>Net, not yet closed</td><td class="num">${before > 0 ? money(before) : ''}</td><td class="num">${before < 0 ? money(-before) : ''}</td></tr>` : ''}
-      ${docs.map(d => d.lines.filter(l => l.tag === id).map(l => `<tr><td>${fdate(d.date)}</td><td><b>${esc(d.ref)}</b><span class="sub">${esc(SOURCES[d.src].label)}</span></td><td>${esc(d.contact || '')}<span class="sub">${esc(l.memo || d.memo || '')}</span></td><td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')).join('')}
+      ${docs.map(d => d.lines.filter(l => l.tag === id).map(l => `<tr><td>${fdate(d.date)}</td><td><b>${esc(d.ref)}</b><span class="sub">${esc(SOURCES[d.src].label)}</span></td><td>${esc(d.contact || '')}<span class="sub">${esc([acctName(l.acct), l.memo || d.memo || ''].filter(Boolean).join(' · '))}</span></td><td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')).join('')}
     </tbody><tfoot><tr><td colspan="3">In transit now</td><td class="num" colspan="2">${peso(r.left)}</td></tr></tfoot></table></div>
     ${receiptsOf(id).length ? `<p class="dv-sect" style="margin-top:20px">Receipts</p>${table([{ h: 'No.', k: j => `<b>${esc(j.no)}</b><span class="sub">${fdate(j.date)}</span>` }, { h: 'Memo', k: j => esc(j.memo) }, { h: 'Amount', num: 1, k: j => money(j.amount) }, { h: 'Status', k: j => j.status === 'void' ? pill('Void') : '' }, { h: '', k: j => rowActs([['view-receipt', j.id, 'View']]) }], receiptsOf(id), '', '', j => j.status === 'void' ? 'void' : '')}` : ''}`,
     null, '', { size: 'wide', extra });
@@ -3983,38 +4063,43 @@ function viewShipment(id) {
 function receiptForm(j0, sid, clear) {
   const edit = !!j0, self = edit ? j0.id : null, list = (D.shipments || []).slice().sort((a, b) => b.no.localeCompare(a.no));
   if (!list.length) { toast('Add the shipment first.', true); return; }
+  // an edited receipt keeps what it was: clearing a difference, or a landed cost
+  if (edit) clear = !!j0.clear || /^Cost difference/i.test(j0.memo || '');
   const x = edit ? { ...j0 } : { no: suggestJe(defaultDate(), 'RC'), date: defaultDate(), shipment: sid || list[0].id, amount: clear ? tagBalance(sid).toFixed(2) : '', memo: '', notes: '' };
   const body = `<div class="fields">
     ${F('r-no', 'Receipt no.', inp('r-no', x.no, 'text', 'autocomplete="off"'))}${F('r-date', clear ? 'Date' : 'Date received in the warehouse', inp('r-date', x.date, 'date'))}
     ${F('r-ship', 'Shipment', `<select id="r-ship">${list.map(s => opt(s.id, `${s.no}${s.desc ? ` · ${s.desc}` : ''}`, x.shipment)).join('')}</select>`, 'span2')}
-    ${F('r-amt', clear ? 'Cost difference to inventory (₱)' : 'Landed cost, from the costing system (₱)', inp('r-amt', x.amount, 'number', 'step="0.01" inputmode="decimal"'), 'span2')}
+    ${F('r-amt', clear ? 'Cost difference to inventory (₱)' : 'Landed cost, from the costing system (₱)', inp('r-amt', x.amount, 'number', `step="0.01" inputmode="decimal"${clear ? ' readonly' : ''}`), 'span2')}
     ${F('r-memo', 'Memo', inp('r-memo', x.memo, 'text'), 'span2')}
   </div><p class="hint" id="r-note" style="margin-top:8px"></p>
   <div class="section" style="margin-top:16px"><h3>Accounting entry</h3><div class="entry" id="r-entry"></div></div>
   <div style="margin-top:16px">${F('r-notes', 'Notes (optional)', `<textarea id="r-notes">${esc(x.notes || '')}</textarea>`)}</div>`;
   let autoMemo = x.memo;
   const read = () => Object.assign(x, { no: val('r-no'), date: val('r-date'), shipment: val('r-ship'), amount: val('r-amt'), memo: val('r-memo'), notes: document.getElementById('r-notes').value.trim() });
+  const parts = () => shipParts(x.shipment, null, self), calc = () => calcReceipt(x, D.control, parts(), clear);
   const update = () => {
     read();
-    const s = shipmentOf(x.shipment), c = calcReceipt(x), left = tagBalance(x.shipment, null, self), after = round2(left - c.a);
+    if (clear) { const n = round2(sum(Object.values(parts()))); document.getElementById('r-amt').value = n.toFixed(2); x.amount = n.toFixed(2); }
+    const s = shipmentOf(x.shipment), c = calc(), left = tagBalance(x.shipment, null, self), after = round2(left - c.a);
     const mm = document.getElementById('r-memo'), want = s ? `${clear || c.a < 0 ? 'Cost difference' : 'Landed cost'} of shipment ${s.no}` : '';
     if (!mm.value.trim() || mm.value.trim() === autoMemo) { mm.value = want; autoMemo = want; x.memo = want; }
-    document.getElementById('r-note').textContent = s ? `${peso(left)} is in transit for ${s.no}${c.a ? `; ${peso(after)} after this` : ''}. ${Math.abs(after) >= 0.005 && c.a ? 'What’s left is a cost difference: clear it to inventory once the last bill is in.' : ''}` : '';
-    document.getElementById('r-entry').innerHTML = c.a ? entryTable(c.entry) : '<p class="hint">Enter the amount to see the entry.</p>';
+    const nParts = Object.keys(parts()).length;
+    document.getElementById('r-note').textContent = !s ? '' : clear ? `${peso(left)} is left on ${s.no}${nParts ? `, spread over ${nParts} goods in transit account${nParts === 1 ? '' : 's'}. This takes each of them to zero${Math.abs(left) >= 0.005 ? ' and moves the net into inventory' : ''}.` : '. Nothing is left to clear.'}` : s ? `${peso(left)} is in transit for ${s.no}${c.a ? `; ${peso(after)} after this` : ''}. ${Math.abs(after) >= 0.005 && c.a ? 'What’s left is a cost difference: clear it to inventory once the last bill is in.' : ''}` : '';
+    document.getElementById('r-entry').innerHTML = c.entry.some(e => e.dr || e.cr) && (c.a || clear) ? entryTable(c.entry) : `<p class="hint">${clear ? 'Nothing is left on this shipment’s goods in transit accounts.' : 'Enter the amount to see the entry.'}</p>`;
   };
   openModal(edit ? `Edit ${esc(j0.no)}` : clear ? 'Clear a Cost Difference' : 'Receive a Shipment', body, () => {
     read();
-    const c = calcReceipt(x);
+    const c = calc();
     if (!x.no) return 'Enter the receipt no.';
     if ((D.journals || []).some(o => o.id !== self && o.no.toLowerCase() === x.no.toLowerCase())) return `${x.no} is already used.`;
     if (!x.date) return 'Enter the date.';
     if (!inYear(x.date)) return yearMsg(x.date);
     if (isLocked(x.date) || (edit && isLocked(j0.date))) return lockedMsg();
     if (!shipmentOf(x.shipment)) return 'Choose the shipment.';
-    if (!c.a || isNaN(c.a)) return 'Enter the amount.';
+    if (clear ? !c.entry.some(e => e.dr || e.cr) : !c.a || isNaN(c.a)) return clear ? 'Nothing is left on this shipment to clear.' : 'Enter the amount.';
     if (!clear && c.a < 0) return 'The landed cost is more than zero. To move a difference back, use Clear difference.';
     if ([D.control.inventory, D.control.transit].some(a => !a)) return 'The inventory or goods in transit account isn’t set up yet. Ask an admin to open the hub and finish the update.';
-    const rec = { no: x.no, date: x.date, kind: 'Receipt', name: '', memo: x.memo || `Landed cost of shipment ${shipmentOf(x.shipment).no}`, from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: x.notes, shipment: x.shipment, amount: c.a, entry: c.entry.filter(e => e.dr || e.cr) };
+    const rec = { no: x.no, date: x.date, kind: 'Receipt', name: '', memo: x.memo || `Landed cost of shipment ${shipmentOf(x.shipment).no}`, from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: x.notes, shipment: x.shipment, amount: c.a, clear, entry: c.entry.filter(e => e.dr || e.cr) };
     return save('saveReceipt', () => { if (edit) Object.assign(journalOf(self), rec); else D.journals.push({ id: nextId('j'), ...rec, reverses: '', ...stamp }); }, () => toast(`${x.no} saved`));
   }, 'Save', { size: 'mid', noFocus: true, onOpen: () => {
     update();
@@ -4123,7 +4208,7 @@ function stockSummary(ym) {
   const from = `${ym}-01`, end = eom(ym), inv = D.control.inventory, tr = D.control.transit, adv = D.control.advances;
   const docs = journal(ym), net = (src, a) => round2(sum(docs.filter(d => src.includes(d.src)).flatMap(d => d.lines.filter(l => l.acct === a).map(l => (l.dr || 0) - (l.cr || 0)))));
   const tb = tagBalances(end);
-  return { received: net(['rc', 'rcVoid'], inv), cogs: net(['ct', 'ctVoid'], D.control.cogs), counted: !!countOf(ym), invEnd: acctBalance(inv, end), transitEnd: acctBalance(tr, end),
+  return { received: net(['rc', 'rcVoid'], inv), cogs: net(['ct', 'ctVoid'], D.control.cogs), counted: !!countOf(ym), invEnd: acctBalance(inv, end), transitEnd: round2(sum(transitIds().map(id => acctBalance(id, end)))),
     pcv: round2(sum(docs.filter(d => d.src === 'pcv' || d.src === 'pcvVoid').map(d => (d.src === 'pcv' ? 1 : -1) * sum(d.lines.filter(l => l.cr && funds().some(f => f.id === l.acct)).map(l => l.cr))))),
     advEnd: round2(sum(Object.entries(tb).filter(([t]) => contact(t)).map(([, n]) => n))), active: !!((D.pettyCash || []).length || (D.liquidations || []).length || (D.shipments || []).length || (D.journals || []).some(j => j.kind === 'Count')) };
 }
@@ -4149,7 +4234,7 @@ function bankStrip() {
   const rows = bankAccounts().map(a => { const x = bal[a.id] || { php: 0, usd: 0 }; return { a, b: { ...x, rate: x.usd > 0 ? Math.round(x.php / x.usd * 10000) / 10000 : 0 }, cur: bankCur(a.id) }; }).filter(x => x.b.php || x.b.usd || x.a.id === D.control.bank);
   if (!rows.length) return '';
   return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Bank Balances <span class="hint" style="font-weight:400">as of ${fdate(asOf)}, per the books</span></h2>${table([
-    { h: 'Account', k: x => `<b>${esc(x.a.name)}</b>${bankInfo(x.a.id).number ? `<span class="sub">${esc(bankInfo(x.a.id).number)}</span>` : ''}` },
+    { h: 'Account', k: x => `<b>${esc(acctLabel(x.a))}</b>${bankInfo(x.a.id).number ? `<span class="sub">${esc(bankInfo(x.a.id).number)}</span>` : ''}` },
     { h: 'Currency', k: x => x.cur === 'USD' ? 'US dollars' : 'Pesos' },
     { h: 'Dollars', num: 1, k: x => x.cur === 'USD' ? amt(x.b.usd, 'USD') : '' },
     { h: 'Rate', num: 1, k: x => x.cur === 'USD' && x.b.rate ? fmtRate(x.b.rate) : '' },
@@ -4424,7 +4509,7 @@ function budgetBody(sel) {
   const mLabel = m => new Date(YEAR, Number(m) - 1, 1).toLocaleDateString('en-US', { month: 'short' });
   const tb = sum(rows.map(r => r.bud || 0)), ts = sum(rows.map(r => r.s));
   return `<div class="tbl-wrap budget"><table><thead><tr><th>Account</th><th class="num">Budget</th>${months.map(m => `<th class="num">${mLabel(m)}</th>`).join('')}<th class="num">Spent</th><th class="num">Left</th></tr></thead><tbody>${rows.map(r => `<tr>
-    <td>${esc(r.a.name)}</td><td class="num">${r.bud == null ? '' : money(r.bud)}</td>${months.map(m => `<td class="num">${r.m[m] ? money(r.m[m]) : ''}</td>`).join('')}<td class="num"><b>${money(r.s)}</b></td><td class="num">${leftCell(r.bud, r.s)}</td></tr>`).join('')}</tbody>
+    <td>${esc(acctLabel(r.a))}</td><td class="num">${r.bud == null ? '' : money(r.bud)}</td>${months.map(m => `<td class="num">${r.m[m] ? money(r.m[m]) : ''}</td>`).join('')}<td class="num"><b>${money(r.s)}</b></td><td class="num">${leftCell(r.bud, r.s)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td>Total</td><td class="num">${money(tb)}</td>${months.map(m => `<td class="num">${money(sum(rows.map(r => r.m[m] || 0)))}</td>`).join('')}<td class="num">${money(ts)}</td><td class="num"><span class="${ts > tb ? 'over' : ''}">${money(round2(tb - ts))}</span></td></tr></tfoot></table></div>`;
 }
 function budgetForm(dept) {
@@ -4675,7 +4760,9 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target, m = /^([a-z])-acct$/.exec(t.className || ''), cell = m && t.closest('tr') && t.closest('tr').querySelector('td.charge');
   if (cell) { const keep = cell.querySelector('select'), kind = tagKind(t.value), was = keep && keep.className.endsWith('-tag') ? 'tag' : 'dept';
-    if ((kind ? 'tag' : 'dept') !== was || kind) cell.outerHTML = chargeCell(cell.dataset.pfx, { dept: was === 'dept' && keep ? keep.value : '', tag: '' }, Number(cell.dataset.n), t.value); }
+    // another goods in transit account keeps the shipment already chosen
+    const same = kind && was === 'tag' && (keep.getAttribute('aria-label') || '').endsWith(kind === 'ship' ? 'shipment' : 'employee');
+    if (!same && ((kind ? 'tag' : 'dept') !== was || kind)) cell.outerHTML = chargeCell(cell.dataset.pfx, { dept: was === 'dept' && keep ? keep.value : '', tag: '' }, Number(cell.dataset.n), t.value); }
 }, true);
 document.addEventListener('change', e => {
   const t = e.target;
@@ -4704,6 +4791,60 @@ function labelTables(root) {
     t.querySelectorAll('tbody tr, tfoot tr').forEach(tr => { let i = 0; [...tr.children].forEach(td => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', hs[i] || ''); i += Number(td.getAttribute('colspan')) || 1; }); });
   });
 }
+/* Account pickers: a search box over each account list. Any part of the code or name finds it; arrow keys and
+   Enter, or a click, pick it. The list underneath stays the real field, so every form reads and fills it as before. */
+const PICK_SET = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+function acctPickers(root) {
+  root.querySelectorAll('select:not([data-pick])').forEach(sel => {
+    if (!sel.querySelector('optgroup[data-acct]') || !sel.parentNode) return;
+    sel.dataset.pick = '1';
+    const wrap = document.createElement('div'), box = document.createElement('input'), list = document.createElement('div');
+    wrap.className = 'apick'; box.type = 'text'; box.className = 'apick-box'; box.autocomplete = 'off'; box.spellcheck = false;
+    box.setAttribute('aria-label', sel.getAttribute('aria-label') || 'Account'); box.setAttribute('role', 'combobox'); box.setAttribute('aria-autocomplete', 'list');
+    list.className = 'apick-list'; list.hidden = true; list.setAttribute('role', 'listbox');
+    sel.parentNode.insertBefore(wrap, sel); wrap.append(box, sel); sel.tabIndex = -1; sel.setAttribute('aria-hidden', 'true');
+    if (sel.id) { box.id = sel.id + '-q'; const lab = document.querySelector(`label[for="${sel.id}"]`); if (lab) lab.htmlFor = box.id; }
+    let items = [], hi = -1;
+    const show = () => { const o = sel.selectedOptions[0]; box.value = o && o.value ? o.textContent : ''; box.placeholder = sel.options[0] && !sel.options[0].value ? sel.options[0].textContent : 'Choose an account'; box.disabled = sel.disabled; };
+    // code that sets the list's value directly updates the box too
+    Object.defineProperty(sel, 'value', { configurable: true, get() { return PICK_SET.get.call(this); }, set(v) { PICK_SET.set.call(this, v); show(); } });
+    const draw = q => {
+      const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean), fits = o => o.value && words.every(w => o.textContent.toLowerCase().includes(w));
+      let html = ''; items = [];
+      const add = o => { html += `<div class="apick-o${o.value === sel.value ? ' cur' : ''}" role="option" data-i="${items.length}">${esc(o.textContent)}</div>`; items.push(o); };
+      [...sel.children].filter(o => o.tagName === 'OPTION' && fits(o)).forEach(add);
+      sel.querySelectorAll('optgroup').forEach(g => { const os = [...g.children].filter(fits); if (!os.length) return; html += `<div class="apick-g">${esc(g.label)}</div>`; os.forEach(add); });
+      list.innerHTML = html || '<div class="apick-none">No account matches.</div>';
+      hi = items.findIndex(o => o.value === sel.value); if (hi < 0 && words.length) hi = 0;
+      mark();
+    };
+    const mark = () => list.querySelectorAll('.apick-o').forEach((el, i) => { el.classList.toggle('hi', i === hi); if (i === hi) el.scrollIntoView({ block: 'nearest' }); });
+    // the list sits on the page itself, over the form, so a scrolling table or the modal can't clip it
+    const place = () => {
+      if (!box.isConnected) { close(); return; }
+      const r = box.getBoundingClientRect(), below = innerHeight - r.bottom - 12, above = r.top - 12, up = below < 220 && above > below;
+      const w = Math.min(Math.max(r.width, 340), innerWidth - 16);
+      list.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px'; list.style.width = w + 'px';
+      list.style.maxHeight = Math.max(160, Math.min(320, up ? above : below)) + 'px';
+      if (up) { list.style.top = ''; list.style.bottom = (innerHeight - r.top + 4) + 'px'; } else { list.style.bottom = ''; list.style.top = (r.bottom + 4) + 'px'; }
+    };
+    const open = q => { draw(q); if (!list.isConnected) document.body.appendChild(list); list.hidden = false; place(); box.setAttribute('aria-expanded', 'true'); addEventListener('scroll', place, true); addEventListener('resize', place); };
+    function close() { list.hidden = true; list.remove(); box.setAttribute('aria-expanded', 'false'); removeEventListener('scroll', place, true); removeEventListener('resize', place); }
+    const pick = o => { if (o && o.value !== sel.value) { PICK_SET.set.call(sel, o.value); sel.dispatchEvent(new Event('change', { bubbles: true })); } show(); close(); };
+    box.addEventListener('focus', () => { box.select(); open(''); });
+    box.addEventListener('input', () => open(box.value));
+    box.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== box) { close(); show(); } }, 120));
+    box.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.hidden) open(''); hi = Math.max(0, Math.min(items.length - 1, hi + (e.key === 'ArrowDown' ? 1 : -1))); mark(); }
+      else if (e.key === 'Enter') { if (!list.hidden) { e.preventDefault(); pick(items[hi]); } }
+      else if (e.key === 'Escape') { if (!list.hidden) { e.stopPropagation(); close(); show(); } }
+      else if (e.key === 'Tab') { if (!list.hidden && box.value.trim() && items[hi] && box.value !== (sel.selectedOptions[0] || {}).textContent) pick(items[hi]); }
+    });
+    list.addEventListener('mousedown', e => { e.preventDefault(); const el = e.target.closest('.apick-o'); if (el) pick(items[Number(el.dataset.i)]); });
+    show();
+  });
+}
+new MutationObserver(() => acctPickers(document)).observe(document.body, { childList: true, subtree: true });
 let labelPending = false;
 new MutationObserver(() => { if (labelPending) return; labelPending = true; requestAnimationFrame(() => { labelPending = false; labelTables(document); }); }).observe(document.body, { childList: true, subtree: true });
 window.addEventListener('afterprint', () => { document.body.classList.remove('pv'); document.getElementById('print-area').innerHTML = ''; });

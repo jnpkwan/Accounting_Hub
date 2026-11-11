@@ -283,6 +283,47 @@ table.vc-tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:10.5
 .vc-recv{display:grid;grid-template-columns:1.25fr 1.25fr .7fr 62px;gap:22px;align-items:end;margin-top:14px}
 .vc-recv p{margin:3px 0 0;font-style:italic;font-size:9px;line-height:1.35;color:var(--carbon)}
 .vc-recv .vc-recv-say .vc-eye{margin:0}
+/* Financial reports: a segmented switch for the report, a statement table, and the printed page. */
+.seg{display:inline-flex;gap:4px;padding:4px;margin-bottom:18px;border-radius:12px;background:var(--blue05);box-shadow:inset 0 0 0 1px var(--blue1);max-width:100%;overflow-x:auto}
+.seg-b{border:0;background:none;padding:10px 18px;border-radius:9px;font:700 13px var(--display);color:var(--blue);cursor:pointer;white-space:nowrap;transition:background .2s cubic-bezier(.4,0,.2,1),color .2s,box-shadow .2s}
+.seg-b:hover{background:#fff}
+.seg-b.on{background:var(--blue);color:#fff;box-shadow:0 4px 12px rgba(27,77,160,.25)}
+.rp-bar .rp-l{font:700 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--green7)}
+.rp-bar .rp-l:not(:first-child){margin-left:12px}
+.rp-cap{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:8px 0 12px}
+.rp-cap b{font:800 22px var(--display);letter-spacing:-.02em;color:var(--blue)}
+.rp-cap span:last-child{color:var(--muted)}
+.rp-eye{font:700 11px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--green7)}
+table.rp td{padding:7px 16px;background:#fff}
+table.rp tbody tr:nth-child(even) td{background:#fff}
+table.rp tbody tr:hover td{background:var(--blue05)}
+table.rp .rp-code{color:var(--muted);font-size:12.5px;white-space:nowrap}
+table.rp tr.rp-acct td:nth-child(2){padding-left:32px}
+table.rp tr.rp-band td{background:var(--sky)!important;font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--blue);padding-top:12px}
+table.rp tr.rp-head td{font:700 14px var(--display);color:var(--carbon);padding-top:16px}
+table.rp tr.rp-sub td{font-weight:700;border-top:1px solid var(--silver)}
+table.rp tr.rp-total td{font-weight:700;background:var(--blue05)!important;border-top:1px solid var(--blue1)}
+table.rp tr.rp-grand td{font:800 14.5px var(--display);color:var(--blue);background:#fff!important;border-top:1px solid var(--ink);border-bottom:3px double var(--ink)}
+table.rp tr.rp-note td{color:#A52A24;background:#FCEBEA!important;font-weight:700}
+.rp-skel{margin-top:8px}
+@media (max-width:760px){.tbl-wrap.rp-wrap{overflow-x:auto}table.rp{min-width:560px}table.rp td,table.rp th{padding-left:10px;padding-right:10px}table.rp .rp-code,table.rp th:first-child{display:none}table.rp td:nth-child(2){min-width:190px}.seg{display:flex;width:100%}.seg-b{flex:1;padding:10px 6px;font-size:12px;white-space:normal;line-height:1.2}table.rp tr.rp-acct td:nth-child(2){padding-left:18px}.rp-bar .rp-l:not(:first-child){margin-left:0}}
+.rpd table.rp .rp-code{font-size:9px}
+.rpd{font:400 10.5px/1.45 var(--body);color:var(--carbon);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.rpd-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:18px}
+.rpd-title{font:800 26px/1.1 var(--display);letter-spacing:-.02em;color:var(--blue);margin:6px 0 0}
+.rpd-rule{width:56px;height:3px;border-radius:3px;background:var(--grad);margin:10px 0}
+.rpd-meta{margin:0;font-size:10.5px;color:var(--muted)}.rpd-meta b{color:var(--ink);font-weight:600}
+.rpd-tree{width:96px;height:auto;flex:none}
+.rpd table.rp{font-size:10px}
+.rpd table.rp th{padding:6px 10px;font-size:8px;letter-spacing:.12em}
+.rpd table.rp td{padding:3.5px 10px}
+.rpd table.rp tr.rp-acct td:nth-child(2){padding-left:22px}
+.rpd table.rp tr.rp-band td{font-size:8.5px;padding-top:7px}
+.rpd table.rp tr.rp-head td{font-size:10.5px;padding-top:9px}
+.rpd table.rp tr.rp-grand td{font-size:11px}
+.rpd table.rp tr{break-inside:avoid;page-break-inside:avoid}
+.rpd-foot{display:flex;justify-content:space-between;margin-top:18px;padding-top:8px;border-top:1px solid var(--silver);font-size:8.5px;color:var(--muted)}
+.rpd-foot span:first-child{font:700 8px var(--display);letter-spacing:.18em;color:var(--carbon)}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
 #print-area{display:none}
@@ -407,11 +448,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.11';
+const APP_VERSION = '3.13';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-11';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 10;
+const API_NEEDED = 11;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -436,13 +477,14 @@ const PERMISSIONS = [
   ['Sales Invoices', [['sales.edit', 'Enter and edit'], ['sales.void', 'Void']]],
   ['Collections', [['collections.edit', 'Enter, edit and deposit'], ['collections.void', 'Void']]],
   ['Check Monitoring', [['checks.clear', 'Mark cleared']]],
-  ['Petty Cash and Advances', [['staff.edit', 'Petty cash vouchers and liquidations'], ['staff.void', 'Void']]],
+  ['Petty Cash and Cash Advances', [['staff.edit', 'Petty cash vouchers and liquidations'], ['staff.void', 'Void']]],
   ['Shipments and Stock Count', [['inventory.edit', 'Shipments, receipts and counts'], ['inventory.void', 'Void']]],
   ['General Journal', [['journal.edit', 'Enter, edit and void']]],
   ['Monthly Summary', [['months.lock', 'Lock and unlock months'], ['year.close', 'Close the year']]],
   ['Budgets', [['budgets.edit', 'Set budgets and departments']]],
   ['Chart of Accounts', [['accounts.add', 'Add and edit accounts']]],
   ['Contacts', [['contacts.edit', 'Add, edit and delete']]],
+  ['Financial Reports', [['reports.view', 'See the reports']]],
   ['Company and Printing', [['company.edit', 'Edit']]],
   ['Users and Roles', [['users.manage', 'Manage users and roles']]]
 ];
@@ -484,8 +526,10 @@ const IS_SECTION = { '4': 'Revenue', '5': 'Cost of sales', '6': 'Selling expense
 const stmtSection = a => { const [st, sec] = stmtOf(a.type); return st === 'Income statement' && a.code && IS_SECTION[a.code[0]] ? IS_SECTION[a.code[0]] : sec; };
 /* Contact roles. Suppliers and service providers are the two kinds of payee; they map to trade and
    non-trade payables when supplier bills are built. */
-const ROLES = [['supplier', 'Supplier', 'goods we resell'], ['service', 'Service provider', 'trucking, brokerage, rent, utilities'], ['customer', 'Customer', 'they pay us'], ['employee', 'Employee', 'advances, petty cash, reimbursements']];
+const ROLES = [['supplier', 'Supplier', 'goods we resell'], ['service', 'Vendor', 'trucking, brokerage, rent, utilities'], ['customer', 'Customer', 'they pay us'], ['employee', 'Employee', 'advances, petty cash, reimbursements']];
 const PAYEE_ROLES = ['supplier', 'service', 'employee'];
+/* "Service provider" was the vendor role's name until Nov 2026; contacts saved then still say it. */
+const ROLE_ALIAS = { 'service provider': 'service' };
 const roleLabel = r => (ROLES.find(x => x[0] === r) || [r, r])[1];
 const isPayee = c => c.roles.some(r => PAYEE_ROLES.includes(r));
 /* Goods for resale post to cost of sales or inventory; anything else is a service. */
@@ -1440,7 +1484,7 @@ const NAV = [
   { group: 'Receivables', items: [{ id: 'invoices', label: 'Sales Invoices' }, { id: 'collections', label: 'Collections' }] },
   { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
-  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }] },
+  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
   { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] }
 ];
 const allowed = n => !n.soon && (!n.need || can(n.need));
@@ -2215,7 +2259,7 @@ function taxSlips(d, strict, ix) {
   if (!d.vatable) out.vat = p && p.vatable ? `${name} usually charges VAT, per their contact.` : last ? (last.vatable ? `${name} charged VAT on ${docName(last)}.` : '')
     : (d.tin || (p && p.tin)) && !(p && p.vatable === false && !strict) ? `${name} has a TIN, so their invoice likely shows VAT.` : '';
   if (!d.atc) out.ewt = p && p.atc ? `${name}’s usual withholding is ${p.atc}.` : last ? (last.atc ? `${last.atc} was withheld on ${docName(last)}.` : '')
-    : p && p.roles.includes('service') && !p.roles.includes('supplier') ? `${name} is a service provider, usually withheld on.` : '';
+    : p && p.roles.includes('service') && !p.roles.includes('supplier') ? `${name} is a vendor, usually withheld on.` : '';
   return out;
 }
 /* What to look at before locking a month: anything that saved but probably isn't what was meant. */
@@ -2255,6 +2299,257 @@ function exceptionsBlock(ym) {
 }
 
 /* ---------- Books: monthly summary ---------- */
+/* ---------- Books: financial reports ----------
+   The income statement, balance sheet and trial balance for a month, a quarter, the year to date, the year or a
+   range of months, side by side with the period before or the same period last year. Code.gs sends each year's
+   opening balances and net movement by account and month, worked out as the Sheet's reports are, so the figures
+   here match the Financial Statements and Trial Balance tabs. Downloaded as Excel or printed. */
+const REP = { d: null, year: 0, totals: {}, years: [], err: '', busy: false };
+const RP_KINDS = [['is', 'Income Statement'], ['bs', 'Balance Sheet'], ['tb', 'Trial Balance']];
+const RP_PERS = [['month', 'Month'], ['quarter', 'Quarter'], ['ytd', 'Year to date'], ['year', 'Full year'], ['range', 'Range of months']];
+const RP_CMPS = [['prev', 'Previous period'], ['ly', 'Same period last year'], ['none', 'No comparison']];
+const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const lastMonth = () => YEAR === THIS_YEAR() ? TODAY().getMonth() + 1 : 12;
+function rpState() {
+  if (!S.rp || S.rp.year !== YEAR) { const m = lastMonth(); S.rp = { year: YEAR, kind: (S.rp || {}).kind || 'is', per: (S.rp || {}).per || 'month', cmp: (S.rp || {}).cmp || 'prev', m, q: Math.ceil(m / 3), from: 1, to: m }; }
+  return S.rp;
+}
+/* The months a choice covers, as [year, month] pairs. */
+function rpMonths(r) {
+  const y = YEAR, span = (a, b) => Array.from({ length: Math.max(b - a + 1, 0) }, (_, i) => [y, a + i]);
+  if (r.per === 'month') return span(r.m, r.m);
+  if (r.per === 'quarter') return span(r.q * 3 - 2, r.q * 3);
+  if (r.per === 'ytd') return span(1, r.m);
+  if (r.per === 'year') return span(1, 12);
+  return span(Math.min(r.from, r.to), Math.max(r.from, r.to));
+}
+const shiftMonth = ([y, m], n) => { const k = y * 12 + (m - 1) + n; return [Math.floor(k / 12), (k % 12) + 1]; };
+function rpCompare(r, list) {
+  if (r.cmp === 'none') return null;
+  if (r.cmp === 'ly' || r.per === 'ytd' || r.per === 'year') return list.map(([y, m]) => [y - 1, m]);
+  return list.map(x => shiftMonth(x, -list.length));
+}
+function rpLabel(list, asOf) {
+  const [y1, m1] = list[0], [y2, m2] = list[list.length - 1];
+  if (asOf) return `${MONL[m2 - 1]} ${new Date(Date.UTC(y2, m2, 0)).getUTCDate()}, ${y2}`;
+  if (list.length === 1) return `${MON3[m1 - 1]} ${y1}`;
+  if (y1 === y2 && m1 === 1 && m2 === 12) return String(y1);
+  if (y1 === y2 && list.length === 3 && m1 % 3 === 1) return `Q${(m1 + 2) / 3} ${y1}`;
+  return y1 === y2 ? `${MON3[m1 - 1]}–${MON3[m2 - 1]} ${y1}` : `${MON3[m1 - 1]} ${y1}–${MON3[m2 - 1]} ${y2}`;
+}
+/* Fetch the year on screen and the one before, once per version of the books. */
+function rpLoad(force) {
+  if (REP.busy || (!force && REP.d === D && REP.year === YEAR)) return;
+  REP.busy = true; REP.err = '';
+  const d0 = D, y0 = YEAR;
+  api('yearTotals', { years: [y0, y0 - 1] }).then(r => { REP.totals = r.totals || {}; REP.years = r.years || []; REP.d = d0; REP.year = y0; })
+    .catch(e => { REP.err = /Unknown request/.test(e.message) ? 'The Code.gs in the Google Sheet is older than this hub. Paste the latest Code.gs and deploy a new version, then reload.' : e.message; REP.d = null; })
+    .finally(() => { REP.busy = false; if (S.page === 'reports') refreshMain(); });
+}
+const RP_EARLIER = '__earlier';
+const rpAcct = id => id === RP_EARLIER ? { id, code: '', name: 'Earlier years’ net income, not yet closed', type: 'Equity' } : acct(id) || { id, code: '', name: id, type: '' };
+const rpIsSec = a => { if (stmtOf(a.type)[0] !== 'Income statement') return ''; return (a.code && IS_SECTION[a.code[0]]) || { 'Income': 'Revenue', 'Cost of Goods Sold': 'Cost of sales', 'Expense': 'Operating expenses', 'Other Income': 'Other income and expenses', 'Other Expense': 'Other income and expenses' }[a.type] || ''; };
+const rpIsIS = id => stmtOf(rpAcct(id).type)[0] === 'Income statement';
+/* Amounts, debit positive: an account's movement over months, its balance at a month end. Null when that year's books
+   aren't in the Sheet. */
+function rpCalc() {
+  const T = y => REP.totals[y];
+  const mv = (id, list) => { if (!list.every(([y]) => T(y))) return null; let t = 0; list.forEach(([y, m]) => { t += ((T(y).months[id] || [])[m]) || 0; }); return round2(t); };
+  // QuickBooks' opening balances in the year the hub took over carry that year's income and expenses up to the
+  // opening date; they count in a period that covers every month before it
+  const isOpen = (id, list) => {
+    let t = 0;
+    [...new Set(list.map(x => x[0]))].forEach(y => { const o = T(y); if (!o || o.source !== 'switch' || !o.opening[id]) return; const om = Math.max(Number(String(o.openDate).slice(5, 7)) - 1, 1);
+      if (Array.from({ length: om }, (_, i) => i + 1).every(m => list.some(x => x[0] === y && x[1] === m))) t += o.opening[id]; });
+    return t;
+  };
+  const flow = (id, list) => { const n = mv(id, list); return n == null ? null : round2(n + isOpen(id, list)); };
+  const bal = (id, [y, m]) => { const o = T(y); if (!o) return null; let b = o.opening[id] || 0; for (let i = 1; i <= m; i++) b += ((o.months[id] || [])[i]) || 0; return round2(b); };
+  const ids = () => { const s = new Set(D.accounts.map(a => a.id)); Object.values(REP.totals).forEach(o => { Object.keys(o.opening || {}).forEach(k => s.add(k)); Object.keys(o.months || {}).forEach(k => s.add(k)); }); return [...s].map(rpAcct).sort((a, b) => acctSortKey(a).localeCompare(acctSortKey(b))); };
+  return { T, mv, flow, bal, ids };
+}
+/* The report as rows: { kind: band | head | acct | sub | total | grand | note, code, label, v: [one per period] }. */
+function rpBuild(r) {
+  const cur = rpMonths(r), cmp = rpCompare(r, cur), P = cmp ? [cur, cmp] : [cur], C = rpCalc(), all = C.ids(), rows = [];
+  const nz = vs => vs.some(v => v != null && Math.abs(v) >= 0.005);
+  const add = (kind, label, v, code) => rows.push({ kind, label, v: v || [], code: code || '' });
+  const plus = (a, b, k = 1) => a.map((x, i) => x == null || b[i] == null ? null : round2(x + k * b[i]));
+  const zero = () => P.map(p => p.every(([y]) => C.T(y)) ? 0 : null);
+  if (r.kind === 'is') {
+    const tot = {};
+    const section = (name, total, sign, always) => {
+      const accts = all.filter(a => rpIsSec(a) === name), lines = accts.map(a => ({ a, v: P.map(p => { const n = C.flow(a.id, p); return n == null ? null : round2(sign * n); }) })).filter(x => nz(x.v));
+      if (!always && !lines.length) return;
+      if (lines.length) add('head', name);
+      let t = zero(); lines.forEach(x => { add('acct', x.a.name, x.v, x.a.code); t = plus(t, x.v); });
+      tot[name] = t; add('sub', total, t);
+    };
+    const T = n => tot[n] || zero();
+    section('Revenue', 'Net revenue', -1, true);
+    section('Cost of sales', 'Total cost of sales', 1, true);
+    const gp = plus(T('Revenue'), T('Cost of sales'), -1); add('total', 'Gross profit', gp);
+    section('Selling expenses', 'Total selling expenses', 1);
+    section('General and administrative expenses', 'Total general and administrative expenses', 1);
+    section('Operating expenses', 'Total operating expenses', 1);
+    const oi = plus(plus(plus(gp, T('Selling expenses'), -1), T('General and administrative expenses'), -1), T('Operating expenses'), -1); add('total', 'Operating income', oi);
+    section('Other income and expenses', 'Total other income and expenses', -1, true);
+    const ibt = plus(oi, T('Other income and expenses')); add('total', 'Income before income tax', ibt);
+    section('Income tax', 'Total income tax', 1);
+    add('grand', 'Net income', plus(ibt, T('Income tax'), -1));
+    return { rows, P, cur, cmp };
+  }
+  const ends = P.map(p => p[p.length - 1]);
+  if (r.kind === 'bs') {
+    const balv = (id, sign) => ends.map(e => { const b = C.bal(id, e); return b == null ? null : round2(sign * b); });
+    const section = (name, total) => {
+      const lines = all.filter(a => stmtOf(a.type)[0] === 'Balance sheet' && stmtOf(a.type)[1] === name).map(a => ({ a, v: balv(a.id, stmtOf(a.type)[2]) })).filter(x => nz(x.v));
+      if (lines.length || name === 'Equity') add('head', name);
+      let t = ends.map(([y]) => C.T(y) ? 0 : null);
+      lines.forEach(x => { add('acct', x.a.name, x.v, x.a.code); t = plus(t, x.v); });
+      return t;
+    };
+    add('band', 'Assets');
+    const ca = section('Current assets'); add('sub', 'Total current assets', ca);
+    const na = section('Noncurrent assets'); add('sub', 'Total noncurrent assets', na);
+    const ta = plus(ca, na); add('grand', 'Total assets', ta);
+    add('band', 'Liabilities and equity');
+    const cl = section('Current liabilities'); add('sub', 'Total current liabilities', cl);
+    const nl = section('Noncurrent liabilities'); add('sub', 'Total noncurrent liabilities', nl);
+    const tl = plus(cl, nl); add('total', 'Total liabilities', tl);
+    let te = section('Equity');
+    // this year's income and expenses to the month end, not yet closed to retained earnings
+    const ni = ends.map(e => { if (!C.T(e[0])) return null; let t = 0; all.filter(a => rpIsIS(a.id)).forEach(a => { t += C.bal(a.id, e) || 0; }); return round2(-t); });
+    add('acct', 'Net income, this year to date', ni); te = plus(te, ni);
+    add('sub', 'Total equity', te);
+    const tle = plus(tl, te); add('grand', 'Total liabilities and equity', tle);
+    const off = plus(ta, tle, -1);
+    if (off.some(x => x != null && Math.abs(x) >= 0.005)) add('note', 'Assets less liabilities and equity (should be zero)', off);
+    return { rows, P, cur, cmp, asOf: true };
+  }
+  // trial balance: each account's balance at the period's end, income and expenses for the year to date
+  const lines = all.map(a => ({ a, v: ends.map(e => C.bal(a.id, e)) })).filter(x => nz(x.v));
+  lines.forEach(x => add('acct', x.a.name, x.v, x.a.code));
+  const tot = ends.map((e, i) => C.T(e[0]) ? { dr: round2(sum(lines.map(x => Math.max(x.v[i] || 0, 0)))), cr: round2(sum(lines.map(x => Math.max(-(x.v[i] || 0), 0)))) } : null);
+  return { rows, P, cur, cmp, asOf: true, tb: tot };
+}
+/* Columns: amounts per period, then the change and the change in percent when comparing. */
+function rpCols(R) {
+  const L = R.P.map(p => rpLabel(p, R.asOf));
+  if (R.tb) return R.P.length > 1 ? [`Debit, ${L[0]}`, `Credit, ${L[0]}`, `Debit, ${L[1]}`, `Credit, ${L[1]}`] : ['Debit', 'Credit'];
+  return R.P.length > 1 ? [L[0], L[1], 'Change', 'Change %'] : [L[0]];
+}
+function rpCells(R, row) {
+  if (R.tb) return row.v.flatMap(b => b == null ? [null, null] : [b > 0 ? b : 0, b < 0 ? -b : 0]);
+  if (R.P.length < 2) return [row.v[0]];
+  const [a, b] = row.v, ch = a == null || b == null ? null : round2(a - b);
+  return [a, b, ch, ch == null || !b ? null : ch / Math.abs(b)];
+}
+const rpFmt = (n, pct) => n == null ? '—' : pct ? `${n < 0 ? '(' : ''}${Math.abs(n * 100).toFixed(1)}%${n < 0 ? ')' : ''}` : Math.abs(n) < 0.005 ? '–' : money(n);
+const rpTitle = r => RP_KINDS.find(k => k[0] === r.kind)[1];
+const rpMissing = R => [...new Set(R.P.flat().map(x => x[0]))].filter(y => !REP.totals[y]);
+function rpTable(R) {
+  const cols = rpCols(R), pctCol = !R.tb && cols.length === 4 ? 3 : -1;
+  const body = R.rows.map(row => {
+    if (row.kind === 'band') return `<tr class="rp-band"><td colspan="${cols.length + 2}">${esc(row.label)}</td></tr>`;
+    if (row.kind === 'head') return `<tr class="rp-head"><td class="rp-code"></td><td colspan="${cols.length + 1}">${esc(row.label)}</td></tr>`;
+    return `<tr class="rp-${row.kind}"><td class="rp-code">${esc(row.code)}</td><td>${esc(row.label)}</td>${rpCells(R, row).map((v, i) => `<td class="num">${rpFmt(v, i === pctCol)}</td>`).join('')}</tr>`;
+  }).join('');
+  const foot = R.tb ? `<tfoot><tr class="rp-grand"><td></td><td>Total</td>${R.tb.flatMap(t => t ? [t.dr, t.cr] : [null, null]).map(v => `<td class="num">${rpFmt(v)}</td>`).join('')}</tr></tfoot>` : '';
+  return `<table class="rp"><thead><tr><th style="width:84px">Code</th><th>${R.tb ? 'Account' : ''}</th>${cols.map(c => `<th class="num">${esc(c)}</th>`).join('')}</tr></thead><tbody>${body}</tbody>${foot}</table>`;
+}
+function reportsPage() {
+  const r = rpState(), seg = (id, list, cur) => `<div class="seg" role="tablist" aria-label="Report">${list.map(([k, l]) => `<button type="button" role="tab" aria-selected="${k === cur}" class="seg-b${k === cur ? ' on' : ''}" data-act="${id}" data-id="${k}">${l}</button>`).join('')}</div>`;
+  const months = Array.from({ length: lastMonth() }, (_, i) => i + 1), mo = (id, v) => `<select id="${id}" aria-label="Month">${months.map(m => opt(String(m), `${MONL[m - 1]} ${YEAR}`, String(v))).join('')}</select>`;
+  const pick = r.per === 'month' || r.per === 'ytd' ? mo('rp-m', r.m) : r.per === 'quarter' ? `<select id="rp-q" aria-label="Quarter">${[1, 2, 3, 4].filter(q => q * 3 - 2 <= lastMonth()).map(q => opt(String(q), `Q${q} ${YEAR}`, String(r.q))).join('')}</select>`
+    : r.per === 'range' ? `${mo('rp-from', r.from)}<span class="hint">to</span>${mo('rp-to', r.to)}` : '';
+  const acts = REP.d === D && REP.year === YEAR && !REP.err ? `${btn('rp-xlsx', 'Download Excel', 'ghost')}${btn('rp-print', 'Print')}` : '';
+  return pageHead('reports', `Income statement, balance sheet and trial balance, compared with the period before or the same period last year. The Google Sheet also has the ledger, the books of accounts, VAT and aging.`, acts)
+    + seg('rp-kind', RP_KINDS, r.kind)
+    + `<div class="toolbar rp-bar"><label class="rp-l">${r.kind === 'is' ? 'Period' : 'As of the end of'}</label><select id="rp-per" aria-label="Period">${RP_PERS.map(([k, l]) => opt(k, l, r.per)).join('')}</select>${pick}
+      <label class="rp-l">Compare with</label><select id="rp-cmp" aria-label="Compare with">${RP_CMPS.map(([k, l]) => opt(k, l, r.cmp)).join('')}</select></div>
+    <div id="list">${reportBody()}</div>`;
+}
+function reportBody() {
+  const r = rpState();
+  if (REP.err) return `<div class="empty"><b>Couldn’t get the figures</b>${esc(REP.err)} ${btn('rp-retry', 'Try again', 'sm')}</div>`;
+  if (REP.d !== D || REP.year !== YEAR) { rpLoad(); return `<div class="skel-table rp-skel">${'<div class="skel-row"></div>'.repeat(8)}</div><p class="hint" style="margin-top:12px">Getting the figures from the Google Sheet…</p>`; }
+  const R = rpBuild(r), miss = rpMissing(R);
+  return `<div class="rp-cap"><span class="rp-eye">${esc(rpTitle(r))}</span><b>${esc(rpLabel(R.cur, R.asOf))}</b>${R.cmp ? `<span>compared with ${esc(rpLabel(R.cmp, R.asOf))}</span>` : ''}</div>
+    <div class="tbl-wrap rp-wrap">${rpTable(R)}</div>
+    ${miss.length ? `<p class="hint" style="margin-top:12px">No ${miss.join(' or ')} books in the Google Sheet, so that column shows a dash.</p>` : ''}
+    ${R.rows.some(x => x.kind === 'note') ? '<p class="warnline" style="margin-top:12px">The balance sheet doesn’t balance. Report it before saving anything else.</p>' : ''}`;
+}
+/* Printed: Letter, the brand's report page (tree top right, eyebrow and title, a blue-headed table). */
+function rpPrint() {
+  const r = rpState(), R = rpBuild(r), co = D.company;
+  document.getElementById('print-area').innerHTML = `<article class="rpd"><header class="rpd-head"><div><span class="vc-eye">Financial report</span><h1 class="rpd-title">${esc(rpTitle(r))}</h1><div class="rpd-rule"></div>
+      <p class="rpd-meta"><b>${esc(co.name || COMPANY)}</b>${co.tin ? ` · TIN ${esc(co.tin)}` : ''}<br>${esc(rpLabel(R.cur, R.asOf))}${R.cmp ? `, compared with ${esc(rpLabel(R.cmp, R.asOf))}` : ''}</p></div>
+      <img class="rpd-tree" src="${TREE}" alt="" width="96" height="45"></header>${rpTable(R)}
+    <footer class="rpd-foot"><span>${esc((co.name || COMPANY).toUpperCase())}</span><span>Prepared by the Accounting Hub on ${esc(DATE_FMT.format(new Date()))}</span></footer></article>`;
+  let pg = document.getElementById('pg-style'); if (!pg) { pg = document.createElement('style'); pg.id = 'pg-style'; document.head.appendChild(pg); }
+  pg.textContent = '@media print{@page{size:letter;margin:.55in .5in}}';
+  document.body.classList.add('pv');
+  window.print();
+}
+/* Excel: the same rows, numbers as numbers, money as #,##0.00 with negatives in brackets. */
+function rpXlsx() {
+  const r = rpState(), R = rpBuild(r), cols = rpCols(R), pctCol = !R.tb && cols.length === 4 ? 3 : -1, co = D.company.name || COMPANY;
+  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = n => String.fromCharCode(64 + n), W = 2 + cols.length;
+  // styles: 0 plain, 1 company, 2 title, 3 meta, 4 header, 5 header right, 6 band, 7 section head, 8 code, 9 money, 10 pct, 11 sub label, 12 sub money, 13 total label, 14 total money, 15 grand label, 16 grand money, 17 sub pct, 18 total pct, 19 grand pct, 20 note
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00;(#,##0.00);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%;(0.0%);&quot;-&quot;"/></numFmts>
+<fonts count="7"><font><sz val="10"/><color rgb="FF2C2C2C"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF1B4DA0"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF2C2C2C"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF6E6E6E"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF1B4DA0"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF2C2C2C"/><name val="Arial"/></font></fonts>
+<fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B4DA0"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEAF0FA"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDF1F7"/></patternFill></fill></fills>
+<borders count="3"><border/><border><top style="thin"><color rgb="FFDDDDDD"/></top></border><border><top style="thin"><color rgb="FF10213B"/></top><bottom style="double"><color rgb="FF10213B"/></bottom></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="21">
+<xf fontId="0"/><xf fontId="1" applyFont="1"/><xf fontId="2" applyFont="1"/><xf fontId="3" applyFont="1"/>
+<xf fontId="4" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf><xf fontId="4" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>
+<xf fontId="5" fillId="3" applyFont="1" applyFill="1"/><xf fontId="6" applyFont="1"/><xf fontId="3" applyFont="1"/>
+<xf numFmtId="164" fontId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" applyNumberFormat="1"/>
+<xf fontId="6" borderId="1" applyFont="1" applyBorder="1"/><xf numFmtId="164" fontId="6" borderId="1" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf fontId="6" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="164" fontId="6" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
+<xf fontId="5" borderId="2" applyFont="1" applyBorder="1"/><xf numFmtId="164" fontId="5" borderId="2" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf numFmtId="165" fontId="6" borderId="1" applyNumberFormat="1" applyFont="1" applyBorder="1"/><xf numFmtId="165" fontId="6" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="165" fontId="5" borderId="2" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
+<xf fontId="3" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  const rows = []; let n = 0;
+  const cell = (c, v, s) => v === '' || v == null ? (s ? `<c r="${colL(c)}${n}" s="${s}"/>` : '') : typeof v === 'number' ? `<c r="${colL(c)}${n}" s="${s || 0}"><v>${Math.round(v * 1e6) / 1e6}</v></c>` : `<c r="${colL(c)}${n}" s="${s || 0}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const row = (cells, ht) => { n++; rows.push(`<row r="${n}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells.map(([v, s], i) => cell(i + 1, v, s)).join('')}</row>`); };
+  row([[co, 1]], 20); row([[rpTitle(r), 2]], 18);
+  row([[`${rpLabel(R.cur, R.asOf)}${R.cmp ? `, compared with ${rpLabel(R.cmp, R.asOf)}` : ''}`, 3]]);
+  row([[`Prepared by the Accounting Hub on ${DATE_FMT.format(new Date())}. Figures from the Google Sheet’s working tabs.`, 3]]);
+  row([]);
+  const head = n + 1; row([['Code', 4], [R.tb ? 'Account' : '', 4], ...cols.map(c => [c, 5])], 30);
+  const ST = { acct: [8, 0, 9, 10], sub: [8, 11, 12, 17], total: [8, 13, 14, 18], grand: [8, 15, 16, 19], note: [8, 20, 9, 10] };
+  R.rows.forEach(rw => {
+    if (rw.kind === 'band') return row(Array.from({ length: W }, (_, i) => [i === 0 ? rw.label : '', 6]));
+    if (rw.kind === 'head') return row([['', 0], [rw.label, 7]]);
+    const s = ST[rw.kind] || ST.acct;
+    row([[rw.code, s[0]], [rw.label, s[1]], ...rpCells(R, rw).map((v, i) => [v == null ? '' : v, i === pctCol ? s[3] : s[2]])]);
+  });
+  if (R.tb) row([['', 15], ['Total', 15], ...R.tb.flatMap(t => t ? [t.dr, t.cr] : ['', '']).map(v => [v, 16])]);
+  const last = n, widths = [10, 46, ...cols.map(() => 17)];
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${colL(W)}${last}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${head}" topLeftCell="A${head + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${rows.join('')}</sheetData><printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+<pageSetup paperSize="1" orientation="portrait" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;L&amp;"Arial"&amp;8${x(co)} · ${x(rpTitle(r))}&amp;R&amp;"Arial"&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter></worksheet>`;
+  const name = rpTitle(r).slice(0, 31);
+  const files = [
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`],
+    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(name)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${x(name)}'!$${head}:$${head}</definedName></definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', styles],
+    ['xl/worksheets/sheet1.xml', sheet]
+  ];
+  const a = document.createElement('a'), url = URL.createObjectURL(zipStore(files)), stamp = rpLabel(R.cur, R.asOf).replace(/[^\w]+/g, '_');
+  a.href = url; a.download = `${co.replace(/[^\w.-]+/g, '_')}_${rpTitle(r).replace(/ /g, '_')}_${stamp}.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast(`${rpTitle(r)} downloaded`);
+}
+
 function summaryPage() {
   return pageHead('summary', 'Totals for the month by account, followed by sales, bills, checks and taxes.')
     + `<div class="toolbar"><select id="sm" aria-label="Month">${yearMonths().map(m => opt(m, monthLabel(m), S.sm)).join('')}</select><span class="hint">By entry date: bills on the invoice date, checks on the check date. A void is reversed in the month it’s voided.</span><span class="grow"></span>
@@ -2458,7 +2753,7 @@ function contactForm(id) {
     const rs = [...document.querySelectorAll('.p-role:checked')].map(x => x.value);
     if (!rs.length) return 'Tick at least one role.';
     if (isCogs(val('p-acct'))) return `Usual account: ${cogsMsg(val('p-acct'))}`;
-    if (p && !rs.some(r => PAYEE_ROLES.includes(r)) && [...D.vouchers, ...D.bills].some(v => v.payeeId === p.id)) return `${p.name} is the payee on saved bills or vouchers, so tick Supplier, Service provider or Employee.`;
+    if (p && !rs.some(r => PAYEE_ROLES.includes(r)) && [...D.vouchers, ...D.bills].some(v => v.payeeId === p.id)) return `${p.name} is the payee on saved bills or vouchers, so tick Supplier, Vendor or Employee.`;
     if (p && !rs.includes('customer') && [...(D.invoices || []), ...(D.collections || [])].some(x => x.customerId === p.id)) return `${p.name} is the customer on saved invoices or collections, so keep Customer ticked.`;
     const data = { name, tin, address: val('p-addr'), accountId: val('p-acct'), atc: val('p-atc'), vatable: document.getElementById('p-vat').checked, roles: rs };
     return save('saveContact', () => {
@@ -2683,7 +2978,7 @@ function usersPage() {
   const list = (USERS || []).slice().sort((a, b) => (b.active - a.active) || a.name.localeCompare(b.name));
   const roles = [{ name: 'Admin', perms: permsOfRole('Admin'), builtIn: true }, ...(ROLE_LIST || [])];
   const inRole = n => list.filter(u => u.role === n && u.active).length;
-  return pageHead('users', 'Who can sign in, and what each role can change. Everyone signed in can see every page.', `${btn('new-role', 'Add role', 'ghost')}${btn('new-user', 'Add user')}`)
+  return pageHead('users', 'Who can sign in, and what each role can change. Everyone signed in can see every page but Financial Reports, which takes its own permission.', `${btn('new-role', 'Add role', 'ghost')}${btn('new-user', 'Add user')}`)
     + `<h2 class="mt" style="margin-top:0">Users</h2><div id="list">${table([
       { h: 'Name', k: u => `<b>${esc(u.name)}</b><span class="sub">${esc(u.username)}</span>` },
       { h: 'Role', k: u => esc(u.role || 'None') },
@@ -3012,7 +3307,7 @@ function dataFromTables(sheets, ctx = {}) {
   // contacts
   uniq(T.Contacts, 'Contact ID', 'Contact ID'); uniq(T.Contacts, 'Name', 'Name');
   const contacts = T.Contacts.map(o => {
-    const roles = String(o.Roles || '').split(',').map(x => x.trim()).filter(Boolean).map(l => { const r = ROLES.find(x => x[1].toLowerCase() === l.toLowerCase()); if (!r) E(o, `Role “${l}” isn’t one of ${ROLES.map(x => x[1]).join(', ')}.`); return r && r[0]; }).filter(Boolean);
+    const roles = String(o.Roles || '').split(',').map(x => x.trim()).filter(Boolean).map(l => { const r = ROLES.find(x => x[1].toLowerCase() === l.toLowerCase() || x[0] === ROLE_ALIAS[l.toLowerCase()]); if (!r) E(o, `Role “${l}” isn’t one of ${ROLES.map(x => x[1]).join(', ')}.`); return r && r[0]; }).filter(Boolean);
     if (!roles.length) E(o, 'Roles is blank.');
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     if (o['Usual account ID'] && !aid.has(o['Usual account ID'])) E(o, `Usual account ID ${o['Usual account ID']} isn’t on the Accounts tab.`);
@@ -3047,7 +3342,7 @@ function dataFromTables(sheets, ctx = {}) {
     const tag = readTag(l, l['Account ID']);
     return { accountId: l['Account ID'], desc: l.Description || '', amount: l[h], dept: readDept(l), ...(tag ? { tag } : {}) };
   });
-  const readPayee = o => { const p = cById[o['Payee ID']]; if (!p) E(o, `Payee ID ${o['Payee ID']} isn’t on the Contacts tab.`); else if (!isPayee(p)) E(o, `${p.name} is the payee but isn’t a Supplier, Service provider or Employee on the Contacts tab.`); return p; };
+  const readPayee = o => { const p = cById[o['Payee ID']]; if (!p) E(o, `Payee ID ${o['Payee ID']} isn’t on the Contacts tab.`); else if (!isPayee(p)) E(o, `${p.name} is the payee but isn’t a Supplier, Vendor or Employee on the Contacts tab.`); return p; };
   // VAT and withholding on a bill's lines or a voucher's items without a bill; none on documents in dollars
   const readTax = (o, gross, usd) => {
     if (usd) {
@@ -4048,11 +4343,12 @@ const liqOf = id => (D.liquidations || []).find(x => x.id === id);
 /* Two pages on the sidebar, one list function: Petty Cash (funds and vouchers) and Cash Advances (by employee, and liquidations). */
 function staffPage() {
   const petty = S.page !== 'advances';
-  const acts = [canBooks('staff.edit') && (petty ? btn('new-pcv', 'New petty cash voucher') : btn('new-liq', 'New liquidation'))].filter(Boolean).join('');
-  return pageHead(petty ? 'petty' : 'advances', petty ? 'Each custodian’s petty cash fund, and the vouchers paid out of it. A check replenishes exactly what was spent.'
-    : 'Cash advances to employees, and the liquidations that clear them with receipts. An advance is given by check, transfer or petty cash, on Advances - Employees.', acts)
+  const acts = (petty ? [canBooks('staff.edit') && btn('new-pcv', 'New petty cash voucher')]
+    : [canBooks('staff.edit') && btn('new-liq', 'New liquidation', 'ghost'), canRelease() && btn('new-adv', 'Release an advance')]).filter(Boolean).join('');
+  return pageHead(petty ? 'petty' : 'advances', petty ? 'Each custodian’s petty cash fund, and the vouchers paid out of it. A check from the bank, or an owner out of pocket, refills what was spent.'
+    : 'Release cash to an employee, then liquidate it when they come back with receipts and the change. Until then it’s on their name as an advance.', acts)
     + `<div class="toolbar"><input id="q" type="search" placeholder="${petty ? 'Search PCV no., paid to, particulars' : 'Search employee, LQ no., particulars'}" value="${esc(S.q)}" aria-label="Search"></div>
-    ${petty ? fundStrip() : ''}<div id="list">${staffList()}</div>`;
+    ${petty ? fundStrip() + ownerStrip() : ''}<div id="list">${staffList()}</div>`;
 }
 function fundStrip() {
   const fs = funds();
@@ -4062,7 +4358,7 @@ function fundStrip() {
     { h: 'Fund amount', num: 1, k: a => money(fundOf(a.id).amount) },
     { h: 'On hand', num: 1, k: a => peso(bankBalance(a.id).php) },
     { h: 'To replenish', num: 1, k: a => { const gap = round2(fundOf(a.id).amount - bankBalance(a.id).php); return gap > 0 ? `<b>${money(gap)}</b>` : gap < 0 ? `(${money(-gap)})<span class="sub">over the fund</span>` : ''; } },
-    { h: '', k: a => rowActs([round2(fundOf(a.id).amount - bankBalance(a.id).php) > 0 && canBooks('vouchers.edit') && ['replenish', a.id, 'Replenish'], canBooks('accounts.add') && ['edit-fund', a.id, 'Edit']]) }
+    { h: '', k: a => rowActs([round2(fundOf(a.id).amount - bankBalance(a.id).php) > 0 && (canBooks('vouchers.edit') || canBooks('journal.edit')) && ['replenish', a.id, 'Replenish'], canBooks('accounts.add') && ['edit-fund', a.id, 'Edit']]) }
   ], fs)}${canBooks('accounts.add') ? `<p style="margin-top:10px">${btn('new-fund', 'Set up another fund', 'link sm')}</p>` : ''}</section>`;
 }
 function staffList() {
@@ -4096,9 +4392,9 @@ function staffList() {
     { h: 'Advanced', num: 1, k: e => money(e.given) },
     { h: 'Cleared', num: 1, k: e => money(e.cleared) },
     { h: 'Outstanding', num: 1, k: e => `<b>${peso(e.out)}</b>` },
-    { h: '', k: e => rowActs([e.out > 0 && canBooks('staff.edit') && ['liquidate', e.id, 'Liquidate']]) }
+    { h: '', k: e => rowActs([e.out > 0 && canBooks('staff.edit') && ['liquidate', e.id, 'Liquidate'], canRelease() && contact(e.id) && ['release-adv', e.id, 'Release more']]) }
   ], emps, '', `<tfoot><tr><td>${emps.length} employee${emps.length === 1 ? '' : 's'}</td><td class="num">${money(sum(emps.map(e => e.given)))}</td><td class="num">${money(sum(emps.map(e => e.cleared)))}</td><td class="num">${peso(sum(emps.map(e => e.out)))}</td><td></td></tr></tfoot>`)
-    : `<div class="empty"><b>No cash advances in ${YEAR}</b>Give one by check voucher, transfer or petty cash voucher: a line on ${esc(acctName(D.control.advances))}, charged to the employee.</div>`;
+    : `<div class="empty"><b>No cash advances in ${YEAR}</b>Release one by check, bank transfer or petty cash. It stays on the employee’s name until they liquidate it. ${canRelease() ? btn('new-adv', 'Release an advance', 'sm') : ''}</div>`;
   const un = round2(sum(journal().flatMap(d => d.lines.filter(l => l.acct === D.control.advances && !l.tag).map(l => (l.dr || 0) - (l.cr || 0)))));
   const unNote = Math.abs(un) >= 0.005 ? `<p class="hint" style="margin-top:10px">${peso(un)} on ${esc(acctName(D.control.advances))} isn’t charged to an employee: posted before the hub kept advances by employee. A journal entry moves it to each employee.</p>` : '';
   const liqs = (D.liquidations || []).filter(x => hasQ(x.no, (contact(x.employee) || {}).name, x.particulars, x.notes)).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
@@ -4128,19 +4424,87 @@ function fundForm(id) {
     return save('saveBank', () => { const b = D.banks[a] || { currency: 'PHP', printed: '', number: '' }; D.banks = { ...D.banks, [a]: { ...b, currency: 'PHP', custodian: val('pf-cust'), fund: round2(n) } }; }, () => toast('Petty cash fund saved'));
   }, 'Save');
 }
-/* Replenishing: a check voucher to the custodian, for what the fund is short of its amount. */
-function replenish(id) {
-  const f = fundOf(id), gap = round2(f.amount - bankBalance(id).php), p = contact(f.custodian) || {};
+/* Replenishing, by check: a check voucher to the custodian, for what the fund is short of its amount. */
+function replenishByCheck(id, amount) {
+  const f = fundOf(id), gap = amount || round2(f.amount - bankBalance(id).php), p = contact(f.custodian) || {};
   const nos = (D.pettyCash || []).filter(x => live(x) && x.fund === id).sort((a, b) => a.no.localeCompare(b.no)).map(x => x.no);
   voucherForm({ payeeId: p.id || '', payeeName: p.name || '', tin: p.tin || '', particulars: `Replenishment of ${f.name}${nos.length ? `, through ${nos[nos.length - 1]}` : ''}`,
     lines: [{ accountId: id, desc: 'Petty cash replenishment', amount: gap.toFixed(2), dept: '', tag: '' }], vatable: false, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '',
     cv: '', date: defaultDate(), checkDate: defaultDate(), checkNo: '', bills: [], method: 'Check', bankAcct: D.control.bank, charges: '' });
 }
-function pcvForm(x0) {
+/* Or by an owner, out of pocket: a journal entry puts the cash in the fund and what's owed to the owner on Due to /
+   from Stockholders (240-010). A check voucher pays the owner back later; its line names the entry, so the hub
+   knows that refill is settled. Recording one needs the journal permission. */
+const OWNER_MEMO = owner => `Petty cash refilled by ${owner}, out of pocket`;
+const OWNER_RE = /^Petty cash refilled by (.+), out of pocket$/;
+const ownerAcctDefault = () => (D.accounts.find(a => a.code === '240-010') || D.accounts.find(a => /stockholder|owner/i.test(a.name) && /liabilit|Equity/.test(stmtOf(a.type)[1])) || {}).id || '';
+const ownerAccts = () => sortAccounts(D.accounts.filter(a => a.active && /liabilities|Equity/.test(stmtOf(a.type)[1]) && a.id !== D.control.apTrade && a.id !== D.control.apOther));
+function replenish(id) {
+  if (!canBooks('journal.edit')) { replenishByCheck(id); return; }
+  const f = fundOf(id), gap = Math.max(round2(f.amount - bankBalance(id).php), 0), byCheck = canBooks('vouchers.edit');
+  const names = [...new Set(D.contacts.map(p => p.name))].sort();
+  const body = `<p class="lead">${esc(f.name)} is ${peso(gap)} short of its ${peso(f.amount)}. Refill it by check from the bank, or record that an owner handed the custodian the cash and is owed it back.</p>
+    <div class="fields">${F('o-how', 'Refilled by', `<select id="o-how">${byCheck ? opt('bank', 'A check from the bank', 'bank') : ''}${opt('owner', 'An owner, out of pocket', byCheck ? '' : 'owner')}</select>`, 'span2')}
+      ${F('o-amt', 'Amount (₱)', inp('o-amt', gap ? gap.toFixed(2) : '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}${F('o-date', 'Date', inp('o-date', defaultDate(), 'date'))}</div>
+    <div class="fields" id="o-own" style="margin-top:16px">${F('o-name', 'Owner', inp('o-name', '', 'text', 'list="o-names" autocomplete="off" placeholder="Who paid it"') + `<datalist id="o-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>`, 'span2')}
+      ${F('o-acct', 'Owed to them on', `<select id="o-acct">${acctOptions(ownerAcctDefault(), ownerAccts(), 'Choose an account')}</select>`, 'span2')}
+      <p class="hint full">The fund goes up and the amount is owed to the owner. Pay it back from Owed to Owners on this page.</p></div>`;
+  openModal(`Replenish ${esc(f.name)}`, body, () => {
+    const how = val('o-how'), n = round2(numIn(val('o-amt'))), date = val('o-date');
+    if (!(n > 0)) return 'Enter the amount, more than zero.';
+    if (how === 'bank') { closeModal(); replenishByCheck(id, n); return; }
+    const owner = val('o-name'), due = val('o-acct');
+    if (!date) return 'Enter the date.';
+    if (!inYear(date)) return yearMsg(date);
+    if (isLocked(date)) return lockedMsg();
+    if (!owner) return 'Enter the owner who paid it.';
+    if (!due) return 'Choose the account it’s owed on.';
+    const no = suggestJe(date, 'JE');
+    return save('saveJournal', () => {
+      D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: owner, memo: OWNER_MEMO(owner), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '',
+        entry: [{ acct: id, memo: 'Petty cash replenishment', dr: n, cr: 0, dept: '' }, { acct: due, memo: `Owed to ${owner}`, dr: 0, cr: n, dept: '' }],
+        reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
+    }, () => toast(`${no} saved. ${f.name} is refilled; ${owner} is owed ${peso(n)}.`));
+  }, 'Continue', { onOpen: () => {
+    const show = () => { const own = val('o-how') === 'owner'; document.getElementById('o-own').hidden = !own; document.querySelector('#modal-root [data-act="save-modal"]').textContent = own ? 'Save' : 'Continue'; };
+    document.getElementById('o-how').addEventListener('change', show); show();
+  } });
+}
+/* Refills by owners this year, what's been paid back on each (check voucher lines on the same account that name the
+   entry), and what's still owed. */
+function ownerRefills() {
+  return (D.journals || []).filter(j => j.kind === 'Entry' && live(j) && OWNER_RE.test(j.memo || '')).map(j => {
+    const cr = (j.entry || []).find(l => l.cr > 0) || {}, dr = (j.entry || []).find(l => l.dr > 0) || {}, amount = round2(cr.cr || 0);
+    const paid = round2(sum(D.vouchers.filter(live).flatMap(v => (v.lines || []).filter(l => l.accountId === cr.acct && String(l.desc || '').includes(j.no)).map(l => numIn(l.amount)))));
+    return { j, owner: j.memo.match(OWNER_RE)[1], fund: dr.acct, due: cr.acct, amount, paid, owed: round2(amount - paid) };
+  }).sort((a, b) => b.j.date.localeCompare(a.j.date));
+}
+function payOwnerBack(jeId) {
+  const x = ownerRefills().find(o => o.j.id === jeId);
+  if (!x || x.owed <= 0) return;
+  const p = contactByName(x.owner) || {};
+  voucherForm({ payeeId: p.id || '', payeeName: p.name || x.owner, tin: p.tin || '', particulars: `Pays back ${x.owner} for petty cash refilled out of pocket on ${fdate(x.j.date)}`,
+    lines: [{ accountId: x.due, desc: `Pays back ${x.j.no}`, amount: x.owed.toFixed(2), dept: '', tag: '' }], vatable: false, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '',
+    cv: '', date: defaultDate(), checkDate: defaultDate(), checkNo: '', bills: [], method: 'Check', bankAcct: D.control.bank, charges: '' });
+}
+function ownerStrip() {
+  const xs = ownerRefills();
+  if (!xs.length) return '';
+  const owed = round2(sum(xs.map(x => Math.max(x.owed, 0))));
+  return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Owed to Owners <span class="hint" style="font-weight:400">${owed ? `${peso(owed)} still to pay back` : 'all paid back'}</span></h2>${table([
+    { h: 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(acctName(x.fund))}</span>` },
+    { h: 'Owner', k: x => `${esc(x.owner)}<span class="sub">${esc(acctName(x.due))}</span>` },
+    { h: 'Refilled', num: 1, k: x => money(x.amount) },
+    { h: 'Paid back', num: 1, k: x => x.paid ? money(x.paid) : '' },
+    { h: 'Still owed', num: 1, k: x => x.owed > 0 ? `<b>${peso(x.owed)}</b>` : pill('Paid') },
+    { h: '', k: x => rowActs([x.owed > 0 && canBooks('vouchers.edit') && ['pay-owner', x.j.id, 'Pay back']]) }
+  ], xs)}</section>`;
+}
+function pcvForm(x0, pre) {
   const edit = !!x0, self = edit ? x0.id : null, fs = funds();
   if (!edit && !fs.length) { toast('Set up a petty cash fund first.', true); return; }
   const blank = () => ({ accountId: '', desc: '', amount: '', dept: '', tag: '' });
-  const x = edit ? JSON.parse(JSON.stringify(x0)) : { no: nextNo(D.pettyCash || [], 'no', 'PCV', defaultDate()), date: defaultDate(), fund: fs[0].id, paidTo: '', particulars: '', lines: [blank()], vatable: false, vat: '', vatManual: false, notes: '' };
+  const x = edit ? JSON.parse(JSON.stringify(x0)) : { no: nextNo(D.pettyCash || [], 'no', 'PCV', (pre && pre.date) || defaultDate()), date: defaultDate(), fund: fs[0].id, paidTo: '', particulars: '', lines: [blank()], vatable: false, vat: '', vatManual: false, notes: '', ...(pre || {}) };
   if (!x.lines.length) x.lines.push(blank());
   const body = `<div class="vform"><div class="section"><h3>Petty cash voucher</h3><div class="fields">
       ${F('k-no', 'PCV no.', inp('k-no', x.no, 'text', 'autocomplete="off"'))}${F('k-date', 'Date', inp('k-date', x.date, 'date'))}
@@ -4206,6 +4570,34 @@ function voidPcv(id) {
   const x = pcvOf(id); if (!x || !live(x)) return;
   voidModal(`Void ${esc(x.no)}`, `For a voucher entered by mistake. It stays on record, marked void, and the cash goes back into the fund on the void date.`, x.date, 'voidPettyCash',
     (reason, d) => { Object.assign(pcvOf(id), { status: 'void', voidReason: reason, voidedOn: d }); }, x.no);
+}
+/* Releasing an advance: who, how much, what for, and how it's paid. It then opens the check voucher, transfer or
+   petty cash voucher filled in (one line on Advances - Employees, charged to the employee) to check and save. */
+const canRelease = () => canBooks('vouchers.edit') || canBooks('transfers.edit') || (canBooks('staff.edit') && funds().length > 0);
+function releaseForm(empId) {
+  const emps = employees();
+  if (!emps.length) { toast('Mark the employee as an Employee in Contacts first.', true); return; }
+  const ways = [canBooks('vouchers.edit') && ['cv', 'Check'], canBooks('transfers.edit') && ['pt', 'Bank transfer'], ...(canBooks('staff.edit') ? funds().map(a => ['pc:' + a.id, `Cash from ${acctName(a.id)}`]) : [])].filter(Boolean);
+  const body = `<p class="lead">The employee gets the cash now and brings back receipts and any change later. This fills in the ${ways.length > 1 ? 'voucher' : ways[0][1].toLowerCase() + ' voucher'} for you to check and save.</p>
+    <div class="fields">${F('r-emp', 'Employee', `<select id="r-emp">${emps.map(p => opt(p.id, p.name, empId || '')).join('')}</select>`, 'span2')}
+      ${F('r-date', 'Date released', inp('r-date', defaultDate(), 'date'))}${F('r-amt', 'Amount (₱)', inp('r-amt', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
+      ${F('r-part', 'What it’s for', inp('r-part', '', 'text', 'placeholder="e.g. Sales trip to Cebu, Nov 18 to 21"'), 'full')}
+      ${F('r-how', 'Released by', `<select id="r-how">${ways.map(w => opt(w[0], w[1], '')).join('')}</select>`, 'span2')}</div>`;
+  openModal('Release a Cash Advance', body, () => {
+    const p = contact(val('r-emp')), date = val('r-date'), n = numIn(val('r-amt')), part = val('r-part'), how = val('r-how');
+    if (!p) return 'Choose the employee.';
+    if (!date) return 'Enter the date released.';
+    if (!inYear(date)) return yearMsg(date);
+    if (isLocked(date)) return lockedMsg();
+    if (!(n > 0)) return 'Enter the amount released, more than zero.';
+    if (!part) return 'Enter what it’s for.';
+    const line = { accountId: D.control.advances, desc: 'Cash advance', amount: round2(n).toFixed(2), dept: '', tag: p.id }, particulars = `Cash advance: ${part}`;
+    closeModal();
+    if (how.startsWith('pc:')) { pcvForm(null, { date, fund: how.slice(3), paidTo: p.name, particulars, lines: [line] }); return; }
+    const pt = how === 'pt';
+    (pt ? transferForm : voucherForm)({ payeeId: p.id, payeeName: p.name, tin: p.tin || '', particulars, lines: [line], vatable: false, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '',
+      cv: '', date, checkDate: date, checkNo: '', bills: [], method: pt ? 'Transfer' : 'Check', bankAcct: D.control.bank, charges: '' });
+  }, 'Continue', { onOpen: () => document.getElementById(empId ? 'r-amt' : 'r-emp').focus() });
 }
 function liqForm(x0, empId) {
   const edit = !!x0, self = edit ? x0.id : null, emps = employees();
@@ -4935,8 +5327,8 @@ async function historyOf(id) {
 }
 
 /* ---------- Wiring ---------- */
-const PAGES = { bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
-const LISTS = { bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+const PAGES = { reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
+const LISTS = { reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
 const go = (page, fromHistory) => {
   document.body.classList.remove('nav-open');
   const changed = page !== S.page;
@@ -4974,6 +5366,13 @@ const ACT = {
   'void-pcv': id => voidPcv(id),
   'new-liq': () => liqForm(),
   liquidate: id => liqForm(null, id),
+  'pay-owner': id => payOwnerBack(id),
+  'rp-kind': id => { rpState().kind = id; refreshMain(); },
+  'rp-xlsx': () => rpXlsx(),
+  'rp-print': () => rpPrint(),
+  'rp-retry': () => { REP.err = ''; rpLoad(true); refreshMain(); },
+  'new-adv': () => releaseForm(),
+  'release-adv': id => releaseForm(id),
   'view-liq': id => viewLiq(id),
   'edit-liq': id => { const x = liqOf(id); if (!x || !live(x)) return; if (isLocked(x.date)) { toast(lockedMsg(), true); return; } liqForm(x); },
   'void-liq': id => voidLiq(id),
@@ -5117,6 +5516,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'sf') { S.sf = t.value; relist(); }
   else if (t.id === 'cf') { S.cf = t.value; refreshMain(); }
   else if (t.id === 'sm') { S.sm = t.value; refreshMain(); }
+  else if (/^rp-(per|cmp|m|q|from|to)$/.test(t.id)) { const r = rpState(), k = t.id.slice(3); r[k] = k === 'per' || k === 'cmp' ? t.value : Number(t.value); refreshMain(); }
   else if (t.id === 'yr') switchYear(t.value);
   else if (t.id === 'cr') { S.cr = t.value; refreshMain(); }
   else if (t.id === 'tm') { S.tm = t.value; relist(); }
@@ -5125,7 +5525,7 @@ document.addEventListener('change', e => {
 });
 /* On a phone, tables of four or more columns show each row as a card; each cell carries its column's name. */
 function labelTables(root) {
-  root.querySelectorAll('table').forEach(t => {
+  root.querySelectorAll('table:not(.rp)').forEach(t => {
     const hs = []; t.querySelectorAll('thead th').forEach(th => { const n = Number(th.getAttribute('colspan')) || 1; for (let i = 0; i < n; i++) hs.push(i ? '' : th.textContent.trim()); });
     if (hs.length < 4) return;
     t.classList.add('cards');
@@ -5188,7 +5588,7 @@ function acctPickers(root) {
 new MutationObserver(() => acctPickers(document)).observe(document.body, { childList: true, subtree: true });
 let labelPending = false;
 new MutationObserver(() => { if (labelPending) return; labelPending = true; requestAnimationFrame(() => { labelPending = false; labelTables(document); }); }).observe(document.body, { childList: true, subtree: true });
-window.addEventListener('afterprint', () => { document.body.classList.remove('pv'); document.getElementById('print-area').innerHTML = ''; });
+window.addEventListener('afterprint', () => { document.body.classList.remove('pv'); document.getElementById('print-area').innerHTML = ''; const pg = document.getElementById('pg-style'); if (pg) pg.remove(); });
 /* Signed out after 3 hours without use, like the Inventory Hub. Apps Script ends the session at the same point. */
 ['click', 'keydown'].forEach(ev => document.addEventListener(ev, () => { if (SESSION && Date.now() - (SESSION.last || 0) > 60000) touch(); }, true));
 setInterval(() => { if (SESSION && Date.now() - (SESSION.last || 0) > IDLE_MS) signedOut('You were signed out after 3 hours without use.'); }, 60000);

@@ -502,9 +502,9 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.17';
+const APP_VERSION = '3.18';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
-const HUB_BUILD = '2026-11-11';
+const HUB_BUILD = '2026-11-12';
 /* The oldest Code.gs this hub works with. */
 const API_NEEDED = 13;
 const IDLE_MS = 3 * 60 * 60 * 1000;
@@ -1538,9 +1538,9 @@ const NAV = [
   { group: 'Receivables', items: [{ id: 'invoices', label: 'Sales Invoices' }, { id: 'collections', label: 'Collections' }] },
   { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
-  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }, { id: 'health', label: 'Books Health' }] },
-  { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }, { id: 'log', label: 'Change Log' }] },
-  { group: 'Help', items: [{ id: 'help', label: 'How to Use the Hub' }] }
+  { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets' }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
+  { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }] },
+  { group: 'Help and Checks', items: [{ id: 'help', label: 'How to Use the Hub' }, { id: 'health', label: 'Books Health' }, { id: 'log', label: 'Change Log' }] }
 ];
 const allowed = n => !n.soon && (!n.need || can(n.need));
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
@@ -6068,7 +6068,7 @@ const GUIDE_START = `
   <p>The hub is where you work. Every save goes straight to the company’s Google Sheet, which holds the complete books and the reports for the accounting firm. A copy of the Sheet is made every night.</p>`;
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
   '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
-  '<b>Find your pages.</b> The sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup. You see only the pages your role uses.',
+  '<b>Find your pages.</b> The sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup, and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
   '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
   '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
   '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];

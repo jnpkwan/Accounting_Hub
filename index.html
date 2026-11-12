@@ -150,6 +150,8 @@ table.compact td{padding:8px 10px;vertical-align:middle}
 table.compact th{padding:10px;font-size:11px}
 .modal .tbl-wrap,.entry .tbl-wrap{box-shadow:inset 0 0 0 1px var(--silver)}
 table.compact input,table.compact select{height:38px;padding:0 10px;font-size:14px}
+.l-tick{width:56px;text-align:center}table.compact td.l-tick input{width:18px;height:18px;padding:0}
+.l-goods{display:flex;gap:6px;margin-top:6px}.l-goods[hidden]{display:none}table.compact .l-goods input{height:32px;font-size:13px}.l-goods .l-pcs{width:92px;flex:none}
 .empty{border:1.5px dashed var(--blue3);border-radius:12px;padding:56px 24px;text-align:center;color:var(--muted);background:#fff}
 .empty b{display:block;font:700 17px var(--display);color:var(--ink);margin-bottom:6px}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font:700 11.5px/1.4 var(--display);white-space:nowrap}
@@ -502,11 +504,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.18';
+const APP_VERSION = '3.19';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-12';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 13;
+const API_NEEDED = 14;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -606,9 +608,15 @@ const DATE_FMT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeri
 const fdate = s => s ? DATE_FMT.format(parseD(s)) : '';
 const money = n => (n < -0.004 ? '(' : '') + MONEY_FMT.format(Math.abs(Number(n) || 0)) + (n < -0.004 ? ')' : '');
 const peso = n => '₱' + money(n);
-/* Money in two currencies. The books are in pesos. A bill or payment in US dollars keeps its amounts in
-   dollars and books its entry in pesos at its own rate (pesos per dollar). */
-const curSym = c => c === 'USD' ? 'US$' : '₱';
+/* Money in more than one currency. The books are in pesos. A bill or payment in US dollars or Chinese yuan keeps
+   its amounts in that currency and books its entry in pesos at its own rate (pesos per dollar, or per yuan).
+   Bank accounts are in pesos or US dollars; yuan bills are paid from a peso account. */
+const CURS = { PHP: { sym: '₱', name: 'Pesos', unit: 'peso', units: 'pesos' }, USD: { sym: 'US$', name: 'US dollars', unit: 'US dollar', units: 'US dollars' }, CNY: { sym: 'CN¥', name: 'Chinese yuan', unit: 'yuan', units: 'yuan' } };
+const DOC_CURS = ['PHP', 'USD', 'CNY'];
+const curOf = c => CURS[c] || CURS.PHP;
+const curSym = c => curOf(c).sym;
+const isFx = c => !!c && c !== 'PHP';
+const curOptions = cur => DOC_CURS.map(c => opt(c, CURS[c].name, cur || 'PHP')).join('');
 const amt = (n, c) => curSym(c || 'PHP') + money(n);
 const rateOf = x => (x.currency || 'PHP') === 'PHP' ? 1 : Number(x.rate) || 0;
 const pesoOf = (x, n) => round2(n * rateOf(x));
@@ -962,6 +970,9 @@ const isCogs = id => !!id && (acct(id) || {}).type === COGS_T;
 const purchaseAccounts = () => postableAccounts().filter(a => !autoIds().includes(a.id) && !INCOME_T.includes(a.type) && a.type !== COGS_T);
 const cogsMsg = id => `${acctName(id)} is a cost of sales account, and cost of sales comes only from the monthly stock count. Charge import costs to ${transitWord()}, the account for the kind of cost, with the shipment, and stock bought here to ${D.control.inventory && acct(D.control.inventory) ? acctName(D.control.inventory) : 'Inventories'}.`;
 const purchaseNotFor = (id, what) => isCogs(id) ? cogsMsg(id) : notFor(id, purchaseAccounts(), what);
+/* A bill or voucher line can also be VAT Customs charged on an import, typed straight to Input VAT. */
+const billLineAccounts = () => sortAccounts(purchaseAccounts().concat(D.control.inputVat && acct(D.control.inputVat) ? [acct(D.control.inputVat)] : []));
+const billLineNotFor = (id, what) => id && id === D.control.inputVat ? '' : purchaseNotFor(id, what);
 const salesAccounts = memo => postableAccounts().filter(a => !autoIds().includes(a.id) && (INCOME_T.includes(a.type) || (memo && DEPT_TYPES.includes(a.type))));
 const feeAccounts = () => postableAccounts().filter(a => !autoIds().includes(a.id) && ['Expense', 'Other Expense', 'Cost of Goods Sold'].includes(a.type));
 const notFor = (id, list, what) => id && !list.some(a => a.id === id) ? `${acctName(id)} isn’t used on ${what}. Pick another account.` : '';
@@ -984,6 +995,8 @@ const transitGroup = (accounts, transitId) => { const t = accounts.find(a => a.i
 const TRANSIT = new WeakMap();
 const transitIds = () => { let x = TRANSIT.get(D); if (!x) { x = transitGroup(D.accounts, D.control.transit); TRANSIT.set(D, x); } return x; };
 const isTransit = id => !!id && transitIds().includes(id);
+/* Goods the company buys to sell: the lines that can carry a barcode and a count of pieces, for reference. */
+const isGoods = id => !!id && (id === D.control.transit || id === D.control.inventory);
 const transitWord = () => { const t = acct(D.control.transit); return t && t.code ? `Goods in Transit (${t.code.slice(0, 3)}-xxx)` : 'Goods in Transit'; };
 
 /* ---------- Check voucher math and journal entry ----------
@@ -991,26 +1004,37 @@ const transitWord = () => { const t = acct(D.control.transit); return t && t.cod
    VAT = 12/112 of the gross when VAT-inclusive, EWT = rate × amount net of VAT,
    check = gross − EWT. The entry always balances: net + VAT = EWT + check. */
 /* The part bills and vouchers share: account lines, VAT and withholding. */
-/* A document in dollars has no Philippine VAT or withholding: its lines go to the books at its rate. */
+/* A document in dollars or yuan has no Philippine VAT or withholding: its lines go to the books at its rate.
+   Each line says whether it carries VAT and whether it's withheld on (a broker's fee is; the duties it passes on
+   aren't). A line saved before lines said so follows the document: VAT if it includes VAT, withheld on if it has an ATC.
+   Cash moved, not bought, is never taxed: an advance, money into a bank account or fund. Nor is VAT Customs charged
+   on an import, typed straight to Input VAT from the import entry. */
+const lineNoTax = (l, ctl) => (!!ctl.advances && l.accountId === ctl.advances) || (ctl.cashIds || []).includes(l.accountId) || (!!ctl.inputVat && l.accountId === ctl.inputVat);
+const lineVatOn = (v, l, ctl) => !lineNoTax(l, ctl) && (l.vat == null ? !!v.vatable : !!l.vat);
+const lineEwtOn = (v, l, ctl) => !lineNoTax(l, ctl) && (l.wt == null ? true : !!l.wt);
 function taxCalc(v, ctl) {
   const lines = (v.lines || []).filter(l => l.accountId && Number(l.amount) > 0);
   const gross = sum(lines.map(l => l.amount)), fx = rateOf(v), php = (v.currency || 'PHP') === 'PHP';
-  // cash moved, not bought, carries no VAT: an advance to an employee, money into a bank account or petty cash fund
-  const noVat = l => (!!ctl.advances && l.accountId === ctl.advances) || (ctl.cashIds || []).includes(l.accountId), vg = sum(lines.filter(l => !noVat(l)).map(l => l.amount));
-  const vat = !php || !v.vatable || !vg ? 0 : (v.vatManual && v.vat !== '' && v.vat != null ? round2(v.vat) : round2(vg * VAT_RATE / (1 + VAT_RATE)));
-  const base = round2(gross - vat), vbase = round2(vg - vat);
+  const vOn = lines.map(l => php && lineVatOn(v, l, ctl)), wOn = lines.map(l => php && lineEwtOn(v, l, ctl));
+  const vg = sum(lines.filter((l, i) => vOn[i]).map(l => l.amount));
+  const vatAuto = round2(vg * VAT_RATE / (1 + VAT_RATE));
+  const vat = !vg ? 0 : (v.vatManual && v.vat !== '' && v.vat != null ? round2(v.vat) : vatAuto);
+  const base = round2(gross - vat);
+  // the VAT comes off the VAT lines in proportion, the last taking what's left so they add up exactly
+  let left = round2(vg - vat); const lastV = vOn.lastIndexOf(true);
+  const nets0 = lines.map((l, i) => { if (!vOn[i]) return round2(Number(l.amount)); if (i === lastV) return round2(left); const n = round2(Number(l.amount) - (vg ? vat * Number(l.amount) / vg : 0)); left = round2(left - n); return n; });
+  const wbase = round2(sum(nets0.filter((n, i) => wOn[i])));
   const rate = php && v.atc ? (atcOf(v.atc) || { rate: 0 }).rate : 0;
-  const ewtAuto = round2(vbase * rate);
+  const ewtAuto = round2(wbase * rate);
   const ewt = !php || !v.atc || !gross ? 0 : (v.ewtManual && v.ewt !== '' && v.ewt != null ? round2(v.ewt) : ewtAuto);
-  let left = vbase; const lastV = lines.map(noVat).lastIndexOf(false);
-  const nets0 = lines.map((l, i) => { if (noVat(l)) return round2(Number(l.amount)); if (i === lastV) return round2(left); const n = round2(Number(l.amount) - (vg ? vat * Number(l.amount) / vg : 0)); left = round2(left - n); return n; });
   const nets = php ? nets0 : spread(nets0, round2(base * fx));
+  const importVat = php && ctl.inputVat ? round2(sum(lines.filter(l => l.accountId === ctl.inputVat).map(l => l.amount))) : 0;
   const taxLines = [
     ...lines.map((l, i) => ({ acct: l.accountId, memo: l.desc || '', dr: nets[i], cr: 0, dept: l.dept || '', ...(l.tag ? { tag: l.tag } : {}) })),
     ...(vat ? [{ acct: ctl.inputVat, memo: '', dr: vat, cr: 0 }] : []),
     ...(ewt ? [{ acct: ctl.ewt, memo: `${v.atc} ${Math.round(rate * 100)}%`, dr: 0, cr: ewt }] : [])
   ];
-  return { gross, vat, vatAuto: round2(vg * VAT_RATE / (1 + VAT_RATE)), base, rate, ewt, ewtAuto, nets, lines, taxLines };
+  return { gross, vat, vatAuto, base, wbase, rate, ewt, ewtAuto, nets, lines, taxLines, vOn, wOn, importVat, vatable: vOn.some(Boolean) };
 }
 const totals = (t, entry) => ({ ...t, entry, dr: sum(entry.map(e => e.dr)), cr: sum(entry.map(e => e.cr)) });
 /* Check voucher: bills it pays come off what's owed; items without a bill book as before.
@@ -1061,17 +1085,27 @@ function calcMove(m, ctl = D.control, bankCurOf = bankCur) {
 function calcBill(b, ctl = D.control) {
   const memo = isMemo(b), t = taxCalc(memo ? { ...b, atc: '' } : b, ctl), fx = rateOf(b);
   const payable = round2(t.gross - t.ewt), crPeso = round2(sum(t.taxLines.map(l => l.dr)) - sum(t.taxLines.map(l => l.cr)));
-  const entry = [...t.taxLines, { acct: b.apAccount, memo: (b.currency || 'PHP') === 'PHP' ? '' : `US$${money(payable)} at ${fmtRate(fx)}`, dr: 0, cr: crPeso }];
+  const entry = [...t.taxLines, { acct: b.apAccount, memo: isFx(b.currency) ? `${curSym(b.currency)}${money(payable)} at ${fmtRate(fx)}` : '', dr: 0, cr: crPeso }];
   return totals({ ...t, payable, check: payable, pesoPayable: crPeso }, memo ? reverse(entry) : entry);
 }
 /* A sales invoice: the customer owes the invoice total; sales are booked net of the 12% VAT, which is output VAT.
-   A credit memo (goods returned, a price corrected) is the same the other way round. Customers withhold when they pay. */
+   A credit memo (goods returned, a price corrected) is the same the other way round.
+   A customer that sends a statement of its own (a store selling on concession) takes its charges off before it pays:
+   commission, marketing, barcodes, returns. Those, and the tax it withholds (CWT), can go on the invoice itself, so
+   they land in the month of the sale and the receivable is what the customer will actually pay. Otherwise customers
+   withhold when they pay, on the collection. */
+const invLess = x => isMemo(x) ? [] : (x.less || []).filter(l => l.accountId && Number(numIn(l.amount)) > 0).map(l => ({ ...l, amount: round2(numIn(l.amount)) }));
 function calcInvoice(x, ctl = D.control) {
   const t = taxCalc({ ...x, atc: '', currency: 'PHP' }, { ...ctl, inputVat: ctl.outputVat });
-  const ar = { acct: ctl.ar, memo: '', dr: t.gross, cr: 0 };
-  const entry = [ar, ...t.taxLines.map(l => ({ ...l, dr: l.cr, cr: l.dr }))];
-  return totals({ ...t, receivable: t.gross, check: t.gross }, isMemo(x) ? reverse(entry) : entry);
+  const less = invLess(x), lessTotal = sum(less.map(l => l.amount)), cwt = isMemo(x) ? 0 : round2(numIn(x.cwt) || 0), receivable = round2(t.gross - lessTotal - cwt);
+  const entry = [{ acct: ctl.ar, memo: '', dr: receivable, cr: 0 },
+    ...(cwt ? [{ acct: ctl.cwt, memo: 'Withheld by the customer', dr: cwt, cr: 0 }] : []),
+    ...less.map(l => ({ acct: l.accountId, memo: l.desc || '', dr: l.amount, cr: 0, dept: l.dept || '' })),
+    ...t.taxLines.map(l => ({ ...l, dr: l.cr, cr: l.dr }))];
+  return totals({ ...t, less, lessTotal, cwt, receivable, check: receivable }, isMemo(x) ? reverse(entry) : entry);
 }
+/* What a customer can take off an invoice: its charges (expenses) and returns or discounts (contra sales). */
+const lessAccounts = () => postableAccounts().filter(a => !autoIds().includes(a.id) && ['Expense', 'Other Expense', 'Income'].includes(a.type));
 /* A collection: what the invoices ticked add up to, less credit memos used, less the customer's withholding and any
    deductions (platform or bank fees), is what came in. It goes to Undeposited Funds, or straight to a bank account. */
 function calcCollection(c, ctl = D.control, findInv = invoiceOf) {
@@ -1711,7 +1745,9 @@ function budgetWarnings(entry, exceptId) {
 function docForm(kind, v0, mode = 'new') {
   const isDM = kind === 'dm', isBill = kind === 'bill' || isDM, isPT = kind === 'pt', edit = mode === 'edit';
   const today = defaultDate();
-  const blankLine = () => ({ accountId: '', desc: '', amount: '', dept: '' });
+  // new lines take VAT as the payee usually charges it, and are withheld on
+  let vatDefault = v0 ? !!v0.vatable : true, vatTouched = false;
+  const blankLine = () => ({ accountId: '', desc: '', amount: '', dept: '', vat: vatDefault, wt: true, barcode: '', pcs: '' });
   const base = { payeeId: '', payeeName: '', tin: '', particulars: '', lines: [blankLine()], vatable: true, vat: '', vatManual: false, atc: '', ewt: '', ewtManual: false, notes: '', currency: 'PHP', rate: '' };
   const v = v0 ? JSON.parse(JSON.stringify(v0)) : isBill ? { ...base, ref: '', date: today, dueDate: '', type: isDM ? 'Debit memo' : '', appliesTo: '' }
     : { ...base, cv: '', date: today, checkDate: today, checkNo: '', bills: [], method: isPT ? 'Transfer' : 'Check', bankAcct: D.control.bank, charges: '' };
@@ -1721,13 +1757,16 @@ function docForm(kind, v0, mode = 'new') {
   const usdBank = () => !isBill && bankCur(v.bankAcct) === 'USD';
   // from a dollar account, the rate is the account's own on the day
   const autoRate = () => { if (!usdBank()) return null; const c0 = calc({ ...v, currency: 'USD', rate: 1 }); return usdOutRate(v.bankAcct, v.date, edit ? v0.id : null, round2(c0.check + c0.charges)); };
+  // lines saved before each line said so follow the document
+  v.lines.forEach(l => { if (l.vat == null) l.vat = lineVatOn(v, l, D.control); if (l.wt == null) l.wt = true; if (l.barcode == null) l.barcode = ''; if (l.pcs == null) l.pcs = ''; });
+  if (!v.importEntry) v.importEntry = '';
   if (!v.lines.length && (isBill || !v.bills.length)) v.lines.push(blankLine());
   const self = edit ? v0.id : null;
   const p0 = v.payeeId ? contact(v.payeeId) : null;
   // what's already been settled on this bill, or applied of this memo, by vouchers and transfers
   const paidSoFar = isBill && edit ? round2(sum(billPayers(v0.id).filter(x => x.cv).flatMap(x => x.bills.filter(p => p.billId === v0.id).map(p => p.amount))) + (isDM ? 0 : sum(billPayers(v0.id).filter(x => !x.cv).map(x => x.payable)))) : 0;
-  const curField = F('f-cur', 'Currency', `<select id="f-cur">${opt('PHP', 'Pesos', v.currency)}${opt('USD', 'US dollars', v.currency)}</select>`);
-  const rateField = `<div class="field" id="f-rate-wrap"><label for="f-rate" id="f-rate-l">Rate (₱ per US$)</label>${inp('f-rate', v.rate || '', 'number', 'step="0.0001" min="0" inputmode="decimal" placeholder="e.g. 58.25"')}</div>`;
+  const curField = F('f-cur', 'Currency', `<select id="f-cur">${curOptions(v.currency)}</select>`);
+  const rateField = `<div class="field" id="f-rate-wrap"><label for="f-rate" id="f-rate-l">Rate (₱ per ${curSym(v.currency)})</label>${inp('f-rate', v.rate || '', 'number', 'step="0.0001" min="0" inputmode="decimal" placeholder="e.g. 58.25"')}</div>`;
   const head = isDM
     ? `${F('f-ref', 'Debit memo no.', inp('f-ref', v.ref, 'text', 'autocomplete="off" placeholder="Yours, or the supplier’s credit note no."'))}
       ${F('f-date', 'Memo date', inp('f-date', v.date, 'date'))}
@@ -1762,11 +1801,11 @@ function docForm(kind, v0, mode = 'new') {
     <div class="section"><h3>${isDM ? 'What it takes back' : isBill ? 'What it’s for' : 'Items without a bill'}</h3><div id="f-lines"></div>
       <p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="f-addline"></button></p></div>
     <div class="section" id="f-tax-sec"><h3>Taxes</h3><div class="fields">
-      <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="f-vatable" ${v.vatable ? 'checked' : ''}> Amounts include 12% VAT ${tip('Tick when the supplier’s invoice shows VAT. Enter amounts as printed; the hub splits the VAT out to Input VAT.')}</label></div>
       ${F('f-vat', 'Input VAT (₱) <button type="button" class="autolink" id="f-vat-auto" hidden>use computed</button>', inp('f-vat', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
       ${F('f-atc', 'Withholding tax (ATC) ' + tip('The BIR code for the tax you withhold from this payee. Choose it and the hub computes the EWT; leave it blank if you don’t withhold.'), `<select id="f-atc">${atcOptions(isDM ? '' : v.atc)}</select>`, isDM ? 'gone' : '')}
       ${F('f-ewt', 'EWT withheld (₱) <button type="button" class="autolink" id="f-ewt-auto" hidden>use computed</button>', inp('f-ewt', '', 'number', 'step="0.01" min="0" inputmode="decimal"'), isDM ? 'gone' : '')}
-    </div></div>
+      <div class="field" id="f-imp-wrap" hidden><label for="f-imp">Import entry no. ${tip(FIELD_TIPS['Import entry no.'])}</label>${inp('f-imp', v.importEntry || '', 'text', 'autocomplete="off" placeholder="From the import entry"')}</div>
+    </div><p class="hint" id="f-taxnote" style="margin-top:8px">VAT is worked out on the lines ticked VAT, withholding on the lines ticked EWT.</p></div>
     <div class="section"><p class="warnline" id="f-taxwarn"></p>
       <div class="checkamt"><span class="label">${isDM ? 'Amount of the memo' : isBill ? 'Amount payable' : isPT ? 'Amount sent' : 'Check amount'}</span><span class="big" id="f-check">₱0.00</span></div>
       <p class="hint" style="margin-top:8px" id="f-words"></p></div>
@@ -1784,9 +1823,11 @@ function docForm(kind, v0, mode = 'new') {
       v.bills = [...document.querySelectorAll('#f-bills tbody tr')].filter(tr => tr.querySelector('.b-pick').checked).map(tr => ({ billId: tr.dataset.id, amount: tr.querySelector('.b-amt').value.trim() }));
     }
     if (document.getElementById('f-cur')) v.currency = usdBank() ? 'USD' : val('f-cur');
-    v.vatable = document.getElementById('f-vatable').checked; v.atc = val('f-atc');
-    v.lines = [...document.querySelectorAll('#f-lines tbody tr')].map(tr => ({ accountId: tr.querySelector('.l-acct').value, desc: tr.querySelector('.l-desc').value.trim(), amount: tr.querySelector('.l-amt').value.trim(), dept: tr.querySelector('.l-dept') ? tr.querySelector('.l-dept').value : '', tag: lineTag('l', tr) }));
-    const ar = autoRate(); v.rate = v.currency === 'USD' ? (ar !== null ? ar : numIn(val('f-rate'))) : '';
+    v.atc = val('f-atc'); v.importEntry = val('f-imp');
+    v.lines = [...document.querySelectorAll('#f-lines tbody tr')].map(tr => { const q = c => tr.querySelector(c); return { accountId: q('.l-acct').value, desc: q('.l-desc').value.trim(), amount: q('.l-amt').value.trim(), dept: q('.l-dept') ? q('.l-dept').value : '', tag: lineTag('l', tr),
+      vat: q('.l-vat').checked, wt: q('.l-wt').checked, barcode: q('.l-bc').value.trim(), pcs: q('.l-pcs').value.trim() }; });
+    v.vatable = v.lines.some(l => l.accountId && l.vat && !lineNoTax(l, D.control));
+    const ar = autoRate(); v.rate = isFx(v.currency) ? (ar !== null ? ar : numIn(val('f-rate'))) : '';
     const vi = document.getElementById('f-vat'), ei = document.getElementById('f-ewt');
     if (v.vatManual) v.vat = vi.value === '' ? '' : numIn(vi.value);
     if (v.ewtManual) v.ewt = ei.value === '' ? '' : numIn(ei.value);
@@ -1803,13 +1844,14 @@ function docForm(kind, v0, mode = 'new') {
     if (!el) return;
     if (!v.payeeName) { el.innerHTML = '<p class="hint">Pick the payee to see their unpaid bills.</p>'; return; }
     const list = payeeBills();
-    const other = D.bills.some(b => contactByName(v.payeeName) && b.payeeId === contactByName(v.payeeName).id && live(b) && (b.currency || 'PHP') !== (v.currency || 'PHP') && billBalance(b, self) > 0);
-    if (!list.length) { el.innerHTML = `<p class="hint">No unpaid ${v.currency === 'USD' ? 'dollar' : 'peso'} bills for ${esc(v.payeeName)}.${other ? ` Their unpaid bills are in ${v.currency === 'USD' ? 'pesos' : 'US dollars'}${isPT ? '; change the currency to pay them.' : ', paid by bank transfer.'}` : ''}</p>`; return; }
+    const otherBills = D.bills.filter(b => contactByName(v.payeeName) && b.payeeId === contactByName(v.payeeName).id && live(b) && (b.currency || 'PHP') !== (v.currency || 'PHP') && billBalance(b, self) > 0), other = otherBills.length > 0;
+    const otherCurs = () => [...new Set(otherBills.map(b => curOf(b.currency || 'PHP').units))].join(' and ');
+    if (!list.length) { el.innerHTML = `<p class="hint">No unpaid bills in ${curOf(v.currency).units} for ${esc(v.payeeName)}.${other ? ` Their unpaid bills are in ${otherCurs()}${isPT ? '; change the currency to pay them.' : ', paid by bank transfer.'}` : ''}</p>`; return; }
     const pick = Object.fromEntries(v.bills.map(x => [x.billId, x.amount]));
     el.innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:44px"></th><th>Invoice</th><th>Particulars</th><th class="num">Balance</th><th class="num" style="width:170px">Pay now (${curSym(v.currency)})</th></tr></thead><tbody>${list.map(b => {
       const on = b.id in pick, bal = billBalance(b, self);
       return `<tr data-id="${esc(b.id)}" data-bal="${bal}"><td><input type="checkbox" class="b-pick" ${on ? 'checked' : ''} aria-label="Pay invoice ${esc(b.ref)}"></td>
-        <td><b>${isMemo(b) ? 'Debit memo ' : ''}${esc(b.ref)}</b><span class="sub">${fdate(b.date)}${b.currency === 'USD' ? ` · booked at ${fmtRate(b.rate)}` : ''}</span>${b.from ? `<span class="sub">${esc(fromNote(b))}</span>` : ''}</td><td>${esc(b.particulars)}${isMemo(b) ? '<span class="sub">A credit: it comes off what’s paid</span>' : ''}</td><td class="num">${isMemo(b) ? money(-bal) : money(bal)}</td>
+        <td><b>${isMemo(b) ? 'Debit memo ' : ''}${esc(b.ref)}</b><span class="sub">${fdate(b.date)}${isFx(b.currency) ? ` · ${curSym(b.currency)}, booked at ${fmtRate(b.rate)}` : ''}</span>${b.from ? `<span class="sub">${esc(fromNote(b))}</span>` : ''}</td><td>${esc(b.particulars)}${isMemo(b) ? '<span class="sub">A credit: it comes off what’s paid</span>' : ''}</td><td class="num">${isMemo(b) ? money(-bal) : money(bal)}</td>
         <td class="num"><input class="b-amt" type="number" step="0.01" min="0" inputmode="decimal" value="${on ? esc(pick[b.id]) : ''}" style="text-align:right" aria-label="Amount to pay on invoice ${esc(b.ref)}"></td></tr>`;
     }).join('')}</tbody><tfoot><tr><td colspan="4">Bills paid</td><td class="num" id="f-billtot"></td></tr></tfoot></table></div>`;
   };
@@ -1817,14 +1859,16 @@ function docForm(kind, v0, mode = 'new') {
     const el = document.getElementById('f-lines');
     document.getElementById('f-addline').textContent = v.lines.length ? 'Split across another account' : 'Add an item without a bill';
     if (!v.lines.length) { el.innerHTML = `<p class="hint">None. Add one if the ${isPT ? 'transfer' : 'check'} also pays something that has no bill.</p>`; return; }
-    const depts = true;
-    el.innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${depts ? 34 : 42}%">Account</th>${depts ? `<th style="width:17%">Charged to ${tip('The department an expense is for; the shipment, for goods in transit; the employee, for an advance.')}</th>` : ''}<th>Description (optional)</th><th class="num" style="width:170px" id="f-amt-h">${isDM ? 'Amount' : 'Amount per invoice'} (${curSym(v.currency)})</th><th style="width:70px"></th></tr></thead><tbody>${v.lines.map((l, i) => `<tr>
-      <td><select class="l-acct" aria-label="Line ${i + 1} account">${acctOptions(l.accountId, purchaseAccounts())}</select></td>
+    el.innerHTML = `<div class="tbl-wrap"><table class="compact lines-tax"><thead><tr><th style="width:30%">Account</th><th style="width:16%">Charged to ${tip('The department an expense is for; the shipment, for goods in transit; the employee, for an advance.')}</th><th>Description (optional)</th><th class="num" style="width:150px" id="f-amt-h">${isDM ? 'Amount' : 'Amount per invoice'} (${curSym(v.currency)})</th>
+      <th class="l-tick l-vath">VAT ${tip('Tick each line the invoice charges 12% VAT on. Type its amount as printed; the hub takes the VAT out into Input VAT.')}</th><th class="l-tick l-wth">EWT ${tip('Tick each line you withhold on. Untick what the payee only passes on to you, like duties or arrastre a broker paid for the company.')}</th><th style="width:64px"></th></tr></thead><tbody>${v.lines.map((l, i) => `<tr>
+      <td><select class="l-acct" aria-label="Line ${i + 1} account">${acctOptions(l.accountId, billLineAccounts())}</select></td>
       ${chargeCell('l', l, i, l.accountId)}
-      <td><input class="l-desc" value="${esc(l.desc)}" aria-label="Line ${i + 1} description"></td>
+      <td><input class="l-desc" value="${esc(l.desc)}" aria-label="Line ${i + 1} description"><div class="l-goods"${isGoods(l.accountId) ? '' : ' hidden'}><input class="l-bc" value="${esc(l.barcode || '')}" placeholder="Barcode" autocomplete="off" aria-label="Line ${i + 1} barcode"><input class="l-pcs" type="number" step="1" min="1" inputmode="numeric" value="${esc(l.pcs || '')}" placeholder="Pieces" aria-label="Line ${i + 1} number of pieces"></div></td>
       <td class="num"><input class="l-amt" type="number" step="0.01" min="0" inputmode="decimal" value="${esc(l.amount)}" style="text-align:right" aria-label="Line ${i + 1} amount"></td>
+      <td class="l-tick l-vatc"><input type="checkbox" class="l-vat" ${l.vat ? 'checked' : ''} aria-label="Line ${i + 1} has VAT"></td>
+      <td class="l-tick l-wtc"><input type="checkbox" class="l-wt" ${l.wt !== false ? 'checked' : ''} aria-label="Line ${i + 1} is withheld on"></td>
       <td>${!isBill || v.lines.length > 1 ? `<button type="button" class="btn link sm l-del" data-i="${i}">Remove</button>` : ''}</td></tr>`).join('')}</tbody>
-      <tfoot><tr><td colspan="${depts ? 3 : 2}">${isDM ? 'Memo total' : 'Invoice total'}</td><td class="num" id="f-gross"></td><td></td></tr></tfoot></table></div>`;
+      <tfoot><tr><td colspan="3">${isDM ? 'Memo total' : 'Invoice total'}</td><td class="num" id="f-gross"></td><td class="l-tick l-vatc"></td><td class="l-tick l-wtc"></td><td></td></tr></tfoot></table></div>`;
   };
   /* Particulars follow the bills ticked, until someone types their own. */
   let autoPart = '';
@@ -1842,20 +1886,31 @@ function docForm(kind, v0, mode = 'new') {
   let lastCur = v.currency;
   const update = () => {
     read();
-    if (v.currency !== lastCur && !isBill) { lastCur = v.currency; v.bills = []; drawBills(); read(); }
+    if (v.currency !== lastCur && !isBill) { lastCur = v.currency; v.bills = []; drawBills(); read();
+      // the payee's usual account, filled in with no amount, gives way to their unpaid bills in this currency
+      if (!edit && v.lines.length === 1 && !v.lines[0].amount && payeeBills().length) { v.lines = []; drawLines(); read(); } }
     lastCur = v.currency;
     syncPayeeType();
-    const c = compute(), usd = v.currency === 'USD';
+    const c = compute(), usd = isFx(v.currency), sym = curSym(v.currency);
     const rw = document.getElementById('f-rate-wrap');
     if (rw) {
       rw.hidden = !usd; const ri = document.getElementById('f-rate'), ar = autoRate();
       ri.readOnly = ar !== null; if (ar !== null) ri.value = ar ? String(Math.round(ar * 10000) / 10000) : '';
-      document.getElementById('f-rate-l').textContent = ar !== null ? 'Rate, this account’s (₱ per US$)' : isPT ? 'Rate the bank charged (₱ per US$)' : 'Rate on the invoice date (₱ per US$)';
+      document.getElementById('f-rate-l').textContent = ar !== null ? `Rate, this account’s (₱ per ${sym})` : isPT ? `Rate the bank charged (₱ per ${sym})` : `Rate on the invoice date (₱ per ${sym})`;
       const cs = document.getElementById('f-cur'); cs.disabled = usdBank(); if (usdBank()) cs.value = 'USD';
     }
     const vi = document.getElementById('f-vat'), ei = document.getElementById('f-ewt');
-    vi.disabled = !v.vatable; ei.disabled = !v.atc;
-    if (!v.vatManual) vi.value = v.vatable && c.gross ? c.vat.toFixed(2) : '';
+    vi.disabled = !c.vatable; ei.disabled = !v.atc;
+    if (!v.vatManual) vi.value = c.vatable && c.gross ? c.vat.toFixed(2) : '';
+    // the VAT and EWT ticks: only for peso documents, EWT only with an ATC; never on cash moved or import VAT
+    const showWt = !usd && !!v.atc && !isDM;
+    document.querySelectorAll('#f-lines .l-vath, #f-lines .l-vatc').forEach(x => { x.hidden = usd; });
+    document.querySelectorAll('#f-lines .l-wth, #f-lines .l-wtc').forEach(x => { x.hidden = !showWt; });
+    document.querySelectorAll('#f-lines tbody tr').forEach(tr => { const a = tr.querySelector('.l-acct').value, nt = lineNoTax({ accountId: a }, D.control);
+      ['.l-vat', '.l-wt'].forEach(k => { const cb = tr.querySelector(k); if (nt) cb.checked = false; cb.disabled = nt; });
+      tr.querySelector('.l-goods').hidden = !isGoods(a); });
+    document.getElementById('f-taxnote').textContent = c.vatable || showWt ? `VAT is worked out on the lines ticked VAT${showWt ? ', withholding on the lines ticked EWT' : ''}.` : '';
+    const iw = document.getElementById('f-imp-wrap'); iw.hidden = !c.importVat;
     if (!v.ewtManual) ei.value = v.atc && c.gross ? c.ewt.toFixed(2) : '';
     document.getElementById('f-vat-auto').hidden = !v.vatManual;
     document.getElementById('f-ewt-auto').hidden = !v.ewtManual;
@@ -1870,11 +1925,12 @@ function docForm(kind, v0, mode = 'new') {
     const warn = [];
     if (usd && !(rateOf(v) > 0)) warn.push(usdBank() ? 'This account has no dollars on that date.' : 'Type the rate to see the entry in pesos.');
     if (c.fxDiff) warn.push(`${c.fxDiff > 0 ? 'Exchange loss' : 'Exchange gain'} of ${peso(Math.abs(c.fxDiff))}: the bills were booked at a different rate.`);
-    if (v.lines.length && v.atc && v.ewtManual && Math.abs(c.ewt - c.ewtAuto) >= 0.01) warn.push(`Withholding is ${peso(c.ewt)}; ${v.atc} at ${Math.round(c.rate * 100)}% of ${peso(c.base)} would be ${peso(c.ewtAuto)}.`);
-    if (v.lines.length && v.vatable && v.vatManual && c.gross && Math.abs(c.vat - c.vatAuto) >= 0.01) warn.push(`VAT was typed in, not computed. Fine if part of the invoice is VAT-exempt.`);
+    if (v.lines.length && v.atc && v.ewtManual && Math.abs(c.ewt - c.ewtAuto) >= 0.01) warn.push(`Withholding is ${peso(c.ewt)}; ${v.atc} at ${Math.round(c.rate * 100)}% of ${peso(c.wbase)} would be ${peso(c.ewtAuto)}.`);
+    if (c.importVat) warn.push(`${peso(c.importVat)} is VAT Customs charged on the import, from the import entry. It goes straight to Input VAT, outside the shipment’s cost, with no 12% worked out on it.`);
+    if (v.lines.length && c.vatable && v.vatManual && c.gross && Math.abs(c.vat - c.vatAuto) >= 0.01) warn.push(`VAT was typed in, not computed. Fine if part of the invoice is VAT-exempt.`);
     if (!isBill && !isPT && v.checkDate && v.date && v.checkDate < v.date) warn.push('The check is dated before the voucher.');
     const dw = dateWarn(isPT ? v.checkDate : v.date, isBill ? (isDM ? 'memo date' : 'invoice date') : isPT ? 'transfer date' : 'voucher date'); if (dw) warn.push(dw);
-    const vs = vatSlip(); if (vs) warn.push(`${vs} Tick “Amounts include 12% VAT” if the invoice shows it.`);
+    const vs = vatSlip(); if (vs) warn.push(`${vs} Tick VAT on the lines that carry it, if the invoice shows it.`);
     warn.push(...budgetWarnings(c.entry, self));
     document.getElementById('f-taxwarn').textContent = warn.join(' ');
     const lines = c.entry.filter(e => e.dr || e.cr), has = c.gross || c.billsPaid;
@@ -1904,7 +1960,7 @@ function docForm(kind, v0, mode = 'new') {
         else {
           if (p.accountId && !purchaseNotFor(p.accountId, '')) { v.lines = [{ accountId: p.accountId, desc: '', amount: '' }]; drawLines(); }
           if (p.atc && !isDM) document.getElementById('f-atc').value = p.atc;
-          if (p.vatable === false) document.getElementById('f-vatable').checked = false;
+          if (p.vatable === false && !vatTouched) { vatDefault = false; document.querySelectorAll('#f-lines .l-vat').forEach(cb => { cb.checked = false; }); }
         }
       }
       const stale = p.accountId && purchaseNotFor(p.accountId, '');
@@ -1922,7 +1978,7 @@ function docForm(kind, v0, mode = 'new') {
     if (edit && !v0.vatable && pc && pc.id === v0.payeeId) return '';
     return taxSlips({ payeeId: pc ? pc.id : '', payeeName: v.payeeName, tin: v.tin, date: v.date, lines: v.lines.map(l => ({ accountId: l.accountId, amount: numIn(l.amount) })), vatable: v.vatable, atc: v.atc, currency: v.currency, id: self }).vat;
   };
-  const vatStop = () => { const vs = vatSlip(); if (!vs || vatAck === vs) return ''; vatAck = vs; return `${vs} Tick “Amounts include 12% VAT”, or press Save again if this invoice has no VAT.`; };
+  const vatStop = () => { const vs = vatSlip(); if (!vs || vatAck === vs) return ''; vatAck = vs; return `${vs} Tick VAT on the lines that carry it, or press Save again if this invoice has no VAT.`; };
   let ptypeTouched = false;
   const syncPayeeType = () => {
     const pc = contactByName(v.payeeName), need = !!v.payeeName && (!pc || !isPayee(pc));
@@ -1938,13 +1994,16 @@ function docForm(kind, v0, mode = 'new') {
       if (!l.accountId && (l.amount === '' || l.amount == null) && !l.desc) continue;
       if (!l.accountId) return `${isBill ? 'Line' : 'Item'} ${i + 1}: choose the account.`;
       if (!(a > 0)) return `${isBill ? 'Line' : 'Item'} ${i + 1}: enter an amount greater than zero.`;
-      if (purchaseNotFor(l.accountId, isBill ? 'a bill' : 'a voucher')) return `${isBill ? 'Line' : 'Item'} ${i + 1}: ${purchaseNotFor(l.accountId, isBill ? 'a bill' : 'a voucher')}`;
+      if (billLineNotFor(l.accountId, isBill ? 'a bill' : 'a voucher')) return `${isBill ? 'Line' : 'Item'} ${i + 1}: ${billLineNotFor(l.accountId, isBill ? 'a bill' : 'a voucher')}`;
       if (!l.dept && needsDept(l.accountId)) return `${isBill ? 'Line' : 'Item'} ${i + 1}: choose the department it’s for.`;
       if (tagMissing(l)) return `${isBill ? 'Line' : 'Item'} ${i + 1}: ${tagMissing(l)}.`;
+      if (isGoods(l.accountId) && l.pcs !== '' && l.pcs != null && !(Number.isInteger(numIn(l.pcs)) && numIn(l.pcs) > 0)) return `${isBill ? 'Line' : 'Item'} ${i + 1}: pieces must be a whole number, more than zero.`;
     }
-    if (v.currency === 'USD' && !(rateOf(v) > 0)) return usdBank() ? `${acctName(v.bankAcct)} has no dollars on ${fdate(v.date)}.` : 'Enter the rate: pesos per US dollar.';
+    if (c.lines.some(l => l.accountId === D.control.inputVat) && isFx(v.currency)) return 'VAT Customs charged on an import is in pesos. Put it on a peso bill.';
+    if (c.importVat && !v.importEntry) return 'Enter the import entry no. for the VAT Customs charged. The BIR asks for it when the VAT is claimed.';
+    if (isFx(v.currency) && !(rateOf(v) > 0)) return usdBank() ? `${acctName(v.bankAcct)} has no dollars on ${fdate(v.date)}.` : `Enter the rate: pesos per ${curOf(v.currency).unit}.`;
     if (c.entry.some(x => (x.dr || x.cr) && !x.acct)) return 'This needs an account for exchange gains and losses or for bank charges that isn’t set up yet. Ask an admin to open the hub and finish the update.';
-    if (c.lines.length && v.vatable && v.vatManual && (isNaN(numIn(v.vat)) || v.vat < 0 || v.vat >= c.gross)) return 'Input VAT must be zero or more, and less than the invoice total.';
+    if (c.lines.length && c.vatable && v.vatManual && (isNaN(numIn(v.vat)) || v.vat < 0 || v.vat >= c.gross)) return 'Input VAT must be zero or more, and less than the invoice total.';
     if (c.lines.length && v.atc && v.ewtManual && (isNaN(numIn(v.ewt)) || v.ewt < 0)) return 'EWT withheld must be zero or more.';
     if (v.tin && !TIN_RE.test(v.tin)) return 'Write the TIN as 000-000-000 or 000-000-000-000, or leave it blank.';
     if (controlIds().some(id => !acct(id))) return 'An account the hub posts to automatically (bank, Input VAT, withholding or payables) is missing from the chart of accounts.';
@@ -1955,13 +2014,15 @@ function docForm(kind, v0, mode = 'new') {
   const savePayee = c => {
     let p = contactByName(v.payeeName);
     const ptype = val('f-ptype'), first = (c.lines[0] || {}).accountId || '';
-    const php = v.currency !== 'USD';
+    const php = !isFx(v.currency);
     if (!p) { p = { id: nextId('p'), name: v.payeeName, tin: v.tin, address: '', accountId: first, atc: php && c.lines.length ? v.atc : '', vatable: php ? v.vatable : false, roles: [ptype] }; D.contacts.push(p); }
     else { if (!isPayee(p)) p.roles.push(ptype); if (!p.tin && v.tin) p.tin = v.tin; if (first && (!p.accountId || purchaseNotFor(p.accountId, ''))) p.accountId = first; if (php && !p.atc && v.atc && c.lines.length) p.atc = v.atc; }
     return p;
   };
-  const taxRec = c => { const php = v.currency !== 'USD'; return { lines: c.lines.map(l => ({ accountId: l.accountId, desc: l.desc, amount: round2(numIn(l.amount)), dept: l.dept || '', tag: tagKind(l.accountId) ? l.tag || '' : '' })), vatable: php && v.vatable, vat: php && v.vatable ? c.vat : 0,
-    vatManual: !!(php && v.vatable && v.vatManual && c.lines.length), atc: php && c.lines.length ? v.atc : '', ewt: php ? c.ewt : 0, ewtManual: !!(php && v.atc && v.ewtManual && c.lines.length), currency: php ? 'PHP' : 'USD', rate: php ? 1 : rateOf(v) }; };
+  const taxRec = c => { const php = !isFx(v.currency); return { lines: c.lines.map((l, i) => ({ accountId: l.accountId, desc: l.desc, amount: round2(numIn(l.amount)), dept: l.dept || '', tag: tagKind(l.accountId) ? l.tag || '' : '',
+      ...(php && !lineNoTax(l, D.control) ? { vat: !!c.vOn[i], wt: !!c.wOn[i] } : {}), ...(isGoods(l.accountId) && l.barcode ? { barcode: l.barcode } : {}), ...(isGoods(l.accountId) && numIn(l.pcs) > 0 ? { pcs: Math.round(numIn(l.pcs)) } : {}) })),
+    vatable: php && c.vatable, vat: php && c.vatable ? c.vat : 0, vatManual: !!(php && c.vatable && v.vatManual && c.lines.length), atc: php && c.lines.length ? v.atc : '', ewt: php ? c.ewt : 0, ewtManual: !!(php && v.atc && v.ewtManual && c.lines.length),
+    currency: php ? 'PHP' : v.currency, rate: php ? 1 : rateOf(v), importEntry: c.importVat ? v.importEntry : '' }; };
   const saveBill = () => {
     read();
     let c = compute();
@@ -1979,7 +2040,7 @@ function docForm(kind, v0, mode = 'new') {
       if (!t || !pc || t.payeeId !== pc.id) return 'The bill it applies to must be the same payee’s.';
       if (c.payable > left) return `Invoice ${t.ref} has ${amt(left, t.currency)} left to pay, less than this memo. Apply it to no one bill instead, and use it on a later payment.`;
       if (t.date > v.date) return `Invoice ${t.ref} is dated after this memo.`;
-      if ((t.currency || 'PHP') === 'USD' && rateOf(t) !== rateOf(v)) return `Invoice ${t.ref} is at ${fmtRate(rateOf(t))}. A memo applied to it uses the same rate.`;
+      if (isFx(t.currency) && rateOf(t) !== rateOf(v)) return `Invoice ${t.ref} is at ${fmtRate(rateOf(t))}. A memo applied to it uses the same rate.`;
     }
     if (!v.particulars) return 'Enter the particulars, so the bill says what it’s for.';
     const e = checkLines(c); if (e) return e;
@@ -2036,7 +2097,7 @@ function docForm(kind, v0, mode = 'new') {
     if (!c.lines.length && !c.pays.length) return 'Add what the check pays for: tick a bill, or pick an account and type an amount.';
     if (c.check <= 0) return 'The check amount must be more than zero.';
     if (c.dr !== c.cr) return 'The entry doesn’t balance. Check the VAT and withholding amounts.';
-    /* A dollar bill's last payment takes the pesos still left on it, so payables clear to the centavo. */
+    /* A foreign-currency bill's last payment takes the pesos still left on it, so payables clear to the centavo. */
     const clearingPeso = x => {
       const b = billOf(x.billId); if (!b || (b.currency || 'PHP') === 'PHP' || b.from || round2(billBalance(b, self) - x.amount) !== 0) return 0;
       const others = D.vouchers.filter(o => live(o) && o.id !== self).flatMap(o => (o.bills || []).filter(p => p.billId === b.id).map(p => p.peso ? round2(p.peso) : round2(p.amount * rateOf(b))))
@@ -2084,13 +2145,14 @@ function docForm(kind, v0, mode = 'new') {
         const t = e.target;
         m.dataset.dirty = '1';
         if (t.id === 'f-ptype') ptypeTouched = true;
+        if (t.classList.contains('l-vat')) vatTouched = true;
         if (t.classList.contains('b-pick')) {
           const tr = t.closest('tr'), amt = tr.querySelector('.b-amt');
           amt.value = t.checked ? (amt.value || Number(tr.dataset.bal).toFixed(2)) : '';
           read(); syncPart();
         }
         if (t.id === 'f-cur' && isDM) { read(); drawApplies(); }
-        if (t.id === 'f-applies' && isDM) { const ab = billOf(t.value); if (ab && (ab.currency || 'PHP') === 'USD') document.getElementById('f-rate').value = rateOf(ab); }
+        if (t.id === 'f-applies' && isDM) { const ab = billOf(t.value); if (ab && isFx(ab.currency)) document.getElementById('f-rate').value = rateOf(ab); }
         if (t.id === 'f-payee') onPayee(); else update();
       });
       m.addEventListener('click', e => {
@@ -2108,7 +2170,7 @@ function docForm(kind, v0, mode = 'new') {
 
 /* The printed voucher */
 function voucherDoc(v) {
-  const void_ = v.status === 'void', t = isTransfer(v), usd = v.currency === 'USD', bank = bankInfo(v.bankAcct || D.control.bank);
+  const void_ = v.status === 'void', t = isTransfer(v), usd = isFx(v.currency), bank = bankInfo(v.bankAcct || D.control.bank);
   const lines = v.entry || [];
   const dr = sum(lines.map(e => e.dr)), cr = sum(lines.map(e => e.cr));
   const cell = (label, value) => `<div><span class="vc-eye">${label}</span><div class="vc-v">${value}</div></div>`;
@@ -2200,20 +2262,22 @@ function billList() {
   const cols = [
     { h: 'Invoice', k: ({ b }) => `<b>${isMemo(b) ? 'Debit memo ' : ''}${esc(b.ref)}</b><span class="sub">${fdate(b.date)}</span>${b.appliesTo ? `<span class="sub">On invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}</span>` : ''}${b.dueDate ? `<span class="sub">Due ${fdate(b.dueDate)}</span>` : ''}${b.from ? `<span class="sub">${esc(fromNote(b))}</span>` : ''}` },
     { h: 'Payee', k: ({ b }) => `${esc(b.payeeName)}<span class="sub">${esc(b.particulars)}</span>` },
-    { h: 'Amount payable', num: 1, k: ({ b }) => `<span class="amt">${isMemo(b) ? `(${amt(b.payable, b.currency)})` : amt(b.payable, b.currency)}</span>${b.ewt ? `<span class="sub">${money(b.ewt)} withheld</span>` : ''}${b.currency === 'USD' ? `<span class="sub">${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</span>` : ''}` },
+    { h: 'Amount payable', num: 1, k: ({ b }) => `<span class="amt">${isMemo(b) ? `(${amt(b.payable, b.currency)})` : amt(b.payable, b.currency)}</span>${b.ewt ? `<span class="sub">${money(b.ewt)} withheld</span>` : ''}${isFx(b.currency) ? `<span class="sub">${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ b, st }) => st === 'Void' ? '' : amt(billBalance(b), b.currency) },
     { h: 'Status', k: ({ b, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(b.voidReason || '')}</span>` : '') },
     { h: '', k: ({ b }) => rowActs([['view-bill', b.id, 'View'], own(b) && live(b) && !isLocked(b.date) && canBooks('bills.edit') && ['edit-bill', b.id, 'Edit']]) }
   ];
   const lv = rows.filter(r => live(r.b));
-  const usdNote = lv.some(r => r.b.currency === 'USD') ? '<span class="sub">In pesos; dollar bills at their own rate</span>' : '';
+  const usdNote = lv.some(r => isFx(r.b.currency)) ? '<span class="sub">In pesos; dollar and yuan bills at their own rate</span>' : '';
   const sg = b => isMemo(b) ? -1 : 1;
   return table(cols, rows, 'No bills match.', `<tfoot><tr><td>${lv.length} bill${lv.length === 1 ? '' : 's'}${usdNote}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, r.b.payable))))}</td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, billBalance(r.b)))))}</td><td></td><td></td></tr></tfoot>`, r => r.b.status === 'void' ? 'void' : '');
 }
 function viewBill(id) {
   const b = billOf(id), st = bStatus(b), paid = billPaid(id), payers = billPayers(id), memo = isMemo(b);
   const open = live(b) && own(b) && !isLocked(b.date);
-  const extra = [own(b) && `<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(b) && own(b) && canVoid() && !payers.length && canBooks('bills.void') && `<button class="btn ghost" data-act="void-bill" data-id="${id}">Void</button>`, open && canBooks('bills.edit') && `<button class="btn" data-act="edit-bill" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+  const extra = [own(b) && `<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(b) && own(b) && canVoid() && !payers.length && canBooks('bills.void') && `<button class="btn ghost" data-act="void-bill" data-id="${id}">Void</button>`, open && canBooks('bills.edit') && `<button class="btn" data-act="edit-bill" data-id="${id}">Edit</button>`,
+    !open && live(b) && own(b) && !memo && !b.from && canBooks('bills.edit') && `<button class="btn ghost" data-act="due-bill" data-id="${id}">Change due date</button>`].filter(Boolean).join('');
+  const goods = (b.lines || []).filter(l => l.barcode || l.pcs);
   const lines = b.entry || [], dr = sum(lines.map(e => e.dr)), cr = sum(lines.map(e => e.cr));
   const body = `${b.status === 'void' ? `<p class="lead">Voided ${fdate(b.voidedOn)}: ${esc(b.voidReason)}</p>` : ''}${b.from ? `<p class="lead">${esc(fromNote(b))}. ${peso(b.paidBefore || 0)} was paid on it before ${YEAR}. Its lines and entry are in the ${b.from} books. It can be paid here, but not changed.</p>` : live(b) && isLocked(b.date) ? '<p class="lead">In a locked month. It can still be paid, or voided on an open date, but not changed.</p>' : ''}
     <div class="preview-wrap"><div class="dv">${b.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
@@ -2222,14 +2286,27 @@ function viewBill(id) {
         <dt>TIN</dt><dd>${esc(b.tin || '')}</dd><dt>${memo ? 'Memo date' : 'Invoice date'}</dt><dd>${fdate(b.date)}</dd>
         <dt>Particulars</dt><dd>${esc(b.particulars)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (b.appliesTo ? `Invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}` : 'A later payment') : b.dueDate ? fdate(b.dueDate) : ''}</dd>
       </dl>
-      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Payable'}</dt><dd class="big">${amt(b.payable, b.currency)}</dd>${b.currency === 'USD' ? `<dt>In pesos</dt><dd>${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(b) ? `<dt>Balance</dt><dd>${amt(round2(b.payable - paid), b.currency)}</dd>` : ''}</dl>
+      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Payable'}</dt><dd class="big">${amt(b.payable, b.currency)}</dd>${isFx(b.currency) ? `<dt>In pesos</dt><dd>${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(b) ? `<dt>Balance</dt><dd>${amt(round2(b.payable - paid), b.currency)}</dd>` : ''}</dl>
       ${b.from ? '' : `<p class="dv-sect">Accounting entry</p>
       <table><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${lines.map(e => `<tr><td class="${e.cr ? 'cr' : ''}">${esc(acctName(e.acct))}${e.memo ? ` <span style="color:var(--muted)">· ${esc(e.memo)}</span>` : ''}</td><td class="num">${e.dr ? money(e.dr) : ''}</td><td class="num">${e.cr ? money(e.cr) : ''}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td>Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table>`}
+      ${goods.length ? `<p class="dv-sect" style="margin-top:22px">Goods</p><table><thead><tr><th>Barcode</th><th>Description</th><th class="num">Pieces</th><th class="num">Amount</th></tr></thead><tbody>${goods.map(l => `<tr><td>${esc(l.barcode || '')}</td><td>${esc(l.desc || '')}</td><td class="num">${l.pcs ? Number(l.pcs).toLocaleString('en-US') : ''}</td><td class="num">${money(l.amount)}</td></tr>`).join('')}</tbody></table>` : ''}
+      ${b.importEntry ? `<p class="hint" style="margin-top:14px">Import entry no. ${esc(b.importEntry)}: ${peso(docImportVat(b))} VAT Customs charged.</p>` : ''}
       ${payers.length ? `<p class="dv-sect" style="margin-top:22px">${memo ? 'Used by' : 'Paid by'}</p><table><thead><tr><th>Document</th><th>Check or reference</th><th class="num">Amount</th></tr></thead><tbody>${payers.map(v => v.cv ? `<tr><td>${esc(v.cv)}<span class="sub">${fdate(v.date)}</span></td><td>${esc(v.checkNo || (isTransfer(v) ? 'Transfer' : ''))}<span class="sub">${vStatus(v)}</span></td><td class="num">${money(sum(v.bills.filter(p => p.billId === id).map(p => p.amount)))}</td></tr>`
         : `<tr><td>${esc(settlerRef(v))}<span class="sub">${fdate(v.date)}</span></td><td><span class="sub">Applied to this bill</span></td><td class="num">${money(v.payable)}</td></tr>`).join('')}</tbody></table>` : ''}
     </div></div>${b.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(b.notes)}</p>` : ''}`;
   openModal(`${memo ? 'Debit Memo' : 'Invoice'} ${esc(b.ref)}`, body, null, '', { size: 'mid', extra });
+}
+/* The due date only says when a bill should be paid: it isn't in the books, so it can change any time, even in a
+   locked month or after part is paid (a TT often goes out on a day other than the one first planned). */
+function dueDateForm(id) {
+  const b = billOf(id); if (!b || !live(b) || !own(b) || b.from) return;
+  openModal(`Due Date, Invoice ${esc(b.ref)}`, `<p class="lead">Invoice dated ${fdate(b.date)}. The due date isn’t in the books; it sets where the bill sits on the Unpaid Bills report.</p>
+    <div class="fields">${F('dd-date', 'Due date (optional)', inp('dd-date', b.dueDate || '', 'date'))}</div>`, () => {
+    const d = val('dd-date');
+    if (d && d < b.date) return 'The due date can’t be before the invoice date.';
+    return save('saveBill', () => { billOf(id).dueDate = d; }, () => toast(`Due date of invoice ${b.ref} ${d ? `set to ${fdate(d)}` : 'cleared'}`));
+  }, 'Save');
 }
 function voidBill(id) {
   const b = billOf(id);
@@ -2414,7 +2491,7 @@ function journalPage() {
    bill or voucher before this one. A first-time payee with a TIN is expected to charge VAT, and a first-time
    service provider to be withheld on. Only the lines VAT and withholding apply to count: not advances or cash. */
 const UNBILLED_LIMIT = 50000;
-const taxedLines = lines => (lines || []).filter(l => l.accountId && Number(l.amount) > 0 && l.accountId !== D.control.advances && !(D.control.cashIds || []).includes(l.accountId));
+const taxedLines = lines => (lines || []).filter(l => l.accountId && Number(l.amount) > 0 && !lineNoTax(l, D.control));
 const docName = x => x.cv || `invoice ${x.ref}`;
 /* Each payee's peso bills and vouchers with taxed lines, oldest first. Built once per check of a whole month. */
 function payeeIndex() {
@@ -2805,7 +2882,7 @@ function checksSummary(ym) {
 function billsSummary(ym) {
   const end = eom(ym), xs = signedDocs(D.bills.filter(b => !isMemo(b)), `${ym}-01`, end), ms = signedDocs(D.bills.filter(isMemo), `${ym}-01`, end);
   const unpaid = D.bills.filter(b => liveAt(b, end) && b.date <= end && !isMemo(b)).map(b => pesoOf(b, billBalance(b, null, end))).filter(x => x > 0);
-  return { count: sum(xs.map(x => x.s)), voids: xs.filter(x => x.s < 0).length, gross: signedSum(xs, b => pesoOf(b, vGross(b))), ewt: signedSum(xs, b => b.ewt), payable: signedSum(xs, b => pesoOf(b, b.payable)), unpaid: unpaid.length, unpaidTotal: sum(unpaid), usd: xs.some(x => x.d.currency === 'USD'),
+  return { count: sum(xs.map(x => x.s)), voids: xs.filter(x => x.s < 0).length, gross: signedSum(xs, b => pesoOf(b, vGross(b))), ewt: signedSum(xs, b => b.ewt), payable: signedSum(xs, b => pesoOf(b, b.payable)), unpaid: unpaid.length, unpaidTotal: sum(unpaid), usd: xs.some(x => isFx(x.d.currency)),
     memos: sum(ms.map(x => x.s)), memoTotal: signedSum(ms, b => pesoOf(b, b.payable)) };
 }
 /* Sales and what came in for them in a month. Unpaid at month end is each invoice dated by then, less what was
@@ -2866,7 +2943,7 @@ function summaryBody() {
     </tbody></table></div>` : ''}
     <h2 class="mt">Supplier Bills</h2>
     <div class="tbl-wrap"><table><tbody>
-      <tr><td>Bills entered this month (${bs.count}), invoice totals${voidNote(bs.voids)}${bs.usd ? '<span class="sub">Bills in US dollars at the rate each was booked at.</span>' : ''}</td><td class="num">${money(bs.gross)}</td></tr>
+      <tr><td>Bills entered this month (${bs.count}), invoice totals${voidNote(bs.voids)}${bs.usd ? '<span class="sub">Bills in US dollars or yuan at the rate each was booked at.</span>' : ''}</td><td class="num">${money(bs.gross)}</td></tr>
       <tr><td>Withheld on those bills</td><td class="num">${money(bs.ewt)}</td></tr>
       <tr><td><b>Amount payable</b></td><td class="num"><b>${money(bs.payable)}</b></td></tr>
       ${bs.memos ? `<tr><td>Debit memos (${bs.memos})</td><td class="num">${money(-bs.memoTotal)}</td></tr>` : ''}
@@ -2885,7 +2962,7 @@ function summaryBody() {
     <div class="tbl-wrap"><table><tbody>
       <tr><td>Payments by transfer (${o.pts}), in pesos${voidNote(o.ptVoids)}</td><td class="num">${money(o.sent)}</td></tr>
       <tr><td>Bank charges on transfers</td><td class="num">${money(o.charges)}</td></tr>
-      <tr><td>Exchange gain (loss) on dollar payments and transfers</td><td class="num">${money(o.fx)}</td></tr>
+      <tr><td>Exchange gain (loss) on foreign-currency payments and transfers</td><td class="num">${money(o.fx)}</td></tr>
       <tr><td>Transfers between the company’s accounts</td><td class="num">${o.moves}</td></tr>
       <tr><td>Journal entries</td><td class="num">${o.jes}</td></tr>
     </tbody></table></div>` : ''}
@@ -3342,6 +3419,11 @@ const byDateRef = (a, b) => a.date.localeCompare(b.date) || a.ref.localeCompare(
 const byDateNo = (a, b) => a.date.localeCompare(b.date) || a.no.localeCompare(b.no);
 /* Lines on goods in transit name their shipment; lines on employee advances name the employee. */
 const TAG_COLS = [['Shipment ID', 's', 12, 'optional'], ['Employee ID', 's', 12, 'optional']];
+/* A line's VAT and EWT (Yes or No; blank on lines saved before lines said so, and on lines never taxed), barcode and pieces. */
+const lineTaxVals = l => [l.vat == null ? null : yn(l.vat), l.wt == null ? null : yn(l.wt), l.barcode || null, l.pcs || null];
+/* VAT Customs charged on an import, typed to Input VAT; and what the withholding was worked out on, for the EWT list. */
+const docImportVat = d => (d.currency || 'PHP') === 'PHP' && D.control.inputVat ? round2(sum((d.lines || []).filter(l => l.accountId === D.control.inputVat).map(l => l.amount))) : 0;
+const docEwtBase = d => d.atc && (d.lines || []).length && (d.currency || 'PHP') === 'PHP' ? taxCalc(d, D.control).wbase : null;
 const tagVals = (acctId, tag) => { const k = tagKind(acctId); return [k === 'ship' ? tag || null : null, k === 'emp' ? tag || null : null]; };
 const stat = x => x.status === 'void' ? 'Void' : 'Active';
 const TABLES = [
@@ -3349,26 +3431,26 @@ const TABLES = [
     cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16], ['Invoice date', 'd', 13], ['Due date', 'd', 13, 'optional'], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Amount payable', 'n', 15],
       ['Payables account ID', 's', 12], ['Status', 's', 12], ['Carried from', 'i', 10], ['Paid before', 'n', 15], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'],
-      ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Type', 's', 12, 'optional'], ['Applies to Bill ID', 's', 12, 'optional']],
+      ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Type', 's', 12, 'optional'], ['Applies to Bill ID', 's', 12, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived']],
     rows: () => D.bills.filter(b => !b.foreign).sort(byDateRef).map(b => [b.id, b.ref, b.date, b.dueDate || null, b.payeeId, b.payeeName, b.tin || null, b.particulars,
       yn(b.vatable), vGross(b), b.vat, yn(b.vatManual), b.atc || null, b.atc ? b.ewt : null, yn(b.ewtManual), b.payable,
       b.apAccount, b.status === 'void' ? 'Void' : 'Active', b.from || null, b.from ? b.paidBefore || 0 : null, b.voidReason || null, b.voidedOn || null, b.notes || null, b.createdAt || null, b.createdBy || null, b.updatedAt || null, b.updatedBy || null,
-      b.currency === 'USD' ? 'USD' : null, b.currency === 'USD' ? String(b.rate) : null, isMemo(b) ? 'Debit memo' : null, b.appliesTo || null]) },
+      isFx(b.currency) ? b.currency : null, isFx(b.currency) ? String(b.rate) : null, isMemo(b) ? 'Debit memo' : null, b.appliesTo || null, docImportVat(b) || null, b.importEntry || null, docEwtBase(b)]) },
   { name: 'Bill lines', key: 'Bill ID', yearly: true, optional: true, subtitle: 'What each bill is for, one row per account line, as typed from the invoice.',
-    cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => D.bills.filter(own).sort(byDateRef).flatMap(b => b.lines.map((l, i) => [b.id, b.ref, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ['VAT', 's', 7, 'optional'], ['EWT', 's', 7, 'optional'], ['Barcode', 's', 16, 'optional'], ['Pieces', 'i', 9, 'optional'], ...TAG_COLS],
+    rows: () => D.bills.filter(own).sort(byDateRef).flatMap(b => b.lines.map((l, i) => [b.id, b.ref, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...lineTaxVals(l), ...tagVals(l.accountId, l.tag)])) },
   { name: 'Vouchers', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'One row per check voucher or payment by transfer (Method). Status and Cleared on are what Check Monitoring shows. For a transfer, Check no. holds the bank’s reference and Check date the day it was sent.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15], ['Voucher date', 'd', 13], ['Check no.', 's', 16], ['Check date', 'd', 13], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Bills paid', 'n', 15, 'derived'], ['Check amount', 'n', 15],
       ['Status', 's', 12], ['Cleared on', 'd', 13], ['Carried from', 'i', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'],
-      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional']],
+      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived']],
     rows: () => D.vouchers.filter(v => !v.foreign).sort(byDateCv).map(v => [v.id, v.cv, v.date, v.checkNo || null, v.checkDate, v.payeeId, v.payeeName, v.tin || null, v.particulars,
       yn(v.vatable), vGross(v), v.vat, yn(v.vatManual), v.atc || null, v.atc ? v.ewt : null, yn(v.ewtManual), sum((v.bills || []).map(p => p.amount)), v.checkAmount,
       vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null,
-      v.method || null, v.bankAcct || null, v.currency === 'USD' ? 'USD' : null, v.currency === 'USD' ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null]) },
+      v.method || null, v.bankAcct || null, isFx(v.currency) ? v.currency : null, isFx(v.currency) ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null, docImportVat(v) || null, v.importEntry || null, docEwtBase(v)]) },
   { name: 'Voucher lines', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'What each voucher pays for, one row per account line, as typed from the invoice.',
-    cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ...TAG_COLS],
-    rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...tagVals(l.accountId, l.tag)])) },
+    cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ['VAT', 's', 7, 'optional'], ['EWT', 's', 7, 'optional'], ['Barcode', 's', 16, 'optional'], ['Pieces', 'i', 9, 'optional'], ...TAG_COLS],
+    rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...lineTaxVals(l), ...tagVals(l.accountId, l.tag)])) },
   { name: 'Bill payments', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'Which bills each check voucher pays, and how much. A bill from an earlier year can be paid here.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Amount', 'n', 15], ['Pesos', 'n', 15, 'optional']],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => (v.bills || []).map(p => [v.id, v.cv, p.billId, (billOf(p.billId) || {}).ref || null, p.amount, p.peso || null])) },
@@ -3376,13 +3458,14 @@ const TABLES = [
     cols: [['Invoice ID', 's', 12], ['Type', 's', 12], ['Invoice no.', 's', 16], ['Invoice date', 'd', 13], ['Due date', 'd', 13], ['Customer ID', 's', 10], ['Customer', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Output VAT', 'n', 13], ['VAT typed in', 's', 9], ['Amount receivable', 'n', 15], ['Receivable account ID', 's', 12], ['Applies to Invoice ID', 's', 12],
       ['Status', 's', 10], ['Carried from', 'i', 10], ['Received before', 'n', 15], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30],
-      ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server']],
+      ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'], ['Deductions', 'n', 15, 'derived'], ['CWT withheld', 'n', 14, 'optional']],
     rows: () => (D.invoices || []).filter(i => !i.foreign).sort(byDateRef).map(i => [i.id, isMemo(i) ? 'Credit memo' : 'Invoice', i.ref, i.date, i.dueDate || null, i.customerId, i.customerName, i.tin || null, i.particulars,
       yn(i.vatable), vGross(i), i.vat, yn(i.vatManual), i.receivable, i.arAccount, i.appliesTo || null,
-      i.status === 'void' ? 'Void' : 'Active', i.from || null, i.from ? i.paidBefore || 0 : null, i.voidReason || null, i.voidedOn || null, i.notes || null, i.createdAt || null, i.createdBy || null, i.updatedAt || null, i.updatedBy || null]) },
-  { name: 'Sales invoice lines', key: 'Invoice ID', yearly: true, optional: true, subtitle: 'What each invoice or credit memo is for, one row per account line, as on the invoice.',
-    cols: [['Invoice ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18]],
-    rows: () => (D.invoices || []).filter(own).sort(byDateRef).flatMap(i => i.lines.map((l, n) => [i.id, i.ref, n + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null])) },
+      i.status === 'void' ? 'Void' : 'Active', i.from || null, i.from ? i.paidBefore || 0 : null, i.voidReason || null, i.voidedOn || null, i.notes || null, i.createdAt || null, i.createdBy || null, i.updatedAt || null, i.updatedBy || null,
+      sum(invLess(i).map(l => l.amount)) || null, i.cwt || null]) },
+  { name: 'Sales invoice lines', key: 'Invoice ID', yearly: true, optional: true, subtitle: 'What each invoice or credit memo is for, one row per account line, as on the invoice. Kind “Less” is a charge the customer took off (commission, marketing, a return), not a sale.',
+    cols: [['Invoice ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18], ['Kind', 's', 8, 'optional']],
+    rows: () => (D.invoices || []).filter(own).sort(byDateRef).flatMap(i => i.lines.map(l => [l, null]).concat(invLess(i).map(l => [l, 'Less'])).map(([l, k], n) => [i.id, i.ref, n + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, k])) },
   { name: 'Collections', key: 'Collection ID', yearly: true, optional: true, subtitle: 'One row per payment received from a customer. Checks and cash go to Undeposited Funds until a deposit; a transfer goes straight to the bank.',
     cols: [['Collection ID', 's', 12], ['CR no.', 's', 15], ['Date received', 'd', 13], ['Customer ID', 's', 10], ['Customer', 's', 30], ['Method', 's', 10], ['Reference no.', 's', 18], ['Customer bank', 's', 18], ['Particulars', 's', 40],
       ['Invoices settled', 'n', 15, 'derived'], ['Withheld (CWT)', 'n', 14], ['Deductions', 'n', 13, 'derived'], ['Amount received', 'n', 15], ['Received into account ID', 's', 12],
@@ -3547,13 +3630,13 @@ function dataFromTables(sheets, ctx = {}) {
     if (!o['Custodian ID'] && o['Fund amount']) E(o, 'Fund amount is only for a petty cash fund, which needs its Custodian ID.');
   });
   const curOfBank = id => (banks[id] || {}).currency || 'PHP';
-  // a bill or payment is in pesos unless it says USD, with its rate: pesos per dollar
+  // a bill or payment is in pesos unless it says USD or CNY, with its rate: pesos per dollar or per yuan
   const readCur = o => {
     const c = o.Currency || 'PHP';
-    if (c === 'PHP') { if (o.Rate) E(o, 'Rate is only for documents in USD.'); return { currency: 'PHP', rate: 1 }; }
-    if (c !== 'USD') { E(o, 'Currency must be blank (pesos) or USD.'); return { currency: 'PHP', rate: 1 }; }
-    const r = Number(o.Rate); if (!(r > 0)) E(o, 'Rate must be the pesos per US dollar, more than zero.');
-    return { currency: 'USD', rate: r || 0 };
+    if (c === 'PHP') { if (o.Rate) E(o, 'Rate is only for documents in USD or CNY.'); return { currency: 'PHP', rate: 1 }; }
+    if (!DOC_CURS.includes(c)) { E(o, 'Currency must be blank (pesos), USD or CNY.'); return { currency: 'PHP', rate: 1 }; }
+    const r = Number(o.Rate); if (!(r > 0)) E(o, `Rate must be the pesos per ${curOf(c).unit}, more than zero.`);
+    return { currency: c, rate: r || 0 };
   };
   // contacts
   uniq(T.Contacts, 'Contact ID', 'Contact ID'); uniq(T.Contacts, 'Name', 'Name');
@@ -3591,7 +3674,11 @@ function dataFromTables(sheets, ctx = {}) {
     if (!aid.has(l['Account ID'])) E(l, `Account ID ${l['Account ID']} isn’t on the Accounts tab.`);
     if (!(l[h] > 0)) E(l, `${h} must be more than zero.`);
     const tag = readTag(l, l['Account ID']);
-    return { accountId: l['Account ID'], desc: l.Description || '', amount: l[h], dept: readDept(l), ...(tag ? { tag } : {}) };
+    const yesNo = k => { const x = l[k]; if (x == null) return undefined; if (!['yes', 'no'].includes(String(x).toLowerCase())) E(l, `${k} must be Yes, No or blank.`); return String(x).toLowerCase() === 'yes'; };
+    const vat = yesNo('VAT'), wt = yesNo('EWT');
+    if (l.Pieces != null && !(Number.isInteger(l.Pieces) && l.Pieces > 0)) E(l, 'Pieces must be a whole number more than zero, or blank.');
+    return { accountId: l['Account ID'], desc: l.Description || '', amount: l[h], dept: readDept(l), ...(tag ? { tag } : {}), ...(vat !== undefined ? { vat } : {}), ...(wt !== undefined ? { wt } : {}),
+      ...(l.Barcode ? { barcode: l.Barcode } : {}), ...(l.Pieces ? { pcs: l.Pieces } : {}) };
   });
   const readPayee = o => { const p = cById[o['Payee ID']]; if (!p) E(o, `Payee ID ${o['Payee ID']} isn’t on the Contacts tab.`); else if (!isPayee(p)) E(o, `${p.name} is the payee but isn’t a Supplier, Vendor or Employee on the Contacts tab.`); return p; };
   // VAT and withholding on a bill's lines or a voucher's items without a bill; none on documents in dollars
@@ -3653,7 +3740,7 @@ function dataFromTables(sheets, ctx = {}) {
   const apIds = [control.apTrade, control.apOther], refSeen = new Set();
   const bills = T.Bills.map(o => {
     for (const h of ['Invoice no.', 'Invoice date', 'Particulars', 'Amount payable', 'Payables account ID', 'Status']) if (o[h] == null) E(o, `${h} is blank.`);
-    const from = carriedFrom(o), p = readPayee(o), lines = readLines(blBy[o['Bill ID']]), cur = readCur(o), usd = cur.currency === 'USD';
+    const from = carriedFrom(o), p = readPayee(o), lines = readLines(blBy[o['Bill ID']]), cur = readCur(o), usd = isFx(cur.currency);
     const memo = o.Type === 'Debit memo';
     if (o.Type && !['Bill', 'Debit memo'].includes(o.Type)) E(o, 'Type must be blank (a bill) or Debit memo.');
     if (o['Applies to Bill ID'] && !memo) E(o, 'Only a debit memo applies to a bill.');
@@ -3684,7 +3771,7 @@ function dataFromTables(sheets, ctx = {}) {
     const b = { id: o['Bill ID'], ref: o['Invoice no.'], date: o['Invoice date'], dueDate: o['Due date'] || '', payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
       lines, ...tax, ...cur, payable: o['Amount payable'], apAccount: o['Payables account ID'], notes: o.Notes || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '',
-      type: memo ? 'Debit memo' : '', appliesTo: o['Applies to Bill ID'] || '' };
+      type: memo ? 'Debit memo' : '', appliesTo: o['Applies to Bill ID'] || '', importEntry: o['Import entry no.'] || '' };
     const src = memo ? 'dm' : 'bill';
     if (from) { Object.assign(b, { from, paidBefore: o['Paid before'] || 0, entry: [] }); if ((jBy[src + '|' + b.id] || []).length) E(o, 'was carried in from the year before, so its entry stays in that year’s tabs.'); }
     else { readVoid(o, b.date, src, b.id); readEntry(src, b, o, old => calcBill({ ...b, vatManual: true, ewtManual: true }, old ? { ...control, advances: '', cashIds: [] } : control), b.date, 'the invoice date', `${memo ? 'debit memo' : 'invoice'} ${b.ref}`); }
@@ -3699,7 +3786,7 @@ function dataFromTables(sheets, ctx = {}) {
     const refOf = (part, o) => (part.rows.find(r => r.r === o._row) || {}).ref ? { refOnly: true, status: o.Status === 'Void' ? 'void' : 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '' } : {};
     const bn = `Bills ${g.year}`, vn = `Vouchers ${g.year}`;
     tableRows({ [bn]: sheetOf(g.bills) }, { ...tableOf('Bills'), name: bn }, errs).forEach(o => {
-      const p = cById[o['Payee ID']], c = o.Currency === 'USD' ? { currency: 'USD', rate: Number(o.Rate) || 0 } : { currency: 'PHP', rate: 1 };
+      const p = cById[o['Payee ID']], c = isFx(o.Currency) && DOC_CURS.includes(o.Currency) ? { currency: o.Currency, rate: Number(o.Rate) || 0 } : { currency: 'PHP', rate: 1 };
       foreignBills.push({ id: o['Bill ID'], ref: o['Invoice no.'], date: o['Invoice date'], dueDate: o['Due date'] || '', payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
         lines: [], entry: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false, ...c, payable: o['Amount payable'] || 0, apAccount: o['Payables account ID'], notes: o.Notes || '',
         status: 'active', voidReason: '', voidedOn: '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', from: g.year, foreign: true, paidBefore: pb[o._row] || 0, type: o.Type === 'Debit memo' ? 'Debit memo' : '', appliesTo: '', ...refOf(g.bills, o) });
@@ -3753,7 +3840,7 @@ function dataFromTables(sheets, ctx = {}) {
     }
     inThisYear(o, 'Check date');
     if (o['Invoice total'] == null) E(o, 'Invoice total is blank.');
-    const cur = readCur(o), usd = cur.currency === 'USD', bankAcct = o['Bank account ID'] || '', bank = bankAcct || control.bank;
+    const cur = readCur(o), usd = isFx(cur.currency), bankAcct = o['Bank account ID'] || '', bank = bankAcct || control.bank;
     if (bankAcct && (!aid.has(bankAcct) || aType[bankAcct] !== 'Bank')) E(o, `Bank account ID ${bankAcct} isn’t an account of type Bank.`);
     if (!transfer && (usd || curOfBank(bank) !== 'PHP')) E(o, 'A check is in pesos, from a peso account.');
     if (curOfBank(bank) === 'USD' && !usd) E(o, 'A payment from a dollar account is in USD.');
@@ -3772,7 +3859,7 @@ function dataFromTables(sheets, ctx = {}) {
         if (b.appliesTo) E(x, `debit memo ${b.ref} is already applied to a bill, so it can’t be used here too.`);
       }
       if (!(x.Amount > 0)) E(x, 'Amount must be more than zero.');
-      if (x.Pesos != null && (!b || Math.abs(x.Pesos - (x.Amount || 0) * rateOf(b)) > 1)) E(x, 'Pesos must be the amount at the bill’s rate, give or take a centavo; it’s only filled in for the payment that clears a dollar bill.');
+      if (x.Pesos != null && (!b || Math.abs(x.Pesos - (x.Amount || 0) * rateOf(b)) > 1)) E(x, 'Pesos must be the amount at the bill’s rate, give or take a centavo; it’s only filled in for the payment that clears a bill in dollars or yuan.');
       return { billId: x['Bill ID'], amount: x.Amount || 0, acct: b ? b.apAccount : '', ...(x.Pesos != null ? { peso: x.Pesos } : {}) };
     });
     if (!lines.length && !pays.length) E(o, 'has no rows on the Voucher lines or Bill payments tab.');
@@ -3787,7 +3874,7 @@ function dataFromTables(sheets, ctx = {}) {
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     const v = { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'] || '', method: o.Method || '', bankAcct, ...cur, charges,
       payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '',
+      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '', importEntry: o['Import entry no.'] || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     const src = transfer ? 'pt' : 'cv';
     readVoid(o, v.checkDate, src, v.id);
@@ -3854,7 +3941,11 @@ function dataFromTables(sheets, ctx = {}) {
   orphans(ilBy, new Set(T['Sales invoices'].map(o => o['Invoice ID'])), 'Invoice ID', 'Sales invoices');
   const invoices = T['Sales invoices'].map(o => {
     for (const h of ['Type', 'Invoice no.', 'Invoice date', 'Particulars', 'Amount receivable', 'Receivable account ID', 'Status']) if (o[h] == null) E(o, `${h} is blank.`);
-    const memo = o.Type === 'Credit memo', from = carriedFrom(o), p = readCustomer(o), lines = readLines(ilBy[o['Invoice ID']]);
+    const all = ilBy[o['Invoice ID']] || [], memo = o.Type === 'Credit memo', from = carriedFrom(o), p = readCustomer(o);
+    all.forEach(l => { if (l.Kind != null && l.Kind !== 'Less') E(l, 'Kind must be blank (a sale) or Less (a charge the customer took off).'); });
+    const lines = readLines(all.filter(l => l.Kind !== 'Less')), less = readLines(all.filter(l => l.Kind === 'Less')), cwt = o['CWT withheld'] || 0;
+    if (memo && (less.length || cwt)) E(o, 'A credit memo has no charges taken off and no CWT.');
+    if (cwt < 0) E(o, 'CWT withheld can’t be negative.');
     if (o.Type && !['Invoice', 'Credit memo'].includes(o.Type)) E(o, 'Type must be Invoice or Credit memo.');
     if (o['Applies to Invoice ID'] && !memo) E(o, 'Only a credit memo applies to an invoice.');
     let tax = { vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false };
@@ -3869,7 +3960,9 @@ function dataFromTables(sheets, ctx = {}) {
       const gross = sum(lines.map(l => l.amount)), vatable = isYes(o, 'Includes VAT'), vat = vatable ? (o['Output VAT'] || 0) : 0;
       if (vat < 0 || (gross && vat >= gross)) E(o, 'Output VAT must be zero or more, and less than the invoice total.');
       if (o['Invoice total'] == null || Math.abs(gross - o['Invoice total']) >= 0.005) E(o, `Invoice total should equal its lines (${money(gross)}).`);
-      if (o['Amount receivable'] != null && Math.abs(gross - o['Amount receivable']) >= 0.005) E(o, `Amount receivable should be the invoice total (${money(gross)}).`);
+      const due = round2(gross - sum(less.map(l => l.amount)) - cwt);
+      if (o['Amount receivable'] != null && Math.abs(due - o['Amount receivable']) >= 0.005) E(o, `Amount receivable should be the invoice total less the charges taken off and the CWT (${money(due)}).`);
+      if (due <= 0) E(o, 'The charges taken off and the CWT come to the whole invoice or more.');
       tax = { vatable, vat, vatManual: isYes(o, 'VAT typed in'), atc: '', ewt: 0, ewtManual: false };
     }
     if (o['Receivable account ID'] !== control.ar) E(o, 'Receivable account ID must be the account marked “Receivables, customers” on the Accounts tab.');
@@ -3878,7 +3971,7 @@ function dataFromTables(sheets, ctx = {}) {
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     if (o['Due date'] && o['Invoice date'] && o['Due date'] < o['Invoice date']) E(o, 'Due date is before the invoice date.');
     const i = { id: o['Invoice ID'], type: memo ? 'Credit memo' : '', ref: o['Invoice no.'], date: o['Invoice date'], dueDate: o['Due date'] || '', customerId: o['Customer ID'], customerName: p ? p.name : o.Customer, tin: o.TIN || '', particulars: o.Particulars,
-      lines, ...tax, currency: 'PHP', rate: 1, receivable: o['Amount receivable'], arAccount: o['Receivable account ID'], appliesTo: o['Applies to Invoice ID'] || '', notes: o.Notes || '',
+      lines, ...tax, currency: 'PHP', rate: 1, receivable: o['Amount receivable'], arAccount: o['Receivable account ID'], appliesTo: o['Applies to Invoice ID'] || '', notes: o.Notes || '', less, cwt,
       status: o.Status === 'Void' ? 'void' : 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     const src = memo ? 'cm' : 'si';
     if (from) { Object.assign(i, { from, paidBefore: o['Received before'] || 0, entry: [] }); if ((jBy[src + '|' + i.id] || []).length) E(o, 'was carried in from the year before, so its entry stays in that year’s tabs.'); }
@@ -4025,7 +4118,7 @@ function dataFromTables(sheets, ctx = {}) {
   settleCheck(collections.concat(foreignCollections), deposits.filter(live_).flatMap(d => d.items.map(p => [p.collectionId, p.amount])), c => `${c.cr} (${c.customerName})`, 'amount');
   // a memo applied to one document: same payee or customer, not another memo
   bills.filter(b => b.appliesTo).forEach(b => { const t = bById[b.appliesTo]; if (!t) errs.push(`Bills tab: debit memo ${b.ref} applies to ${b.appliesTo}, which isn’t an open bill.`); else if (isMemo(t) || t.payeeId !== b.payeeId || (t.currency || 'PHP') !== (b.currency || 'PHP')) errs.push(`Bills tab: debit memo ${b.ref} must apply to a bill of the same payee, in the same currency.`);
-    else if ((t.currency || 'PHP') === 'USD' && rateOf(t) !== rateOf(b)) errs.push(`Bills tab: debit memo ${b.ref} applies to a dollar bill, so its rate must be the bill’s, ${fmtRate(rateOf(t))}.`);
+    else if (isFx(t.currency) && rateOf(t) !== rateOf(b)) errs.push(`Bills tab: debit memo ${b.ref} applies to a bill in ${curOf(t.currency).units}, so its rate must be the bill’s, ${fmtRate(rateOf(t))}.`);
     else if (t.date > b.date) errs.push(`Bills tab: debit memo ${b.ref} applies to ${t.ref}, which is dated after it.`); });
   invoices.filter(i => i.appliesTo).forEach(i => { const t = iById[i.appliesTo]; if (!t) errs.push(`Sales invoices tab: credit memo ${i.ref} applies to ${i.appliesTo}, which isn’t an open invoice.`); else if (isMemo(t) || t.customerId !== i.customerId) errs.push(`Sales invoices tab: credit memo ${i.ref} must apply to an invoice of the same customer.`);
     else if (t.date > i.date) errs.push(`Sales invoices tab: credit memo ${i.ref} applies to ${t.ref}, which is dated after it.`); });
@@ -4156,8 +4249,9 @@ function invoiceList() {
 function salesForm(i0, asMemo) {
   const edit = !!i0, memo = edit ? isMemo(i0) : !!asMemo, self = edit ? i0.id : null, name = memo ? 'credit memo' : 'invoice';
   const blank = () => ({ accountId: '', desc: '', amount: '', dept: '' });
-  const x = edit ? JSON.parse(JSON.stringify(i0)) : { ref: '', date: defaultDate(), dueDate: '', customerName: '', tin: '', particulars: '', lines: [blank()], vatable: true, vat: '', vatManual: false, appliesTo: '', notes: '', type: memo ? 'Credit memo' : '' };
+  const x = edit ? JSON.parse(JSON.stringify(i0)) : { ref: '', date: defaultDate(), dueDate: '', customerName: '', tin: '', particulars: '', lines: [blank()], vatable: true, vat: '', vatManual: false, appliesTo: '', notes: '', type: memo ? 'Credit memo' : '', less: [], cwt: '' };
   if (!x.lines.length) x.lines.push(blank());
+  if (!x.less) x.less = []; if (!x.cwt) x.cwt = '';
   const settled = edit ? invPayers(self).filter(c => c.cr) : [], doneSoFar = round2(sum(settled.flatMap(c => c.invoices.filter(p => p.invoiceId === self).map(p => p.amount))) + (memo ? 0 : sum(invPayers(self).filter(m => !m.cr).map(m => m.receivable))));
   const depts = (D.departments || []).length > 0, customers = D.contacts.filter(isCustomer);
   const body = `<div class="vform"><div class="section"><h3>${memo ? 'Credit memo' : 'Invoice'}</h3><div class="fields">
@@ -4170,6 +4264,9 @@ function salesForm(i0, asMemo) {
       ${memo ? F('s-applies', 'Apply it to', '<select id="s-applies"></select>', 'full') : ''}
     </div><p class="hint" id="s-note" style="margin-top:8px"></p></div>
     <div class="section"><h3>${memo ? 'What it takes back' : 'What was sold'}</h3><div id="s-lines"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="s-add">Split across another account</button></p></div>
+    ${memo ? '' : `<div class="section"><h3>Less: taken off by the customer ${tip('For a customer that sends its own statement and pays the net: its commission, marketing, barcode charges, returns. Each is booked in the month of the sale, and the receivable is what they’ll actually pay. Leave it empty for an ordinary invoice.')}</h3><div id="s-less"></div>
+      <p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="s-add-less">Add a charge they took off</button></p>
+      <div class="fields" style="margin-top:14px">${F('s-cwt', 'CWT withheld (₱)', inp('s-cwt', x.cwt || '', 'number', 'step="0.01" min="0" inputmode="decimal" placeholder="0.00"'))}<p class="hint span2" style="align-self:end" id="s-cwt-h"></p></div></div>`}
     <div class="section"><div class="fields">
       <div class="field"><label>&nbsp;</label><label class="check" style="height:42px;font:400 14px var(--body)"><input type="checkbox" id="s-vatable" ${x.vatable ? 'checked' : ''}> Amounts include 12% VAT ${tip('Tick when your invoice shows VAT. Enter amounts as printed; the hub splits the VAT out to Output VAT.')}</label></div>
       ${F('s-vat', 'Output VAT (₱) <button type="button" class="autolink" id="s-vat-auto" hidden>use computed</button>', inp('s-vat', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
@@ -4179,9 +4276,21 @@ function salesForm(i0, asMemo) {
     <div class="section" style="margin-bottom:0">${F('s-notes', 'Notes (optional)', `<textarea id="s-notes">${esc(x.notes || '')}</textarea>`)}</div></div>`;
   const read = () => {
     Object.assign(x, { ref: val('s-ref'), date: val('s-date'), dueDate: memo ? '' : val('s-due'), customerName: val('s-cust'), tin: val('s-tin'), particulars: val('s-part'), notes: document.getElementById('s-notes').value.trim(), vatable: document.getElementById('s-vatable').checked });
+    if (!memo) { x.cwt = val('s-cwt'); x.less = [...document.querySelectorAll('#s-less tbody tr')].map(tr => ({ accountId: tr.querySelector('.d-acct').value, desc: tr.querySelector('.d-desc').value.trim(), amount: tr.querySelector('.d-amt').value.trim(), dept: tr.querySelector('.d-dept') ? tr.querySelector('.d-dept').value : '' })); }
     if (memo) x.appliesTo = val('s-applies');
     if (x.vatManual) { const vi = document.getElementById('s-vat').value; x.vat = vi === '' ? '' : numIn(vi); }
     x.lines = [...document.querySelectorAll('#s-lines tbody tr')].map(tr => ({ accountId: tr.querySelector('.l-acct').value, desc: tr.querySelector('.l-desc').value.trim(), amount: tr.querySelector('.l-amt').value.trim(), dept: tr.querySelector('.l-dept') ? tr.querySelector('.l-dept').value : '' }));
+  };
+  const drawLess = () => {
+    const el = document.getElementById('s-less'); if (!el) return;
+    if (!x.less.length) { el.innerHTML = '<p class="hint">None. An ordinary invoice has none; the customer pays it in full, less any withholding when they pay.</p>'; return; }
+    el.innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${depts ? 34 : 42}%">Account</th>${depts ? '<th style="width:17%">Department</th>' : ''}<th>Description (optional)</th><th class="num" style="width:170px">Amount (₱)</th><th style="width:70px"></th></tr></thead><tbody>${x.less.map((l, n) => `<tr>
+      <td><select class="d-acct" aria-label="Charge ${n + 1} account">${acctOptions(l.accountId, lessAccounts())}</select></td>
+      ${depts ? `<td><select class="d-dept" aria-label="Charge ${n + 1} department">${deptOptions(l.dept)}</select></td>` : ''}
+      <td><input class="d-desc" value="${esc(l.desc)}" aria-label="Charge ${n + 1} description"></td>
+      <td class="num"><input class="d-amt" type="number" step="0.01" min="0" inputmode="decimal" value="${esc(l.amount)}" style="text-align:right" aria-label="Charge ${n + 1} amount"></td>
+      <td><button type="button" class="btn link sm d-del" data-i="${n}">Remove</button></td></tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="${depts ? 3 : 2}">Taken off</td><td class="num" id="s-lesstot"></td><td></td></tr></tfoot></table></div>`;
   };
   const drawLines = () => {
     document.getElementById('s-lines').innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${depts ? 34 : 42}%">Account</th>${depts ? '<th style="width:17%">Department</th>' : ''}<th>Description (optional)</th><th class="num" style="width:170px">Amount (₱)</th><th style="width:70px"></th></tr></thead><tbody>${x.lines.map((l, n) => `<tr>
@@ -4204,7 +4313,9 @@ function salesForm(i0, asMemo) {
     vi.disabled = !x.vatable; if (!x.vatManual) vi.value = x.vatable && c.gross ? c.vat.toFixed(2) : '';
     document.getElementById('s-vat-auto').hidden = !x.vatManual;
     document.getElementById('s-gross').textContent = peso(c.gross);
-    document.getElementById('s-total').textContent = peso(c.gross);
+    document.getElementById('s-total').textContent = peso(c.receivable);
+    const lt = document.getElementById('s-lesstot'); if (lt) lt.textContent = peso(c.lessTotal);
+    const ch = document.getElementById('s-cwt-h'); if (ch) ch.textContent = c.lessTotal || c.cwt ? `${peso(c.gross)} invoice total, less ${peso(c.lessTotal)} taken off${c.cwt ? ` and ${peso(c.cwt)} CWT` : ''}: ${peso(c.receivable)} to collect.` : c.base > 0 ? `Only if they withhold on this statement. Net of VAT, sales come to ${peso(c.base)}: 1% is ${peso(round2(c.base * 0.01))}.` : '';
     const p = contactByName(x.customerName);
     document.getElementById('s-note').textContent = x.customerName && !p ? 'New customer. They’ll be saved to Contacts.' : p && !isCustomer(p) ? `${p.name} will be marked a customer too.` : '';
     document.getElementById('s-warn').textContent = [dateWarn(x.date, memo ? 'memo date' : 'invoice date'), x.vatable && x.vatManual && c.gross && Math.abs(c.vat - round2(c.gross * VAT_RATE / (1 + VAT_RATE))) >= 0.01 ? 'VAT was typed in, not computed. Fine if part of the sale is VAT-exempt or zero-rated.' : '', ...budgetWarnings(c.entry, self)].filter(Boolean).join(' ');
@@ -4213,7 +4324,10 @@ function salesForm(i0, asMemo) {
   const onCust = () => {
     read();
     const p = contactByName(x.customerName);
-    if (p) { if (!val('s-tin')) document.getElementById('s-tin').value = p.tin || ''; if (!edit && x.lines.every(l => !l.accountId && !l.amount) && p.accountId) { x.lines = [{ accountId: p.accountId, desc: '', amount: '', dept: '' }]; drawLines(); } if (p.vatable === false && !edit) document.getElementById('s-vatable').checked = false; }
+    if (p) { if (!val('s-tin')) document.getElementById('s-tin').value = p.tin || ''; if (!edit && x.lines.every(l => !l.accountId && !l.amount) && p.accountId) { x.lines = [{ accountId: p.accountId, desc: '', amount: '', dept: '' }]; drawLines(); } if (p.vatable === false && !edit) document.getElementById('s-vatable').checked = false;
+      // the charges this customer took off last time, ready for this month's amounts
+      if (!edit && !memo && x.less.every(l => !l.accountId && !l.amount)) { const last = (D.invoices || []).filter(i => i.customerId === p.id && live(i) && !isMemo(i) && (i.less || []).length).sort((a, b) => b.date.localeCompare(a.date))[0];
+        if (last) { x.less = last.less.map(l => ({ accountId: l.accountId, desc: l.desc || '', amount: '', dept: l.dept || '' })); drawLess(); document.getElementById('s-note').textContent = `The charges ${p.name} took off invoice ${last.ref} are listed below. Type this statement’s amounts; remove any that don’t apply.`; } } }
     drawApplies(); update();
   };
   openModal(edit ? `Edit ${memo ? 'Credit Memo' : 'Invoice'} ${esc(i0.ref)}` : memo ? 'New Credit Memo' : 'New Sales Invoice', body, () => {
@@ -4237,6 +4351,16 @@ function salesForm(i0, asMemo) {
       if (!l.dept && needsDept(l.accountId)) return `Line ${n + 1}: choose the department it’s for.`;
     }
     if (!c.lines.length) return 'Add an account and an amount.';
+    for (let n = 0; n < x.less.length; n++) {
+      const l = x.less[n];
+      if (!l.accountId && !l.amount && !l.desc) continue;
+      if (!l.accountId) return `Charge ${n + 1}: choose the account.`;
+      if (!(numIn(l.amount) > 0)) return `Charge ${n + 1}: enter an amount greater than zero, or remove it.`;
+      if (notFor(l.accountId, lessAccounts(), 'what a customer takes off')) return `Charge ${n + 1}: ${notFor(l.accountId, lessAccounts(), 'what a customer takes off')}`;
+      if (!l.dept && needsDept(l.accountId)) return `Charge ${n + 1}: choose the department it’s for.`;
+    }
+    if (!memo && (isNaN(numIn(x.cwt || 0)) || numIn(x.cwt || 0) < 0)) return 'CWT withheld must be zero or more.';
+    if (c.receivable <= 0) return 'What the customer took off and withheld comes to the whole invoice or more. Check the amounts.';
     if (x.vatable && x.vatManual && (isNaN(numIn(x.vat)) || x.vat < 0 || x.vat >= c.gross)) return 'Output VAT must be zero or more, and less than the total.';
     if (c.entry.some(e => (e.dr || e.cr) && !e.acct)) return 'The receivables or output VAT account isn’t set up yet. Ask an admin to open the hub and finish the update.';
     const pc = contactByName(x.customerName);
@@ -4249,7 +4373,7 @@ function salesForm(i0, asMemo) {
     if (doneSoFar > 0) {
       const by = invPayers(self).map(z => z.cr || `Credit memo ${z.ref}`).join(', ');
       if (!pc || pc.id !== i0.customerId) return `${by} already ${memo ? 'uses' : 'settles'} this ${name}, so its customer can’t change.`;
-      if (c.gross < doneSoFar) return `${peso(doneSoFar)} is already ${memo ? 'used' : 'collected'} on this ${name} (${by}), so it can’t be less than that.`;
+      if (c.receivable < doneSoFar) return `${peso(doneSoFar)} is already ${memo ? 'used' : 'collected'} on this ${name} (${by}), so it can’t be less than that.`;
       if (memo && x.appliesTo) return `${by} already uses this memo, so it can’t also apply to one invoice.`;
       const first = invPayers(self).map(z => z.date).sort()[0];
       if (x.date > first) return `${by} ${memo ? 'used' : 'settled'} this ${name} on ${fdate(first)}, so its date can’t be later than that.`;
@@ -4260,12 +4384,13 @@ function salesForm(i0, asMemo) {
       else { if (!isCustomer(p)) p.roles.push('customer'); if (!p.tin && x.tin) p.tin = x.tin; if (!p.accountId && !memo && c.lines[0]) p.accountId = c.lines[0].accountId; }
       const rec = { type: memo ? 'Credit memo' : '', ref: x.ref, date: x.date, dueDate: x.dueDate || '', customerId: p.id, customerName: p.name, tin: x.tin || p.tin || '', particulars: x.particulars,
         lines: c.lines.map(l => ({ accountId: l.accountId, desc: l.desc, amount: round2(numIn(l.amount)), dept: l.dept || '' })), vatable: x.vatable, vat: x.vatable ? c.vat : 0, vatManual: !!(x.vatable && x.vatManual),
-        atc: '', ewt: 0, ewtManual: false, currency: 'PHP', rate: 1, receivable: c.gross, arAccount: D.control.ar, appliesTo: memo ? x.appliesTo || '' : '', entry: c.entry.filter(e => e.dr || e.cr), notes: x.notes };
+        atc: '', ewt: 0, ewtManual: false, currency: 'PHP', rate: 1, receivable: c.receivable, arAccount: D.control.ar,
+        less: c.less.map(l => ({ accountId: l.accountId, desc: l.desc, amount: l.amount, dept: l.dept || '' })), cwt: c.cwt, appliesTo: memo ? x.appliesTo || '' : '', entry: c.entry.filter(e => e.dr || e.cr), notes: x.notes };
       if (edit) Object.assign(invoiceOf(self), rec);
       else D.invoices.push({ id: nextId('i'), ...rec, status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
     }, () => toast(`${memo ? 'Credit memo' : 'Invoice'} ${x.ref} saved`));
   }, 'Save', { size: 'wide', noFocus: true, onOpen: () => {
-    drawLines(); drawApplies();
+    drawLines(); drawLess(); drawApplies();
     if (x.vatManual) document.getElementById('s-vat').value = x.vat;
     update();
     const m = modalEl();
@@ -4275,6 +4400,8 @@ function salesForm(i0, asMemo) {
       const t = ev.target;
       if (t.id === 's-add') { read(); x.lines.push(blank()); drawLines(); update(); }
       else if (t.classList.contains('l-del')) { read(); x.lines.splice(Number(t.dataset.i), 1); drawLines(); update(); }
+      else if (t.id === 's-add-less') { m.dataset.dirty = '1'; read(); x.less.push(blank()); drawLess(); update(); }
+      else if (t.classList.contains('d-del')) { m.dataset.dirty = '1'; read(); x.less.splice(Number(t.dataset.i), 1); drawLess(); update(); }
       else if (t.id === 's-vat-auto') { x.vatManual = false; update(); }
     });
     document.getElementById(edit ? 's-cust' : 's-ref').focus();
@@ -4291,7 +4418,7 @@ function viewInvoice(id) {
       <dl class="dv-grid"><dt>Customer</dt><dd class="payee">${esc(i.customerName)}</dd><dt>${memo ? 'Memo no.' : 'Invoice no.'}</dt><dd>${esc(i.ref)}</dd>
         <dt>TIN</dt><dd>${esc(i.tin || '')}</dd><dt>Date</dt><dd>${fdate(i.date)}</dd>
         <dt>Particulars</dt><dd>${esc(i.particulars)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (i.appliesTo ? `Invoice ${esc((invoiceOf(i.appliesTo) || {}).ref || '')}` : 'A later collection') : i.dueDate ? fdate(i.dueDate) : ''}</dd></dl>
-      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Receivable'}</dt><dd class="big">${peso(i.receivable)}</dd><dt>Status</dt><dd>${pill(st)}</dd>${live(i) ? `<dt>Balance</dt><dd>${peso(invBalance(i))}</dd>` : ''}</dl>
+      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Receivable'}</dt><dd class="big">${peso(i.receivable)}</dd>${!memo && (i.cwt || invLess(i).length) ? `<dt>Invoice total</dt><dd>${peso(vGross(i))}</dd><dt>Taken off</dt><dd>${peso(round2(vGross(i) - i.receivable))}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(i) ? `<dt>Balance</dt><dd>${peso(invBalance(i))}</dd>` : ''}</dl>
       ${i.from ? '' : `<p class="dv-sect">Accounting entry</p>${entryTable(i.entry || [], { noBal: true })}`}
       ${by.length ? `<p class="dv-sect" style="margin-top:22px">${memo ? 'Used by' : 'Collected by'}</p><table><thead><tr><th>Document</th><th class="num">Amount</th></tr></thead><tbody>${by.map(c => `<tr><td>${esc(c.cr || `Credit memo ${c.ref}`)}<span class="sub">${fdate(c.date)}</span></td><td class="num">${money(c.cr ? sum(c.invoices.filter(p => p.invoiceId === id).map(p => p.amount)) : c.receivable)}</td></tr>`).join('')}</tbody></table>` : ''}
     </div></div>${i.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(i.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
@@ -4401,7 +4528,8 @@ function collectionForm(c0) {
     document.getElementById('c-bank-wrap').hidden = x.method !== 'Check';
     const c = calcCollection(x);
     const net = document.getElementById('c-net'); if (net) net.textContent = peso(c.net);
-    document.getElementById('c-cwt-h').textContent = c.base > 0 ? `Net of VAT, the invoices come to ${peso(c.base)}: 1% is ${peso(round2(c.base * 0.01))}, 2% is ${peso(round2(c.base * 0.02))}.` : '';
+    const preWithheld = c.items.filter(p => !p.memo && (invoiceOf(p.invoiceId) || {}).cwt > 0).map(p => p.ref);
+    document.getElementById('c-cwt-h').textContent = preWithheld.length ? `Invoice${preWithheld.length > 1 ? 's' : ''} ${preWithheld.join(', ')} already ha${preWithheld.length > 1 ? 've' : 's'} the customer’s CWT on ${preWithheld.length > 1 ? 'them' : 'it'}. Don’t enter it again here.` : c.base > 0 ? `Net of VAT, the invoices come to ${peso(c.base)}: 1% is ${peso(round2(c.base * 0.01))}, 2% is ${peso(round2(c.base * 0.02))}.` : '';
     document.getElementById('c-total').textContent = peso(c.amount);
     const p = contactByName(x.customerName);
     document.getElementById('c-note').textContent = x.customerName && !p ? 'New customer. Record their invoice first.' : '';
@@ -5803,16 +5931,18 @@ const GUIDE = {
       ['Invoice no. and date', 'Copy them from the supplier’s invoice. The date decides which month the cost belongs to.'],
       ['Payee', 'Start typing; pick the name from the list. A new name is added to Contacts, as a Supplier (goods) or a Vendor (services). That choice decides which payables account the bill goes to.'],
       ['Particulars', 'What it’s for, in a line: “Warehouse rent, October 2026”. It prints on the voucher that pays it.'],
-      ['Lines', 'One line per kind of cost. Pick the account (what it is) and the department (who it’s for). Type the amount as printed on the invoice, VAT included.'],
-      ['VAT', 'Tick it when the invoice shows VAT. The hub takes the VAT out of each line for you.'],
-      ['Withholding tax (ATC)', 'If the company withholds tax from this payee, choose the ATC. The hub works out the EWT. You pay the supplier the rest and the BIR the EWT.'],
-      ['Save', 'The bill is now on the Unpaid list until a check voucher or transfer pays it.']
+      ['Currency', 'Pesos, US dollars or Chinese yuan, as the invoice is. For dollars or yuan, type the rate on the invoice date: pesos per dollar, or per yuan.'],
+      ['Lines', 'One line per kind of cost. Pick the account (what it is) and the department (who it’s for). Type the amount as printed on the invoice, VAT included. For goods, add the barcode and number of pieces if you have them; they’re for reference.'],
+      ['VAT', 'Tick VAT on each line the invoice charges VAT on. A broker’s bill can mix both: its fee has VAT, the duties it paid for you don’t. The hub takes the VAT out of the ticked lines only.'],
+      ['Withholding tax (ATC)', 'If the company withholds tax from this payee, choose the ATC, then tick EWT on the lines it applies to (the fee, not what they passed on). The hub works out the EWT. You pay the supplier the rest and the BIR the EWT.'],
+      ['VAT Customs charged on an import', 'On the broker’s bill, add a line to 140-010 Input VAT and type the VAT exactly as the import entry shows it. No 12% is worked out on it. Then fill in the import entry no.'],
+      ['Save', 'The bill is now on the Unpaid list until a check voucher or transfer pays it. Its due date can be changed any time, even after its month is locked.']
     ],
     book: { say: 'Prime Realty bills ₱56,000 rent with VAT, and the company withholds 5% (ATC WC100).',
       rows: [['720-010 · Rental Expense', 50000, 0], ['140-010 · Input VAT', 6000, 0], ['220-020 · Expanded Withholding Tax Payable', 0, 2500], ['210-020 · Accounts Payable - Others', 0, 53500]],
       note: 'The rent is a cost. The VAT is tax the company can claim back. The EWT is tax the company now owes the BIR for Prime Realty. What’s left, ₱53,500, is what the company owes Prime Realty.' },
     shows: ['Rental Expense: on the Income Statement, under General and administrative expenses.', 'Input VAT and the payables: on the Balance Sheet, until they’re paid or filed.', 'The bill: on Unpaid Bills in the Google Sheet, and on the purchase book.'],
-    watch: ['Don’t enter the same invoice twice. The hub refuses a second bill with the same invoice no. from the same payee.', 'Use the invoice date, not today’s date.', 'Goods for an import go to the Goods in Transit accounts and the shipment, not to Inventories. See Shipments.']
+    watch: ['Don’t enter the same invoice twice. The hub refuses a second bill with the same invoice no. from the same payee.', 'Use the invoice date, not today’s date.', 'Goods for an import go to the Goods in Transit accounts and the shipment, not to Inventories. See Shipments.', 'A bill in dollars or yuan has no Philippine VAT or withholding. The VAT on an import comes from Customs, on the broker’s bill.']
   },
   vouchers: { who: 'everyday',
     what: 'A check voucher pays bills by check. It’s the paper the check is attached to, signed by whoever prepared, checked and approved it.',
@@ -5835,6 +5965,7 @@ const GUIDE = {
     when: 'Paying a bill by transfer, or moving money from one bank account to another (including cash on hand put into the bank).',
     steps: [
       ['New payment', 'Works like a check voucher: pick the payee, tick the bills, and put the bank’s reference number where the check number would go. Add any bank charge the transfer cost.'],
+      ['A TT for a bill in dollars or yuan', 'Choose the bill’s currency, tick it, and type the rate the bank charged. If the pesos it took differ from what the bill was booked at, the hub books the difference as an exchange gain or loss.'],
       ['Move between accounts', 'From one of the company’s accounts to another: pick From and To, the amount that left, and any bank charge.']
     ],
     book: { say: 'The forklift bill of ₱240,000 is paid by transfer from Metrobank.',
@@ -5851,6 +5982,7 @@ const GUIDE = {
       ['Customer', 'Pick them from the list.'],
       ['Lines', 'The sales account (each big customer has its own) and the amount as invoiced, VAT included.'],
       ['VAT', 'Tick it when the invoice shows VAT; the hub splits it out.'],
+      ['Less: taken off by the customer', 'For a store that sends its own monthly statement (CitiHardware): add each charge it took off, like commission, marketing, barcodes and returns, and the CWT it withheld. The receivable becomes what they’ll actually pay. Next month the same charges come up again, ready for the new amounts.'],
       ['Credit memo: Apply it to', 'Pick the invoice it reduces, so that invoice shows less owing.']
     ],
     book: { say: 'An invoice of ₱112,000 with VAT to CitiHardware Bacolod.',
@@ -6085,9 +6217,10 @@ const HELP_CLOSE = [
 const HELP_FAQ = [
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
   ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],
-  ['The invoice shows VAT. Do I type the amount with or without VAT?', 'With VAT, exactly as printed. Tick VAT and the hub takes it out for you.'],
+  ['The invoice shows VAT. Do I type the amount with or without VAT?', 'With VAT, exactly as printed. Tick VAT on those lines and the hub takes it out for you.'],
+  ['The broker’s bill includes the VAT Customs charged. Where does it go?', 'On its own line to 140-010 Input VAT, typed exactly as the import entry shows it, with the import entry no. It’s claimable, so it stays out of the shipment’s cost. The duties and charges the broker passed on go to the shipment, with VAT and EWT unticked.'],
   ['What’s EWT, and why does the bill’s payable go down?', 'Expanded withholding tax: for some payees the company must hold back part of the payment and pay it to the BIR instead. Choose the ATC on the bill and the hub works it out. You pay the supplier the rest, and issue them a BIR Form 2307.'],
-  ['A customer paid less than the invoice. Why?', 'Usually they withheld tax (CWT). Enter it on the collection under “Withheld by the customer”, and keep their 2307. If they simply paid part, the rest stays unpaid.'],
+  ['A customer paid less than the invoice. Why?', 'Usually they withheld tax (CWT). Enter it on the collection under “Withheld by the customer”, and keep their 2307. If they simply paid part, the rest stays unpaid. A store that sends its own statement takes its charges and CWT off before paying: put those on the invoice instead, under “Less: taken off by the customer”.'],
   ['What is Undeposited Funds?', 'Customers’ checks and cash the company is holding, not yet in the bank. A deposit moves them into the bank. Only collections go there.'],
   ['Which department do I choose?', 'The one the spending is for. That’s how budgets are tracked, so be consistent.'],
   ['Why can’t I enter or change something in an earlier month?', 'That month is locked, so the figures already reviewed can’t move. Someone who can lock months unlocks it on Monthly Summary.'],
@@ -6143,11 +6276,13 @@ const HELP_WORDS = [
 const FIELD_TIPS = {
   'f-ref|Invoice no.': 'The supplier’s own number, as printed on their invoice.',
   's-ref|Invoice no.': 'The company’s own invoice number, as printed on the invoice the customer got.',
-  'Due date (optional)': 'When it must be paid, from the invoice’s terms. The Unpaid Bills report in the Google Sheet ages each bill by it.',
+  'Due date (optional)': 'When it must be paid, from the terms. The unpaid lists in the Google Sheet age it by this date. A bill’s can change later, even after its month is locked.',
   'Payee': 'Start typing and pick from the list. A new name is added to Contacts when you save.',
   'Payee TIN': 'From the invoice. It prints on the voucher and on the tax lists.',
-  'Input VAT (₱)': 'The VAT in the invoice, worked out from the lines when VAT is ticked. Change it only if the invoice shows a different amount.',
-  'EWT withheld (₱)': 'Worked out from the ATC: the tax held back and paid to the BIR instead.',
+  'Input VAT (₱)': 'The VAT in the invoice, worked out from the lines ticked VAT. Change it only if the invoice shows a different amount.',
+  'Import entry no.': 'The number on the import entry Customs issued for this shipment. The BIR asks for it when the VAT on the import is claimed.',
+  'CWT withheld (₱)': 'Only when the customer’s own statement already took its withholding off. Then don’t enter it again on the collection.',
+  'EWT withheld (₱)': 'Worked out from the ATC on the lines ticked EWT: the tax held back and paid to the BIR instead.',
   'Check no.': 'As printed on the check.',
   'Check date': 'The date written on the check.',
   'Bank account': 'The account the check is drawn on.',
@@ -6441,6 +6576,7 @@ const ACT = {
   'view-bill': id => viewBill(id),
   'edit-bill': id => { const b = billOf(id); if (b.from) return; if (isLocked(b.date)) { toast(lockedMsg(), true); return; } billForm(b, 'edit'); },
   'void-bill': id => voidBill(id),
+  'due-bill': id => dueDateForm(id),
   'new-debit-memo': () => debitMemoForm(),
   'new-invoice': () => salesForm(),
   'new-credit-memo': () => salesForm(null, true),

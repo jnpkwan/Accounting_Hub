@@ -67,7 +67,7 @@ tr.bsub td{font-size:13.5px;padding-top:6px;padding-bottom:6px}
 .apick-list{position:fixed;z-index:80;background:#fff;border:1px solid var(--silver);border-radius:10px;box-shadow:var(--lift);overflow-y:auto;padding:4px 0;font-size:14px}
 .apick-g{padding:8px 12px 4px;font:700 11px var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 .apick-o{padding:7px 12px;cursor:pointer;line-height:1.35}.apick-o.cur{font-weight:700}.apick-o.hi{background:var(--blue05);color:var(--blue7)}
-.apick-none{padding:10px 12px;color:var(--muted)}
+.apick-none{padding:10px 12px;color:var(--muted)}.apick-note{margin-left:6px;font-size:12px;color:var(--muted);font-weight:400}.apick-o.hi .apick-note{color:inherit}
 .tbl-wrap.budget{overflow-x:auto}.budget table{font-size:12.5px}.budget th,.budget td{padding-left:8px;padding-right:8px;white-space:nowrap}.budget td:first-child{white-space:normal;min-width:180px}
 .logpart+.logpart{margin-top:8px}.logtab{display:block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.logchg{white-space:pre-line;font-size:13px;overflow-wrap:anywhere}
 .mt{margin:40px 0 14px;font-size:18px;font-weight:700;letter-spacing:-.01em}
@@ -504,9 +504,9 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.19';
+const APP_VERSION = '3.20';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
-const HUB_BUILD = '2026-11-12';
+const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
 const API_NEEDED = 14;
 const IDLE_MS = 3 * 60 * 60 * 1000;
@@ -1791,7 +1791,7 @@ function docForm(kind, v0, mode = 'new') {
   const body = `<div class="vform">
     <div class="section"><h3>${isDM ? 'Debit memo' : isBill ? 'Bill' : isPT ? 'Transfer' : 'Voucher'}</h3><div class="fields">
       ${head}
-      ${F('f-payee', 'Payee', inp('f-payee', v.payeeName, 'text', 'list="dl-payees" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-payees">${D.contacts.filter(isPayee).map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>`, 'span2')}
+      ${F('f-payee', 'Payee', inp('f-payee', v.payeeName, 'text', 'list="dl-payees" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-payees">${D.contacts.filter(isPayee).map(p => `<option value="${esc(p.name)}" label="${esc(p.roles.filter(x => PAYEE_ROLES.includes(x)).map(roleLabel).join(', '))}">`).join('')}</datalist>`, 'span2')}
       <div class="field" id="f-ptype-wrap" hidden><label for="f-ptype">Payee type</label><select id="f-ptype">${ROLES.filter(r => PAYEE_ROLES.includes(r[0])).map(([k, l]) => opt(k, l, '')).join('')}</select></div>
       ${F('f-tin', 'Payee TIN', inp('f-tin', v.tin || (p0 ? p0.tin : ''), 'text', 'placeholder="000-000-000-000"'))}
       ${F('f-part', 'Particulars ' + tip('What it’s for, in a line. It shows in the lists and prints on the voucher that pays it.'), inp('f-part', v.particulars, 'text', `placeholder="${isDM ? 'e.g. 12 pcs returned, damaged on arrival' : 'e.g. Internet and telephone for September 2026'}"`), 'full')}
@@ -6834,7 +6834,50 @@ function acctPickers(root) {
     show();
   });
 }
-new MutationObserver(() => acctPickers(document)).observe(document.body, { childList: true, subtree: true });
+/* Name fields (payee, customer, owner): the hub's own suggestion list, not the browser's. Safari's list only matches
+   the start of a name and doesn't always open, so "shandong" missed "Weifang Shandong Tools". Any part of the name
+   finds it; arrow keys and Enter, or a click, pick it. A name not on the list can still be typed: it's a new contact. */
+function namePickers(root) {
+  root.querySelectorAll('input[list]:not([data-pick])').forEach(box => {
+    const dl = document.getElementById(box.getAttribute('list')); if (!dl) return;
+    box.dataset.pick = '1'; box.removeAttribute('list'); box.setAttribute('role', 'combobox'); box.setAttribute('aria-autocomplete', 'list');
+    const list = document.createElement('div'); list.className = 'apick-list'; list.hidden = true; list.setAttribute('role', 'listbox');
+    let items = [], hi = -1;
+    const opts = () => [...dl.querySelectorAll('option')].map(o => ({ name: o.value, note: o.getAttribute('label') || '' }));
+    const draw = q => {
+      const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      items = opts().filter(o => words.every(w => o.name.toLowerCase().includes(w))).sort((a, b) => a.name.localeCompare(b.name));
+      list.innerHTML = items.length ? items.map((o, i) => `<div class="apick-o" role="option" data-i="${i}">${esc(o.name)}${o.note ? ` <span class="apick-note">${esc(o.note)}</span>` : ''}</div>`).join('')
+        : `<div class="apick-none">${words.length ? 'No contact matches. Keep typing to add a new one.' : 'No contacts yet. Type a name to add one.'}</div>`;
+      hi = words.length && items.length ? 0 : -1; mark();
+    };
+    const mark = () => list.querySelectorAll('.apick-o').forEach((el, i) => { el.classList.toggle('hi', i === hi); if (i === hi) el.scrollIntoView({ block: 'nearest' }); });
+    const place = () => {
+      if (!box.isConnected) { close(); return; }
+      const r = box.getBoundingClientRect(), below = innerHeight - r.bottom - 12, above = r.top - 12, up = below < 220 && above > below;
+      const w = Math.min(Math.max(r.width, 300), innerWidth - 16);
+      list.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px'; list.style.width = w + 'px';
+      list.style.maxHeight = Math.max(160, Math.min(320, up ? above : below)) + 'px';
+      if (up) { list.style.top = ''; list.style.bottom = (innerHeight - r.top + 4) + 'px'; } else { list.style.bottom = ''; list.style.top = (r.bottom + 4) + 'px'; }
+    };
+    const open = q => { draw(q); if (!list.isConnected) document.body.appendChild(list); list.hidden = false; place(); box.setAttribute('aria-expanded', 'true'); addEventListener('scroll', place, true); addEventListener('resize', place); };
+    function close() { list.hidden = true; list.remove(); box.setAttribute('aria-expanded', 'false'); removeEventListener('scroll', place, true); removeEventListener('resize', place); }
+    const pick = o => { close(); if (!o) return; if (box.value !== o.name) { box.value = o.name; box.dispatchEvent(new Event('input', { bubbles: true })); } box.dispatchEvent(new Event('change', { bubbles: true })); };
+    // a name typed in full, in any case, becomes the contact's own spelling
+    const exact = () => opts().find(o => o.name.trim().toLowerCase() === box.value.trim().toLowerCase());
+    box.addEventListener('focus', () => open(box.value));
+    box.addEventListener('input', e => { if (e.isTrusted !== false) open(box.value); });
+    box.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== box) { close(); const x = exact(); if (x && x.name !== box.value) { box.value = x.name; box.dispatchEvent(new Event('change', { bubbles: true })); } } }, 120));
+    box.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.hidden) open(box.value); hi = Math.max(0, Math.min(items.length - 1, hi + (e.key === 'ArrowDown' ? 1 : -1))); mark(); }
+      else if (e.key === 'Enter') { if (!list.hidden && items[hi]) { e.preventDefault(); pick(items[hi]); } }
+      else if (e.key === 'Escape') { if (!list.hidden) { e.stopPropagation(); close(); } }
+      else if (e.key === 'Tab') close();
+    });
+    list.addEventListener('mousedown', e => { e.preventDefault(); const el = e.target.closest('.apick-o'); if (el) pick(items[Number(el.dataset.i)]); });
+  });
+}
+new MutationObserver(() => { acctPickers(document); namePickers(document); }).observe(document.body, { childList: true, subtree: true });
 let labelPending = false;
 new MutationObserver(() => { if (labelPending) return; labelPending = true; requestAnimationFrame(() => { labelPending = false; labelTables(document); }); }).observe(document.body, { childList: true, subtree: true });
 window.addEventListener('afterprint', () => { document.body.classList.remove('pv'); document.getElementById('print-area').innerHTML = ''; const pg = document.getElementById('pg-style'); if (pg) pg.remove(); });

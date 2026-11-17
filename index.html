@@ -181,6 +181,9 @@ table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{b
 .gs-list{display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow:auto}.gs-hit{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;text-align:left;width:100%;padding:10px 12px;border:0;border-radius:10px;background:none;cursor:pointer;font:inherit;color:var(--carbon)}
 .gs-hit:hover,.gs-hit:focus-visible{background:var(--blue05);outline:none}.gs-main{display:flex;flex-direction:column}.gs-amt{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--carbon);font-weight:600}
 .sub-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:6px 0 16px}.sub-head h2{margin:0;display:flex;align-items:center;gap:8px}.sub-head p{margin:6px 0 0;color:var(--muted);max-width:720px}
+.s-green{background:var(--green05);color:var(--green7)}
+.files-line{display:flex;align-items:center;gap:10px;color:var(--muted)}.pb-group td{background:var(--mist);padding-top:10px}
+.appr-ok,.appr-wait{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--carbon)}
 .bk-card{padding:20px 22px;margin-bottom:6px}.bk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.bk-acts{display:flex;gap:10px;align-items:center}
 .bk-bar{position:relative;height:14px;border-radius:999px;background:var(--mist);box-shadow:inset 0 0 0 1px var(--silver);margin:18px 0 10px;overflow:visible}
 .bk-used{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--blue)}.bk-used.bk-yellow{background:#FFC62E}.bk-used.bk-red{background:#D63C34}
@@ -535,11 +538,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.30';
+const APP_VERSION = '3.32';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 16;
+const API_NEEDED = 18;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -559,7 +562,7 @@ const DEPT_TYPES = ['Expense', 'Other Expense'];
    Everyone signed in can see every page; these decide what they can change. */
 const PERMISSIONS = [
   ['Supplier Bills', [['bills.edit', 'Enter and edit'], ['bills.void', 'Void']]],
-  ['Check Vouchers', [['vouchers.edit', 'Enter and edit'], ['vouchers.void', 'Void']]],
+  ['Check Vouchers', [['vouchers.edit', 'Enter and edit'], ['vouchers.void', 'Void'], ['payments.approve', 'Approve checks and payments by transfer']]],
   ['Bank Transfers', [['transfers.edit', 'Enter and edit'], ['transfers.void', 'Void']]],
   ['Sales Invoices', [['sales.edit', 'Enter and edit'], ['sales.void', 'Void']]],
   ['Collections', [['collections.edit', 'Enter, edit and deposit'], ['collections.void', 'Void']]],
@@ -687,6 +690,24 @@ function moneyInputs(root) {
       try { el.setSelectionRange(i, i); } catch (e) { }
     });
   });
+}
+/* Supplier invoice numbers compared the way people mistype them: case, spaces, punctuation and leading zeros
+   don't count, so BI#0699514769, bi 0699514769 and BI-699514769 are the same invoice. (Code.gs does the same.) */
+const refKey = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').replace(/(^|[a-z])0+(?=\d)/g, '$1');
+const dupBill = (payeeId, ref, self) => payeeId && refKey(ref) ? D.bills.find(b => b.id !== self && live(b) && b.payeeId === payeeId && refKey(b.ref) === refKey(ref)) : null;
+const dupMsg = (b, who) => `${isMemo(b) ? 'Debit memo' : 'Invoice'} ${b.ref} from ${who} is already entered: ${fdate(b.date)}, ${peso(b.payable)}.`;
+/* ---------- Approving payments ----------
+   A check voucher or payment by transfer waits for approval by someone with payments.approve (Approvers, Admins).
+   Its entry is in the books from the save, as before; what waits is the money: a check can't be printed until it's
+   approved, and a transfer shows For approval until then. Editing what it pays sends it back; clearing doesn't.
+   Nobody approves a payment they entered or changed last, except an Admin. Code.gs enforces all of it. */
+const needsApproval = v => !!v && live(v) && own(v) && !v.from && !v.foreign && !v.approvedBy;
+const mineLast = v => { const w = v.updatedBy || v.createdBy || ''; return !!w && (w === whoAmI() || w === ME().name); };
+const canApprove = v => needsApproval(v) && can('payments.approve') && (isAdmin() || !mineLast(v));
+const approvalPill = v => needsApproval(v) ? sPill({ lvl: 'yellow', text: 'For approval' }) : '';
+function approveVoucher(id, then) {
+  const v = voucher(id); if (!canApprove(v)) { toast(mineLast(v) ? 'Someone else approves a payment you entered or changed.' : 'Your role can’t approve payments.', true); return; }
+  return saveNow('approveVoucher', () => { Object.assign(voucher(id), { approvedBy: whoAmI(), approvedOn: new Date().toISOString() }); }, () => { toast(`${v.cv} approved`); if (then) then(); });
 }
 const numIn = v => { const s = String(v ?? '').replace(/,/g, '').trim(); return s === '' ? NaN : Number(s); };
 const TIN_RE = /^\d{3}-\d{3}-\d{3}(-\d{3,5})?$/;
@@ -1567,6 +1588,171 @@ function suggestCheckNo() {
   return m[1] + pad(BigInt(m[2]) + 1n, m[2].length);
 }
 
+/* ---------- Recurring bills ----------
+   A bill ticked Repeats monthly is a reminder: once its month is over, the next month's bill is due to be entered,
+   filled in from it (payee, accounts, last amounts, VAT, ATC), for someone to type the invoice no. and the real
+   amount. The hub never saves one by itself. The latest bill for the same payee and account decides: untick it there
+   to stop. */
+function billsToEnter() {
+  if (YEAR !== THIS_YEAR()) return [];
+  const ym = todayIso().slice(0, 7), last = {};
+  D.bills.filter(b => live(b) && !isMemo(b) && own(b) && !b.refOnly).forEach(b => { const k = `${b.payeeId}|${(b.lines[0] || {}).accountId || ''}`; if (!last[k] || b.date > last[k].date) last[k] = b; });
+  return Object.values(last).filter(b => b.repeat && b.date.slice(0, 7) < ym).sort((a, b) => a.payeeName.localeCompare(b.payeeName));
+}
+function repeatBill(id) {
+  const t = billOf(id); if (!t) return;
+  docForm('bill', { payeeId: t.payeeId, payeeName: t.payeeName, tin: t.tin, particulars: t.particulars, ref: '', date: todayIso(), dueDate: '', vatable: t.vatable, vat: '', vatManual: false, atc: t.atc, ewt: '', ewtManual: false,
+    lines: t.lines.map(l => ({ accountId: l.accountId, desc: l.desc || '', amount: l.amount, dept: l.dept || '', tag: l.tag || '', vat: l.vat, wt: l.wt })), bills: [], currency: t.currency || 'PHP', rate: t.rate || 1, apAccount: t.apAccount, notes: '', repeat: true });
+}
+
+/* ---------- Paying bills in a batch ----------
+   Like QuickBooks' Pay Bills: tick unpaid peso bills, choose the bank, date and how; one voucher per payee is made,
+   all For approval. Checks are numbered on from the first check no.; transfers get a reference to replace later. */
+function payBillsForm() {
+  const banks = bankAccounts().filter(a => bankCur(a.id) === 'PHP' && !funds().some(f => f.id === a.id)), date0 = defaultDate();
+  const open = D.bills.filter(b => live(b) && own(b) && !isMemo(b) && !b.refOnly && (b.currency || 'PHP') === 'PHP' && billBalance(b) > 0.004)
+    .sort((a, b) => a.payeeName.localeCompare(b.payeeName) || (a.dueDate || a.date).localeCompare(b.dueDate || b.date));
+  if (!open.length) { toast('No unpaid peso bills to pay.'); return; }
+  const groups = []; open.forEach(b => { let g = groups[groups.length - 1]; if (!g || g.payeeId !== b.payeeId) groups.push(g = { payeeId: b.payeeId, name: b.payeeName, bills: [] }); g.bills.push(b); });
+  openModal('Pay Bills', `<p class="lead">Tick the bills to pay. One voucher is made for each payee, waiting for approval. Bills in dollars or yuan, and debit memos, are paid from their own voucher form.</p>
+    <div class="fields">${F('pb-bank', 'Pay from', `<select id="pb-bank">${banks.map(a => opt(a.id, acctLabel(a), D.control.bank)).join('')}</select>`)}
+      ${F('pb-how', 'How', `<select id="pb-how"><option value="Check">Checks</option><option value="Transfer">Bank transfers</option></select>`)}
+      ${F('pb-date', 'Date', inp('pb-date', date0, 'date'))}${F('pb-chk', 'First check no.', inp('pb-chk', suggestCheckNo(), 'text', 'autocomplete="off"'))}</div>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="compact"><thead><tr><th style="width:36px"><input type="checkbox" id="pb-all" aria-label="Tick every bill"></th><th>Bill</th><th>Due</th><th class="num">Balance</th><th class="num" style="width:150px">Pay (₱)</th></tr></thead><tbody>
+    ${groups.map(g => `<tr class="pb-group"><td colspan="5"><b>${esc(g.name)}</b></td></tr>${g.bills.map(b => { const due = billDue(b); return `<tr data-id="${esc(b.id)}" class="${due && due.lvl === 'red' ? 'att-red' : due && due.lvl === 'yellow' ? 'att-yellow' : ''}">
+      <td><input type="checkbox" class="pb-on" aria-label="Pay ${esc(b.ref)}"></td><td>${esc(b.ref)}<span class="sub">${esc(b.particulars || '')}</span></td>
+      <td>${b.dueDate ? fdate(b.dueDate) : '<span style="color:var(--muted)">No due date</span>'}${due ? `<span class="sub">${sPill(due)}</span>` : ''}</td>
+      <td class="num">${money(billBalance(b))}</td><td class="num"><input class="pb-amt" type="number" step="0.01" min="0" inputmode="decimal" value="${billBalance(b)}" style="text-align:right" aria-label="Amount to pay on ${esc(b.ref)}"></td></tr>`; }).join('')}`).join('')}
+    </tbody></table></div><p class="balcheck" id="pb-sum" style="margin-top:12px"></p>`, () => {
+    const bank = val('pb-bank'), how = val('pb-how'), date = val('pb-date'), first = val('pb-chk');
+    const picked = [...document.querySelectorAll('#modal-root tbody tr[data-id]')].filter(tr => tr.querySelector('.pb-on').checked).map(tr => ({ b: billOf(tr.dataset.id), amt: round2(numIn(tr.querySelector('.pb-amt').value)) }));
+    if (!picked.length) return 'Tick at least one bill.';
+    if (!date || !inYear(date)) return date ? yearMsg(date) : 'Enter the date.';
+    if (isLocked(date)) return lockedMsg();
+    const bad = picked.find(x => !(x.amt > 0) || x.amt > billBalance(x.b) + 0.004); if (bad) return `Pay ${bad.b.ref} between ₱0.01 and its balance, ${peso(billBalance(bad.b))}.`;
+    if (picked.some(x => x.b.date > date)) return `${picked.find(x => x.b.date > date).b.ref} is dated after ${fdate(date)}. Pay it on or after its invoice date.`;
+    const m = how === 'Check' ? String(first).match(/^(.*?)(\d+)$/) : null;
+    if (how === 'Check' && !m) return 'Enter the first check no., ending in digits. The rest follow from it.';
+    const byPayee = []; picked.forEach(x => { let g = byPayee.find(y => y.payeeId === x.b.payeeId); if (!g) byPayee.push(g = { payeeId: x.b.payeeId, name: x.b.payeeName, tin: x.b.tin, items: [] }); g.items.push(x); });
+    const ids = [];
+    return save(how === 'Check' ? 'saveVoucher' : 'saveTransfer', () => {
+      byPayee.forEach((g, i) => {
+        const p = contact(g.payeeId) || {}, cv = suggestCv(date, how === 'Check' ? 'CV' : 'PV'), no = how === 'Check' ? m[1] + pad(BigInt(m[2]) + BigInt(i), m[2].length) : `${cv}-REF`;
+        const v = { id: nextId('v'), cv, date, checkDate: date, checkNo: no, payeeId: g.payeeId, payeeName: g.name, tin: p.tin || g.tin || '', particulars: `Payment of ${g.items.map(x => x.b.ref).join(', ')}`,
+          bills: g.items.map(x => ({ billId: x.b.id, amount: x.amt, acct: x.b.apAccount })), lines: [], vatable: false, vat: 0, vatManual: false, atc: '', ewt: 0, ewtManual: false,
+          method: how, bankAcct: bank, charges: 0, currency: 'PHP', rate: 1, status: 'active', clearedOn: '', notes: '', importEntry: '', overBudget: '', approvedBy: '', approvedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' };
+        const c = calc(v); v.entry = c.entry.filter(e => e.dr || e.cr); v.checkAmount = c.check; D.vouchers.push(v); ids.push(v.id);
+      });
+    }, () => { toast(`${plural(byPayee.length, how === 'Check' ? 'check voucher' : 'payment')} made, waiting for approval${how === 'Transfer' ? '. Type each bank reference in when you send them' : ''}.`); S.vf = 'approve'; S.tk = 'approve'; go(how === 'Check' ? 'vouchers' : 'transfers'); });
+  }, 'Make vouchers', { size: 'wide', noFocus: true, onOpen: () => {
+    const m = document.querySelector('#modal-root .modal'), sum0 = () => {
+      const on = [...m.querySelectorAll('tbody tr[data-id]')].filter(tr => tr.querySelector('.pb-on').checked), tot = round2(sum(on.map(tr => numIn(tr.querySelector('.pb-amt').value) || 0)));
+      const payees = new Set(on.map(tr => billOf(tr.dataset.id).payeeId)).size, bal = bankBalance(val('pb-bank')).php, el = document.getElementById('pb-sum');
+      el.className = 'balcheck ' + (!on.length ? '' : tot > bal + 0.004 ? 'bad' : 'ok');
+      el.textContent = on.length ? `${plural(on.length, 'bill')}, ${plural(payees, 'voucher')}: ${peso(tot)}. ${acctName(val('pb-bank'))} holds ${peso(bal)} per the books${tot > bal + 0.004 ? `, ${peso(round2(tot - bal))} short` : ''}.` : '';
+      document.getElementById('pb-chk').closest('.field').style.display = val('pb-how') === 'Check' ? '' : 'none';
+    };
+    m.addEventListener('change', e => { if (e.target.id === 'pb-all') m.querySelectorAll('.pb-on').forEach(c => { c.checked = e.target.checked; }); sum0(); });
+    m.addEventListener('input', sum0); sum0();
+  } });
+}
+/* Several approved checks printed together, e.g. a pay run's. */
+function printChecksForm() {
+  const vs = D.vouchers.filter(v => own(v) && isCheck(v) && live(v) && !needsApproval(v) && !v.clearedOn).sort((a, b) => b.date.localeCompare(a.date) || b.cv.localeCompare(a.cv)).slice(0, 80);
+  if (!vs.length) { toast('No approved checks waiting to be printed: approve them first.'); return; }
+  const recent = vs[0].date;
+  openModal('Print Checks', `<p class="lead">Approved checks not cleared yet, newest first. Those dated ${fdate(recent)} are ticked.</p>
+    <div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:36px"></th><th>CV no.</th><th>Payee</th><th>Check</th><th class="num">Amount</th></tr></thead><tbody>
+    ${vs.map(v => `<tr><td><input type="checkbox" class="pc-on" value="${esc(v.id)}" ${v.date === recent ? 'checked' : ''} aria-label="Print ${esc(v.cv)}"></td><td><b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span></td><td>${esc(v.payeeName)}</td><td>${esc(v.checkNo)}</td><td class="num">${money(v.checkAmount)}</td></tr>`).join('')}</tbody></table></div>`, () => {
+    const ids = [...document.querySelectorAll('.pc-on:checked')].map(c => c.value);
+    if (!ids.length) return 'Tick at least one check.';
+    closeModal(true); setTimeout(() => printVouchers(ids), 0);
+  }, 'Print');
+}
+function approveAllShown() {
+  const vs = D.vouchers.filter(v => (S.page === 'transfers' ? isTransfer(v) : isCheck(v)) && canApprove(v));
+  if (!vs.length) { toast('Nothing here you can approve.'); return; }
+  saveNow('approveVoucher', () => { vs.forEach(v => Object.assign(voucher(v.id), { approvedBy: whoAmI(), approvedOn: new Date().toISOString() })); }, () => toast(`${plural(vs.length, 'payment')} approved`));
+}
+
+/* ---------- Payroll ----------
+   QuickBooks has no Philippine payroll; companies memorize a journal entry. This is that, guided: the totals from
+   the payroll summary in, the entry out, checked before it's saved. It's saved as a journal entry, so it's edited
+   and voided like one. The next payroll starts from the last one's figures. */
+const PAYROLL = [['gross', 'Gross pay (basic, overtime, allowances)', '710-010', 'dr'], ['sssEr', 'SSS, employer share', '710-030', 'dr'], ['phEr', 'PhilHealth, employer share', '710-040', 'dr'], ['piEr', 'Pag-IBIG, employer share', '710-050', 'dr'],
+  ['sssEe', 'SSS, employee share', '221-010', 'cr'], ['phEe', 'PhilHealth, employee share', '221-020', 'cr'], ['piEe', 'Pag-IBIG, employee share', '221-030', 'cr'], ['wht', 'Withholding tax on compensation', '220-030', 'cr']];
+const isPayroll = j => j.kind === 'Entry' && /^Payroll for /.test(j.memo || '');
+function payrollForm() {
+  const id = c => (D.accounts.find(a => a.code === c) || {}).id, missing = [...new Set(PAYROLL.map(x => x[2]).concat(['230-020', '141-010']))].filter(c => !id(c));
+  if (missing.length) { toast(`The chart needs ${missing.join(', ')} for payroll.`, true); return; }
+  const last = (D.journals || []).filter(j => isPayroll(j) && live(j)).sort((a, b) => b.date.localeCompare(a.date))[0];
+  const was = k => { if (!last) return ''; const [, , code, side] = PAYROLL.find(x => x[0] === k), a = id(code);
+    if (k.endsWith('Ee')) { const er = PAYROLL.find(x => x[0] === k.replace('Ee', 'Er')); return round2(sum(last.entry.filter(l => l.acct === a).map(l => l.cr || 0)) - sum(last.entry.filter(l => l.acct === id(er[2])).map(l => l.dr || 0))) || ''; }
+    return sum(last.entry.filter(l => l.acct === a).map(l => side === 'dr' ? l.dr || 0 : l.cr || 0)) || ''; };
+  const pays = bankAccounts().filter(a => bankCur(a.id) === 'PHP').map(a => a.id).concat([id('230-020')]);
+  const lastPay = last ? (last.entry.find(l => pays.includes(l.acct) && l.cr) || {}).acct : D.control.bank;
+  const advs = []; const emps = employees();
+  openModal('Payroll', `<p class="lead">Type the totals from the payroll summary. The hub makes the journal entry${last ? `; it starts from the last payroll, ${esc(last.memo.replace(/^Payroll for /, ''))}` : ''}.</p>
+    <div class="fields">${F('py-date', 'Pay date', inp('py-date', defaultDate(), 'date'))}${F('py-per', 'Period', inp('py-per', '', 'text', 'placeholder="e.g. November 1 to 15, 2026"'), 'span2')}
+      ${F('py-from', 'Net pay paid from', `<select id="py-from">${pays.map(a => opt(a, acctLabel(acct(a)) + (a === id('230-020') ? ' (paid later)' : ''), lastPay || D.control.bank)).join('')}</select>`, 'full')}</div>
+    <div class="tbl-wrap" style="margin-top:14px"><table class="compact"><tbody>
+      ${PAYROLL.map(([k, label]) => `<tr><td>${label}</td><td class="num" style="width:180px"><input id="py-${k}" type="number" step="0.01" min="0" inputmode="decimal" value="${was(k)}" style="text-align:right"></td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="mt" style="font-size:15px">Cash advances deducted</h3><div id="py-advs"></div><p style="margin:8px 0 0"><button type="button" class="btn ghost sm" id="py-add">Add an employee</button></p>
+    <div class="checkamt" style="margin-top:16px"><span class="label">Net pay</span><span class="big" id="py-net">₱0.00</span></div>
+    <h3 class="mt" style="font-size:15px">The entry</h3><div id="py-entry"></div>`, () => {
+    const e = entry(), date = val('py-date'), per = val('py-per');
+    if (!date || !inYear(date)) return date ? yearMsg(date) : 'Enter the pay date.';
+    if (isLocked(date)) return lockedMsg();
+    if (!per) return 'Enter the period, e.g. November 1 to 15, 2026.';
+    if (!(n('gross') > 0)) return 'Enter the gross pay.';
+    if (net() <= 0) return 'Net pay comes to zero or less. Check the deductions.';
+    if (advs.some(a => (a.amt > 0) !== !!a.emp)) return 'Each cash advance deducted needs its employee and amount.';
+    return save('saveJournal', () => { D.journals.push({ id: nextId('j'), no: suggestJe(date, 'JE'), date, kind: 'Entry', name: '', memo: `Payroll for ${per}`, from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '', reverses: '', entry: e }); },
+      () => toast(`Payroll for ${per} saved`));
+  }, 'Save payroll', { size: 'mid', noFocus: true, onOpen: () => {
+    const drawAdv = () => { document.getElementById('py-advs').innerHTML = advs.length ? `<div class="tbl-wrap"><table class="compact"><tbody>${advs.map((a, i) => `<tr><td><select class="py-emp" data-i="${i}"><option value="">Choose the employee</option>${emps.map(p => opt(p.id, p.name, a.emp)).join('')}</select></td>
+      <td class="num" style="width:180px"><input class="py-adv" data-i="${i}" type="number" step="0.01" min="0" inputmode="decimal" value="${a.amt || ''}" style="text-align:right"></td><td style="width:70px"><button type="button" class="btn link sm py-del" data-i="${i}">Remove</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">None this payroll.</p>'; };
+    const readAdv = () => document.querySelectorAll('.py-emp').forEach(s0 => { const i = Number(s0.dataset.i); advs[i].emp = s0.value; advs[i].amt = round2(numIn(document.querySelector(`.py-adv[data-i="${i}"]`).value) || 0); });
+    drawAdv();
+    const m = document.querySelector('#modal-root .modal');
+    m.addEventListener('click', ev => { if (ev.target.id === 'py-add') { readAdv(); advs.push({ emp: '', amt: 0 }); drawAdv(); upd(); } if (ev.target.classList.contains('py-del')) { readAdv(); advs.splice(Number(ev.target.dataset.i), 1); drawAdv(); upd(); } });
+    m.addEventListener('input', () => { readAdv(); upd(); }); m.addEventListener('change', () => { readAdv(); upd(); });
+    upd();
+  } });
+  function n(k) { const el = document.getElementById('py-' + k); return el ? round2(numIn(el.value) || 0) : 0; }
+  function net() { return round2(n('gross') - n('sssEe') - n('phEe') - n('piEe') - n('wht') - sum(advs.map(a => a.amt || 0))); }
+  function entry() {
+    const L = (code, dr, cr, memo, tag) => ({ acct: id(code) || code, memo: memo || '', dr: round2(dr), cr: round2(cr), dept: '', ...(tag ? { tag } : {}) });
+    const out = [L('710-010', n('gross'), 0, 'Gross pay'), L('710-030', n('sssEr'), 0, 'Employer share'), L('710-040', n('phEr'), 0, 'Employer share'), L('710-050', n('piEr'), 0, 'Employer share'),
+      L('221-010', 0, n('sssEe') + n('sssEr'), 'Employee and employer shares'), L('221-020', 0, n('phEe') + n('phEr'), 'Employee and employer shares'), L('221-030', 0, n('piEe') + n('piEr'), 'Employee and employer shares'),
+      L('220-030', 0, n('wht'), 'Withheld from salaries'), ...advs.filter(a => a.emp && a.amt > 0).map(a => L('141-010', 0, a.amt, 'Deducted from salary', a.emp))];
+    const from = val('py-from'); out.push({ acct: from, memo: 'Net pay', dr: 0, cr: net(), dept: '' });
+    return out.filter(l => l.dr || l.cr);
+  }
+  function upd() {
+    document.getElementById('py-net').textContent = peso(net());
+    const e = entry(), dr = round2(sum(e.map(l => l.dr))), cr = round2(sum(e.map(l => l.cr)));
+    document.getElementById('py-entry').innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${e.map(l => `<tr><td>${esc(acctName(l.acct))}${l.tag ? `<span class="sub">${esc((contact(l.tag) || {}).name || '')}</span>` : l.memo ? `<span class="sub">${esc(l.memo)}</span>` : ''}</td><td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table></div>`;
+  }
+}
+
+/* ---------- Files ----------
+   Each document has its own folder in Google Drive, made the first time someone clicks Files on it: inside one
+   shared folder, by year and kind ("2026 › Supplier Bills › BI#0699514769 · PLDT INC. (b2026-14)"). The scan or photo
+   goes there. Nothing is stored in the hub; whoever uploads needs a Google account the shared folder is shared with. */
+const FILE_KIND = id => { const k = String(id).replace(/\d.*$/, ''), v = k === 'v' ? voucher(id) : null; return { b: 'Supplier Bills', v: v && isTransfer(v) ? 'Bank Transfers' : 'Check Vouchers', j: 'Journal Entries', i: 'Sales Invoices', r: 'Collections', d: 'Deposits', e: 'Petty Cash', q: 'Liquidations' }[k] || ''; };
+async function openFiles(id) {
+  const d = entryDoc(id), kind = FILE_KIND(id); if (!d || !kind) return;
+  const ref = d.ref || d.cv || d.cr || d.no || id, who = d.payeeName || d.customerName || d.paidTo || (contact(d.employee) || {}).name || d.name || '';
+  const w = window.open('', '_blank'); // opened now, while it's still the click, so Safari lets it open
+  if (w) w.document.write('<p style="font:16px -apple-system,sans-serif;padding:24px">Opening the files folder…</p>');
+  try { const r = await api('files', { id, kind, year: Number((d.date || todayIso()).slice(0, 4)) || YEAR, name: [ref, who].filter(Boolean).join(' · ') });
+    if (w) w.location = r.url; else window.open(r.url, '_blank'); }
+  catch (e) { if (w) w.close(); toast('Couldn’t open the files folder: ' + e.message, true); }
+}
+
 /* ---------- UI helpers ---------- */
 const F = (id, label, input, cls = '') => { const l = String(label).replace(/<[^>]*>/g, '').trim(), t = FIELD_TIPS[`${id}|${l}`] || FIELD_TIPS[l]; return `<div class="field ${cls}"><label for="${id}">${label}${t && !/class="tip"/.test(label) ? ' ' + tip(t) : ''}</label>${input}</div>`; };
 const inp = (id, v = '', type = 'text', attrs = '') => `<input id="${id}" type="${type}" value="${esc(v)}" ${attrs}>`;
@@ -1649,7 +1835,8 @@ let modalSave = null;
 /* Who entered a document and who last changed it, at the foot of its view. History lists every change. */
 function docStamp(d) {
   const ob = d && d.overBudget ? `<p class="stamp over-note">${sPill({ lvl: 'red', text: 'Over budget' })} <span>${esc(d.overBudget)}</span></p>` : '';
-  return ob + docStamp0(d);
+  const files = d && d.id && !d.from && FILE_KIND(d.id) ? `<p class="stamp files-line"><button type="button" class="btn ghost sm" data-act="files" data-id="${esc(d.id)}">Files</button><span>Scans and photos of this document, in its own Google Drive folder.</span></p>` : '';
+  return ob + docStamp0(d) + files;
 }
 function docStamp0(d) {
   if (!d || d.from || !(d.createdBy || d.updatedBy)) return '';
@@ -1857,7 +2044,7 @@ async function refreshPage() {
 /* ---------- Payables: check vouchers ---------- */
 function vouchersPage() {
   const months = [...new Set(voucherMonths())].sort().reverse();
-  return pageHead('vouchers', 'One voucher per check. Tick the bills it pays, or type what the invoice says; the hub works out VAT, withholding, the check amount and the accounting entry.', canBooks('vouchers.edit') ? btn('new-voucher', 'New voucher') : '')
+  return pageHead('vouchers', 'One voucher per check. Tick the bills it pays, or type what the invoice says; the hub works out VAT, withholding, the check amount and the accounting entry.', (S.vf === 'approve' && D.vouchers.some(v => isCheck(v) && canApprove(v)) ? btn('approve-all', 'Approve all', 'ghost') : '') + (D.vouchers.some(v => own(v) && isCheck(v) && live(v)) ? btn('print-checks', 'Print checks', 'ghost') : '') + (canBooks('vouchers.edit') ? btn('new-voucher', 'New voucher') : ''))
     + (D.vouchers.some(v => own(v) && isCheck(v)) ? voucherTabs() : '') + `<div class="toolbar"><input id="q" type="search" placeholder="Search CV no., payee, particulars, check no." value="${esc(S.q)}" aria-label="Search">
       <select id="vm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.vm)).join('')}</select></div>
     <div id="list">${voucherList()}</div>`;
@@ -1869,23 +2056,24 @@ function hit(v) {
 }
 function voucherTabs() {
   const vs = D.vouchers.filter(v => own(v) && isCheck(v)), lv = vs.filter(live), out = lv.filter(v => vStatus(v) === 'Outstanding'), old = out.filter(v => checkAge(v)).length;
-  const cur = ['all', 'Outstanding', 'Cleared'].includes(S.vf) ? S.vf : 'all';
+  const cur = ['all', 'approve', 'Outstanding', 'Cleared'].includes(S.vf) ? S.vf : 'all', wait = lv.filter(needsApproval);
   return viewTabs('vf', [
+    ...(wait.length || S.vf === 'approve' ? [{ id: 'approve', label: 'For approval', big: wait.length.toLocaleString('en-US'), small: wait.length ? `${peso(sum(wait.map(v => v.checkAmount)))} waiting` : 'nothing waiting', lvl: wait.length ? 'yellow' : '' }] : []),
     { id: 'all', label: 'All vouchers', big: vs.length.toLocaleString('en-US'), small: `${peso(sum(lv.map(v => v.checkAmount)))} in checks, void included` },
     { id: 'Outstanding', label: 'Outstanding', big: peso(sum(out.map(v => v.checkAmount))), small: out.length ? `${plural(out.length, 'check')} not cleared${old ? ` · ${old} out 90+ days` : ''}` : 'every check cleared', lvl: old ? 'yellow' : '' },
     { id: 'Cleared', label: 'Cleared', big: lv.filter(v => vStatus(v) === 'Cleared').length.toLocaleString('en-US'), small: 'checks on the bank statement' }], cur, 'Check vouchers');
 }
 function voucherList() {
   if (!D.vouchers.some(v => own(v) && isCheck(v))) return `<div class="empty"><b>No vouchers in ${YEAR}</b>${canBooks('vouchers.edit') ? `Start with this week’s checks. ${btn('new-voucher', 'New voucher', 'sm')}` : ''}</div>`;
-  const rows = D.vouchers.filter(v => own(v) && isCheck(v) && hit(v) && (S.vf === 'all' || vStatus(v) === S.vf) && (!S.vm || entryDate(v).startsWith(S.vm)))
+  const rows = D.vouchers.filter(v => own(v) && isCheck(v) && hit(v) && (S.vf === 'all' || (S.vf === 'approve' ? needsApproval(v) : vStatus(v) === S.vf)) && (!S.vm || entryDate(v).startsWith(S.vm)))
     .sort((a, b) => b.date.localeCompare(a.date) || b.cv.localeCompare(a.cv));
   const cols = [
     { h: 'CV no.', k: v => `<b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span>` },
     { h: 'Payee', k: v => `${esc(v.payeeName)}<span class="sub">${esc(v.particulars)}</span>` },
     { h: 'Check', k: v => `${esc(v.checkNo)}<span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Check amount', num: 1, k: v => `<span class="amt">${peso(v.checkAmount)}</span>${v.ewt ? `<span class="sub">${money(v.ewt)} withheld</span>` : ''}` },
-    { h: 'Status', k: v => pill(vStatus(v)) + (v.status === 'void' ? `<span class="sub">${esc(v.voidReason || '')}</span>` : v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
-    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], live(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
+    { h: 'Status', k: v => (needsApproval(v) ? approvalPill(v) : pill(vStatus(v))) + (v.status === 'void' ? `<span class="sub">${esc(v.voidReason || '')}</span>` : v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
+    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], canApprove(v) && ['approve-voucher', v.id, 'Approve'], live(v) && !needsApproval(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
   ];
   const lv = rows.filter(live);
   return table(cols, rows, 'No vouchers match.', `<tfoot><tr><td>${lv.length} voucher${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => v.status === 'void' ? 'void' : '');
@@ -2017,7 +2205,7 @@ function docForm(kind, v0, mode = 'new') {
       ${F('f-tin', 'Payee TIN', inp('f-tin', v.tin || (p0 ? p0.tin : ''), 'text', 'placeholder="000-000-000-000"'))}
       ${F('f-part', 'Particulars ' + tip('What it’s for, in a line. It shows in the lists and prints on the voucher that pays it.'), inp('f-part', v.particulars, 'text', `placeholder="${isDM ? 'e.g. 12 pcs returned, damaged on arrival' : 'e.g. Internet and telephone for September 2026'}"`), 'full')}
       ${isDM ? F('f-applies', 'Apply it to', '<select id="f-applies"></select>', 'full') : ''}
-    </div><p class="hint" id="f-payee-note" style="margin-top:8px"></p></div>
+    </div><p class="hint" id="f-payee-note" style="margin-top:8px"></p><p class="warnline" id="f-dup"></p></div>
     ${isBill ? '' : `<div class="section"><h3>Bills this ${isPT ? 'transfer' : 'check'} pays</h3><div id="f-bills"></div></div>`}
     <div class="section"><h3>${isDM ? 'What it takes back' : isBill ? 'What it’s for' : 'Items without a bill'}</h3><div id="f-lines"></div>
       <p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="f-addline"></button></p></div>
@@ -2032,11 +2220,12 @@ function docForm(kind, v0, mode = 'new') {
       <p class="hint" style="margin-top:8px" id="f-words"></p></div>
     <div class="section"><h3>Accounting entry</h3><div class="entry"><div id="f-entry"></div><p class="balcheck" id="f-bal"></p></div>
       <p class="hint" style="margin-top:8px">Written from the details above, in pesos. The account lines are yours to choose; ${isBill ? 'VAT, withholding and the payables line' : 'bills paid, VAT, withholding, exchange differences, bank charges and the bank line'} follow the details.${isBill ? '' : isPT ? ' It’s booked on the day it was sent.' : ' It’s booked on the check date.'} Review it, then save.</p></div>
+    ${isBill && !isDM ? `<div class="section"><label class="check"><input type="checkbox" id="f-repeat" ${v.repeat ? 'checked' : ''}> Repeats monthly</label><p class="hint" style="margin:4px 0 0 28px">Rent, PLDT, Meralco: each month the hub reminds you to enter the next one, filled in from this one.</p></div>` : ''}
     <div class="section" style="margin-bottom:0">${F('f-notes', `Notes (optional${isBill ? '' : ', not printed'})`, `<textarea id="f-notes">${esc(v.notes || '')}</textarea>`)}</div>
   </div>`;
   const read = () => {
     v.date = val('f-date'); v.payeeName = val('f-payee'); v.tin = val('f-tin'); v.particulars = val('f-part'); v.notes = document.getElementById('f-notes').value.trim();
-    if (isBill) { v.ref = val('f-ref'); v.dueDate = isDM ? '' : val('f-due'); if (isDM) v.appliesTo = val('f-applies'); }
+    if (isBill) { v.ref = val('f-ref'); v.dueDate = isDM ? '' : val('f-due'); if (isDM) v.appliesTo = val('f-applies'); else v.repeat = !!(document.getElementById('f-repeat') || {}).checked; }
     else {
       v.cv = val('f-cv'); v.checkNo = val('f-checkno'); v.checkDate = isPT ? v.date : val('f-checkdate');
       if (document.getElementById('f-bank')) v.bankAcct = val('f-bank');
@@ -2178,6 +2367,7 @@ function docForm(kind, v0, mode = 'new') {
     const openNote = !p ? '' : nBills ? `${p.name} has ${plural(nBills, 'unpaid bill')}${nMemos ? ` and ${plural(nMemos, 'unused debit memo')} (credits)` : ''}. Tick what this ${doc} pays.`
       : `${p.name} has no unpaid bills, only ${plural(nMemos, 'unused debit memo')}: credits they owe the company back. A debit memo isn’t a bill; it comes off a bill when one is paid.`;
     fillTin('f-tin', p);
+    if (isBill) { const d = p && dupBill(p.id, val('f-ref'), self), w = document.getElementById('f-dup'); if (w) w.textContent = d ? dupMsg(d, p.name) : ''; }
     if (p) {
       const empty = v.lines.every(l => !l.accountId && !l.amount);
       if (!edit && empty) {
@@ -2259,8 +2449,8 @@ function docForm(kind, v0, mode = 'new') {
     if (isLocked(v.date) || (edit && isLocked(v0.date))) return lockedMsg();
     if (!v.payeeName) return 'Enter the payee.';
     const pc = contactByName(v.payeeName);
-    const dup = pc && D.bills.find(b => b.id !== self && live(b) && b.payeeId === pc.id && b.ref.toLowerCase() === v.ref.toLowerCase());
-    if (dup) return `${isMemo(dup) ? 'Debit memo' : 'Invoice'} ${dup.ref} from ${pc.name} is already entered.`;
+    const dup = pc && dupBill(pc.id, v.ref, self);
+    if (dup) return dupMsg(dup, pc.name) + ' Open that one instead, or check the number.';
     if (isDM && v.appliesTo) {
       const t = billOf(v.appliesTo), left = t ? billBalance(t, self) : 0;
       if (!t || !pc || t.payeeId !== pc.id) return 'The bill it applies to must be the same payee’s.';
@@ -2289,7 +2479,7 @@ function docForm(kind, v0, mode = 'new') {
       const apAccount = paidSoFar > 0 ? v0.apAccount : apFor(p.roles);
       const cb = calcBill({ ...v, apAccount });
       const rec = { ref: v.ref, date: v.date, dueDate: v.dueDate || '', payeeId: p.id, payeeName: p.name, tin: v.tin || p.tin || '', particulars: v.particulars, ...taxRec(cb),
-        payable: cb.payable, apAccount, entry: cb.entry.filter(x => x.dr || x.cr), notes: v.notes, type: isDM ? 'Debit memo' : '', appliesTo: isDM ? v.appliesTo || '' : '', overBudget: budgetAck.note || '' };
+        payable: cb.payable, apAccount, entry: cb.entry.filter(x => x.dr || x.cr), notes: v.notes, type: isDM ? 'Debit memo' : '', appliesTo: isDM ? v.appliesTo || '' : '', overBudget: budgetAck.note || '', repeat: !isDM && !!v.repeat };
       if (edit) Object.assign(billOf(self), rec);
       else D.bills.push({ id: nextId('b'), ...rec, status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
     }, () => toast(`${isDM ? 'Debit memo' : 'Invoice'} ${v.ref} saved`));
@@ -2344,8 +2534,10 @@ function docForm(kind, v0, mode = 'new') {
       if (edit) Object.assign(voucher(self), rec);
       else { id = nextId('v'); D.vouchers.push({ id, ...rec, status: 'active', clearedOn: '', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' }); }
     }, map => {
-      toast(`${v.cv} saved${andPrint ? '. Opening print.' : ''}`);
-      if (andPrint) printVouchers([map[id] || id]);
+      const nid = map[id] || id;
+      if (andPrint && needsApproval(voucher(nid)) && canApprove(voucher(nid))) { approveVoucher(nid, () => printVouchers([nid])); return; }
+      toast(`${v.cv} saved${andPrint ? '. Opening print.' : needsApproval(voucher(nid)) ? '. It waits for approval.' : ''}`);
+      if (andPrint) printVouchers([nid]);
     });
   };
   const title = isDM ? (edit ? `Edit Debit Memo ${esc(v0.ref)}` : 'New Debit Memo') : isBill ? (edit ? `Edit Invoice ${esc(v0.ref)}` : 'New Supplier Bill') : (edit ? `Edit ${esc(v0.cv)}` : isPT ? 'New Payment by Transfer' : 'New Check Voucher');
@@ -2391,6 +2583,7 @@ function docForm(kind, v0, mode = 'new') {
         else if (t.id === 'f-ewt-auto') { v.ewtManual = false; update(); }
       });
       document.getElementById(isBill && !edit ? 'f-ref' : 'f-payee').focus();
+      if (isBill) document.getElementById('f-ref').addEventListener('input', () => { const p = contactByName(val('f-payee')), d = p && dupBill(p.id, val('f-ref'), self); document.getElementById('f-dup').textContent = d ? dupMsg(d, p.name) : ''; });
       if (v.payeeName) onPayee();
     }
   });
@@ -2423,7 +2616,8 @@ function voucherDoc(v) {
 /* Each voucher is measured at print width: one that fits half a sheet (5 in) takes half (two share a page, with a cut line
    between), one with a long entry takes the page. */
 function printVouchers(ids) {
-  const vs = ids.map(voucher).filter(Boolean);
+  const all = ids.map(voucher).filter(Boolean), wait = all.filter(needsApproval), vs = all.filter(v => !needsApproval(v));
+  if (wait.length) toast(`${wait.map(v => v.cv).join(', ')} ${wait.length === 1 ? 'isn’t' : 'aren’t'} approved yet, so ${wait.length === 1 ? 'it' : 'they'} can’t be printed.`, true);
   if (!vs.length) return;
   const pa = document.getElementById('print-area');
   pa.innerHTML = vs.map(voucherDoc).join('');
@@ -2446,8 +2640,10 @@ function viewVoucher(id) {
     return;
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, live(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
-  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, live(v) && !needsApproval(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
+  const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}</span></p>`
+    : needsApproval(v) ? `<p class="stamp appr-wait">${approvalPill(v)} <span>${t ? 'Waiting for approval before it’s sent.' : 'Waiting for approval. The check prints once it’s approved.'}${canApprove(v) ? '' : can('payments.approve') ? ' You entered or changed it last, so someone else approves it.' : ' An Approver or Admin approves it.'}</span></p>` : '';
+  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
 }
 /* Void date: in this year's books, on or after the day the document was booked, in an open month. */
 const nextDay = d => { const x = parseD(d); x.setDate(x.getDate() + 1); return iso(x); };
@@ -2475,7 +2671,7 @@ function voidVoucher(id) {
 
 /* ---------- Payables: supplier bills ---------- */
 function billsPage() {
-  return pageHead('bills', 'One bill per supplier invoice, entered when it arrives. A check voucher or transfer pays it later, in full or in parts. A debit memo takes back goods returned or an overcharge.', canBooks('bills.edit') ? `${btn('new-debit-memo', 'New debit memo', 'ghost')}${btn('new-bill', 'New bill')}` : '')
+  return pageHead('bills', 'One bill per supplier invoice, entered when it arrives. A check voucher or transfer pays it later, in full or in parts. A debit memo takes back goods returned or an overcharge.', (canBooks('vouchers.edit') || canBooks('transfers.edit') ? btn('pay-bills', 'Pay bills', 'ghost') : '') + (canBooks('bills.edit') ? `${btn('new-debit-memo', 'New debit memo', 'ghost')}${btn('new-bill', 'New bill')}` : ''))
     + (D.bills.some(b => !b.refOnly) ? billTabs() : '') + `<div class="toolbar"><input id="q" type="search" placeholder="Search invoice no., payee, particulars" value="${esc(S.q)}" aria-label="Search"></div>
     <div id="list">${billList()}</div>`;
 }
@@ -2483,14 +2679,19 @@ function billsPage() {
 function billTabs() {
   const ls = D.bills.filter(b => !b.refOnly && live(b)), bills = ls.filter(b => !isMemo(b)), memos = ls.filter(isMemo).filter(b => billBalance(b) > 0.004);
   const unpaid = bills.filter(b => billBalance(b) > 0.004), lvl = l => unpaid.filter(b => (billDue(b) || {}).lvl === l).length, late = lvl('red'), soon = lvl('yellow');
-  const cur = ['unpaid', 'memos', 'Paid', 'all'].includes(S.bf) ? S.bf : 'all';
+  const cur = ['repeat', 'unpaid', 'memos', 'Paid', 'all'].includes(S.bf) ? S.bf : 'all', rep = billsToEnter();
   return viewTabs('bf', [
+    ...(rep.length || S.bf === 'repeat' ? [{ id: 'repeat', label: 'To enter', big: rep.length.toLocaleString('en-US'), small: rep.length ? `monthly bills for ${monthLabel(todayIso().slice(0, 7))}` : 'every monthly bill is in', lvl: rep.length ? 'yellow' : '' }] : []),
     { id: 'unpaid', label: 'Unpaid', big: peso(sum(unpaid.map(b => pesoOf(b, billBalance(b))))), small: unpaid.length ? `${plural(unpaid.length, 'bill')}${late ? ` · ${late} late` : soon ? ` · ${soon} due soon` : ''}` : 'nothing to pay', lvl: late ? 'red' : soon ? 'yellow' : '' },
     { id: 'memos', label: 'Debit memos', big: peso(sum(memos.map(b => pesoOf(b, billBalance(b))))), small: memos.length ? `${plural(memos.length, 'credit')} not used yet` : 'none open' },
     { id: 'Paid', label: 'Paid', big: bills.filter(b => bStatus(b) === 'Paid').length.toLocaleString('en-US'), small: `bills in ${YEAR}` },
     { id: 'all', label: 'All', big: D.bills.filter(b => !b.refOnly).length.toLocaleString('en-US'), small: 'bills and memos, void included' }], cur, 'Bills');
 }
 function billList() {
+  if (S.bf === 'repeat') { const rep = billsToEnter();
+    return rep.length ? table([{ h: 'Payee', k: b => `<b>${esc(b.payeeName)}</b><span class="sub">${esc(b.particulars || '')}</span>` }, { h: 'Last bill', k: b => `${esc(b.ref)}<span class="sub">${fdate(b.date)}</span>` },
+      { h: 'Last amount', num: 1, k: b => money(b.payable) }, { h: '', k: b => canBooks('bills.edit') ? btn('repeat-bill', `Enter ${monthLabel(todayIso().slice(0, 7)).replace(/ \d{4}$/, '')}’s bill`, 'sm', b.id) : '' }], rep, '')
+      : `<div class="empty"><b>Every monthly bill is in</b>Tick Repeats monthly on a bill to be reminded each month.</div>`; }
   if (!D.bills.length) return `<div class="empty"><b>No bills in ${YEAR}</b>${canBooks('bills.edit') ? `Enter a supplier invoice when it arrives. ${btn('new-bill', 'New bill', 'sm')}` : ''}</div>`;
   const q = S.q.toLowerCase().trim();
   const rows = D.bills.filter(b => !b.refOnly).map(b => ({ b, st: bStatus(b) }))
@@ -3585,7 +3786,7 @@ function companyPage() {
       ${F('s-chk', 'Checked by', inp('s-chk', D.signers.checked, 'text', x), 'span2')}${F('s-appr', 'Approved by', inp('s-appr', D.signers.approved, 'text', x), 'span2')}
     </div></section>
     ${ro ? '' : `<p>${btn('save-settings', 'Save')}</p>`}
-    ${reportsCard()}${backupCard()}`;
+    ${reportsCard()}${backupCard()}${filesCard()}`;
 }
 const atStamp = at => { const d = new Date(at); return isNaN(d) ? at : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
 function reportsCard() {
@@ -3595,6 +3796,14 @@ function reportsCard() {
     <p style="margin-bottom:10px">The Google Sheet holds the complete books. Its green tabs, in front, are the reports: financial statements, trial balance, general ledger, the books of accounts, unpaid bills and invoices, open checks, and the VAT and withholding lists. They rebuild themselves within about twenty minutes of a save, and every night. Before sending them, press Rebuild to be sure they’re current.</p>
     <p class="hint" style="margin-bottom:10px">To send the books, open the Sheet and choose File, Download, Microsoft Excel. Send the file as it is. Users, passwords and the change log are kept in a separate file and never go with it.</p>
     ${line}${can('company.edit') ? `<p style="margin-top:14px">${btn('rebuild-reports', 'Rebuild the reports now', 'ghost')}</p>` : ''}</section>`;
+}
+/* Where the scans and photos are: one shared folder, a folder per document inside it. */
+function filesCard() {
+  const url = (REPORTS_ST || {}).files || '';
+  return `<section class="card" style="margin-top:28px"><h2>Files</h2>
+    <p style="margin-bottom:10px">Each document’s Files button opens its own folder in Google Drive for its scans and photos: supplier invoices, receipts, deposit slips, 2307s. The folders are inside one folder in the Sheet owner’s Drive, by year and kind.</p>
+    <p class="hint" style="margin-bottom:10px">Share that folder once, as Editor, with the Google account of everyone who uploads. Folders made inside it are shared the same way.</p>
+    ${url ? `<p><a class="btn ghost" style="text-decoration:none" href="${esc(url)}" target="_blank" rel="noopener">Open the Files folder</a></p>` : '<p class="hint">It’s made the first time someone clicks Files on a document.</p>'}</section>`;
 }
 /* The nightly backup: when it last ran, where the copies are, and a failure in red. */
 function backupCard() {
@@ -3757,11 +3966,11 @@ const TABLES = [
     cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16], ['Invoice date', 'd', 13], ['Due date', 'd', 13, 'optional'], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Amount payable', 'n', 15],
       ['Payables account ID', 's', 12], ['Status', 's', 12], ['Carried from', 'i', 10], ['Paid before', 'n', 15], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'],
-      ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Type', 's', 12, 'optional'], ['Applies to Bill ID', 's', 12, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional']],
+      ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Type', 's', 12, 'optional'], ['Applies to Bill ID', 's', 12, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional'], ['Repeats', 's', 10, 'optional']],
     rows: () => D.bills.filter(b => !b.foreign).sort(byDateRef).map(b => [b.id, b.ref, b.date, b.dueDate || null, b.payeeId, b.payeeName, b.tin || null, b.particulars,
       yn(b.vatable), vGross(b), b.vat, yn(b.vatManual), b.atc || null, b.atc ? b.ewt : null, yn(b.ewtManual), b.payable,
       b.apAccount, b.status === 'void' ? 'Void' : 'Active', b.from || null, b.from ? b.paidBefore || 0 : null, b.voidReason || null, b.voidedOn || null, b.notes || null, b.createdAt || null, b.createdBy || null, b.updatedAt || null, b.updatedBy || null,
-      isFx(b.currency) ? b.currency : null, isFx(b.currency) ? String(b.rate) : null, isMemo(b) ? 'Debit memo' : null, b.appliesTo || null, docImportVat(b) || null, b.importEntry || null, docEwtBase(b), b.overBudget || null]) },
+      isFx(b.currency) ? b.currency : null, isFx(b.currency) ? String(b.rate) : null, isMemo(b) ? 'Debit memo' : null, b.appliesTo || null, docImportVat(b) || null, b.importEntry || null, docEwtBase(b), b.overBudget || null, b.repeat ? 'Monthly' : null]) },
   { name: 'Bill lines', key: 'Bill ID', yearly: true, optional: true, subtitle: 'What each bill is for, one row per account line, as typed from the invoice.',
     cols: [['Bill ID', 's', 12], ['Invoice no.', 's', 16, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ['VAT', 's', 7, 'optional'], ['EWT', 's', 7, 'optional'], ['Barcode', 's', 16, 'optional'], ['Pieces', 'i', 9, 'optional'], ...TAG_COLS],
     rows: () => D.bills.filter(own).sort(byDateRef).flatMap(b => b.lines.map((l, i) => [b.id, b.ref, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...lineTaxVals(l), ...tagVals(l.accountId, l.tag)])) },
@@ -3769,11 +3978,11 @@ const TABLES = [
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15], ['Voucher date', 'd', 13], ['Check no.', 's', 16], ['Check date', 'd', 13], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Bills paid', 'n', 15, 'derived'], ['Check amount', 'n', 15],
       ['Status', 's', 12], ['Cleared on', 'd', 13], ['Carried from', 'i', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'],
-      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional']],
+      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional'], ['Approved by', 's', 22, 'server'], ['Approved on', 't', 24, 'server']],
     rows: () => D.vouchers.filter(v => !v.foreign).sort(byDateCv).map(v => [v.id, v.cv, v.date, v.checkNo || null, v.checkDate, v.payeeId, v.payeeName, v.tin || null, v.particulars,
       yn(v.vatable), vGross(v), v.vat, yn(v.vatManual), v.atc || null, v.atc ? v.ewt : null, yn(v.ewtManual), sum((v.bills || []).map(p => p.amount)), v.checkAmount,
       vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null,
-      v.method || null, v.bankAcct || null, isFx(v.currency) ? v.currency : null, isFx(v.currency) ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null, docImportVat(v) || null, v.importEntry || null, docEwtBase(v), v.overBudget || null]) },
+      v.method || null, v.bankAcct || null, isFx(v.currency) ? v.currency : null, isFx(v.currency) ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null, docImportVat(v) || null, v.importEntry || null, docEwtBase(v), v.overBudget || null, v.approvedBy || null, v.approvedOn || null]) },
   { name: 'Voucher lines', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'What each voucher pays for, one row per account line, as typed from the invoice.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ['VAT', 's', 7, 'optional'], ['EWT', 's', 7, 'optional'], ['Barcode', 's', 16, 'optional'], ['Pieces', 'i', 9, 'optional'], ...TAG_COLS],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...lineTaxVals(l), ...tagVals(l.accountId, l.tag)])) },
@@ -4098,7 +4307,7 @@ function dataFromTables(sheets, ctx = {}) {
     const b = { id: o['Bill ID'], ref: o['Invoice no.'], date: o['Invoice date'], dueDate: o['Due date'] || '', payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
       lines, ...tax, ...cur, payable: o['Amount payable'], apAccount: o['Payables account ID'], notes: o.Notes || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '',
-      type: memo ? 'Debit memo' : '', appliesTo: o['Applies to Bill ID'] || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '' };
+      type: memo ? 'Debit memo' : '', appliesTo: o['Applies to Bill ID'] || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '', repeat: o.Repeats === 'Monthly' };
     const src = memo ? 'dm' : 'bill';
     if (from) { Object.assign(b, { from, paidBefore: o['Paid before'] || 0, entry: [] }); if ((jBy[src + '|' + b.id] || []).length) E(o, 'was carried in from the year before, so its entry stays in that year’s tabs.'); }
     else { readVoid(o, b.date, src, b.id); readEntry(src, b, o, old => calcBill({ ...b, vatManual: true, ewtManual: true }, old ? { ...control, advances: '', cashIds: [] } : control), b.date, 'the invoice date', `${memo ? 'debit memo' : 'invoice'} ${b.ref}`); }
@@ -4201,7 +4410,7 @@ function dataFromTables(sheets, ctx = {}) {
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     const v = { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'] || '', method: o.Method || '', bankAcct, ...cur, charges,
       payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '',
+      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '', approvedBy: o['Approved by'] || '', approvedOn: o['Approved on'] || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     const src = transfer ? 'pt' : 'cv';
     readVoid(o, v.checkDate, src, v.id);
@@ -5743,7 +5952,7 @@ function stockSummary(ym) {
 function transfersPage() {
   const months = [...new Set(D.vouchers.filter(v => own(v) && isTransfer(v)).map(v => entryDate(v).slice(0, 7)).concat((D.journals || []).filter(j => j.kind === 'Transfer').map(j => j.date.slice(0, 7))))].sort().reverse();
   return pageHead('transfers', 'Payments sent from the bank, telegraphic transfers included, and money moved between the company’s own accounts.',
-    canBooks('transfers.edit') ? `${btn('new-move', 'Move between accounts', 'ghost')}${btn('new-transfer', 'New payment')}` : '')
+    (S.tk === 'approve' && D.vouchers.some(v => isTransfer(v) && canApprove(v)) ? btn('approve-all', 'Approve all', 'ghost') : '') + (canBooks('transfers.edit') ? `${btn('new-move', 'Move between accounts', 'ghost')}${btn('new-transfer', 'New payment')}` : ''))
     + bankStrip()
     + transferTabs() + `<div class="toolbar"><input id="q" type="search" placeholder="Search PV or BT no., payee, reference, particulars" value="${esc(S.q)}" aria-label="Search">
       <select id="tm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.tm)).join('')}</select></div>
@@ -5767,8 +5976,9 @@ function bankStrip() {
 function transferTabs() {
   const pays = D.vouchers.filter(v => own(v) && isTransfer(v)), moves = (D.journals || []).filter(j => j.kind === 'Transfer');
   if (!pays.length && !moves.length) return '';
-  const cur = ['all', 'pay', 'move'].includes(S.tk) ? S.tk : 'all';
+  const cur = ['all', 'approve', 'pay', 'move'].includes(S.tk) ? S.tk : 'all', wait = pays.filter(needsApproval);
   return viewTabs('tk', [
+    ...(wait.length || S.tk === 'approve' ? [{ id: 'approve', label: 'For approval', big: wait.length.toLocaleString('en-US'), small: wait.length ? `${peso(sum(wait.map(v => round2(v.checkAmount * rateOf(v)))))} waiting` : 'nothing waiting', lvl: wait.length ? 'yellow' : '' }] : []),
     { id: 'all', label: 'All transfers', big: (pays.length + moves.length).toLocaleString('en-US'), small: 'void included' },
     { id: 'pay', label: 'Payments', big: peso(sum(pays.filter(live).map(v => round2(v.checkAmount * rateOf(v))))), small: `${plural(pays.length, 'payment')} sent` },
     { id: 'move', label: 'Between accounts', big: moves.length.toLocaleString('en-US'), small: 'moves between the company’s own accounts' }], cur, 'Bank transfers');
@@ -5779,15 +5989,15 @@ function transferList() {
   const moves = (D.journals || []).filter(j => j.kind === 'Transfer').map(j => { const c = calcMove(j); return { kind: 'move', id: j.id, no: j.no, date: j.date, who: `${acctName(j.from)} to ${acctName(j.to)}`, what: j.memo, ref: j.refNo, cur: c.fc, amount: j.amountOut, php: c.outPeso, void: j.status === 'void', d: j, text: [j.no, j.memo, j.refNo, acctName(j.from), acctName(j.to), j.notes] }; });
   const all = pays.concat(moves);
   if (!all.length) return `<div class="empty"><b>No transfers in ${YEAR}</b>${canBooks('transfers.edit') ? `Record a payment sent from the bank, or money moved between accounts. ${btn('new-transfer', 'New payment', 'sm')}` : ''}</div>`;
-  const rows = all.filter(x => has(x.text) && (!S.tm || x.date.startsWith(S.tm)) && (!S.tk || S.tk === 'all' || x.kind === S.tk)).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
+  const rows = all.filter(x => has(x.text) && (!S.tm || x.date.startsWith(S.tm)) && (!S.tk || S.tk === 'all' || (S.tk === 'approve' ? x.kind === 'pay' && needsApproval(voucher(x.id)) : x.kind === S.tk))).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
   const open = x => !x.void && !isLocked(x.date) && canBooks('transfers.edit');
   const cols = [
     { h: 'No.', k: x => `<b>${esc(x.no)}</b><span class="sub">${fdate(x.date)}</span>` },
     { h: 'Paid to or moved', k: x => `${esc(x.who)}<span class="sub">${esc(x.what)}</span>` },
     { h: 'Reference', k: x => `${esc(x.ref || '')}<span class="sub">${x.kind === 'pay' ? 'Payment' : 'Between accounts'}</span>` },
     { h: 'Amount', num: 1, k: x => `<span class="amt">${amt(x.amount, x.cur)}</span>${x.cur === 'USD' ? `<span class="sub">${peso(x.php)}</span>` : ''}` },
-    { h: 'Status', k: x => pill(x.void ? 'Void' : 'Sent') + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
-    { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], !x.void && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
+    { h: 'Status', k: x => (x.kind === 'pay' && needsApproval(voucher(x.id)) ? approvalPill(voucher(x.id)) : pill(x.void ? 'Void' : 'Sent')) + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
+    { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], canApprove(voucher(x.id)) && ['approve-voucher', x.id, 'Approve'], !x.void && !needsApproval(voucher(x.id)) && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
   ];
   const lv = rows.filter(x => !x.void);
   return table(cols, rows, 'No transfers match.', `<tfoot><tr><td>${lv.length} transfer${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(x => x.php)))}</td><td></td><td></td></tr></tfoot>`, x => x.void ? 'void' : '');
@@ -5865,7 +6075,7 @@ function moveForm(j0) {
    payroll run outside the hub. They can't touch the payables accounts; supplier bills keep those. */
 function gjPage() {
   const months = [...new Set((D.journals || []).filter(j => j.kind === 'Entry').map(j => j.date.slice(0, 7)))].sort().reverse();
-  return pageHead('gj', 'Entries made by hand: depreciation, accruals, corrections, bank charges and interest, payroll run outside the hub. An entry can reverse itself on a date you choose.', canBooks('journal.edit') ? btn('new-je', 'New entry') : '')
+  return pageHead('gj', 'Entries made by hand: depreciation, accruals, corrections, bank charges and interest, and payroll. An entry can reverse itself on a date you choose.', canBooks('journal.edit') ? btn('payroll', 'Payroll', 'ghost') + btn('new-je', 'New entry') : '')
     + `<div class="toolbar"><input id="q" type="search" placeholder="Search JE no., memo, name" value="${esc(S.q)}" aria-label="Search">
       <select id="gm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.gm)).join('')}</select></div>
     <div id="list">${jeList()}</div>`;
@@ -6378,7 +6588,8 @@ const GUIDE = {
       ['Tick the bills', 'Tick each bill this check pays. You can pay part of a bill; the rest stays unpaid.'],
       ['Check no., check date, bank account', 'As written on the check. The bank account is the one the check is drawn on.'],
       ['Lines (only with no bill)', 'For a payment that was never billed, add lines instead, the same way as on a bill.'],
-      ['Save, then Print', 'Print the voucher, attach the bills and the check, and pass it for signatures.']
+      ['Save, then approval', 'It waits as For approval until an Approver or Admin opens it and chooses Approve. Someone other than whoever entered it approves it (an Admin can approve their own).'],
+      ['Print', 'Once approved: print the voucher, attach the bills and the check, and pass it for signatures. Changing what it pays sends it back for approval.']
     ],
     book: { say: 'Check 1001 pays Prime Realty’s rent bill.',
       rows: [['210-020 · Accounts Payable - Others', 53500, 0], ['111-010 · Cash in Bank - Metrobank', 0, 53500]],
@@ -6392,7 +6603,8 @@ const GUIDE = {
     steps: [
       ['New payment', 'Works like a check voucher: pick the payee, tick the bills, and put the bank’s reference number where the check number would go. Add any bank charge the transfer cost.'],
       ['A TT for a bill in dollars or yuan', 'Choose the bill’s currency, tick it, and type the rate the bank charged. If the pesos it took differ from what the bill was booked at, the hub books the difference as an exchange gain or loss.'],
-      ['Move between accounts', 'From one of the company’s accounts to another: pick From and To, the amount that left, and any bank charge.']
+      ['Approval', 'A payment waits as For approval until an Approver or Admin approves it. Send it from the bank once it’s approved.'],
+      ['Move between accounts', 'From one of the company’s accounts to another: pick From and To, the amount that left, and any bank charge. These don’t need approval.']
     ],
     book: { say: 'The forklift bill of ₱240,000 is paid by transfer from Metrobank.',
       rows: [['210-020 · Accounts Payable - Others', 240000, 0], ['111-010 · Cash in Bank - Metrobank', 0, 240000]],
@@ -6651,6 +6863,10 @@ const HELP_CLOSE = [
   ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
 ];
 const HELP_FAQ = [
+  ['Where do I keep the scan of an invoice or receipt?', 'Open the document and click Files. Its own Google Drive folder opens; drag the photo or PDF in. Your Google account needs access to the shared Files folder: ask the Admin to share it with you once.'],
+  ['How do I pay several bills at once?', 'Supplier Bills, Pay bills. Tick the bills, choose the bank, the date and checks or transfers, and Make vouchers: one per payee, waiting for approval. Once approved, Check Vouchers, Print checks prints them together.'],
+  ['How do I enter payroll?', 'General Journal, Payroll. Type the totals from the payroll summary: gross pay, each SSS, PhilHealth and Pag-IBIG share, withholding tax, and any cash advances deducted. The hub shows the entry and saves it as a journal entry. The next payroll starts from these figures.'],
+  ['Why can’t I print this check?', 'It hasn’t been approved. A check voucher or a payment by transfer waits for an Approver or Admin to open it and choose Approve; then it prints. Nobody approves a payment they entered or changed last, except an Admin. Changing what a payment pays sends it back for approval; marking a check cleared doesn’t.'],
   ['How do I find something?', 'Press ⌘K (Ctrl+K on Windows), or Search at the top of the sidebar, and type any part of it: an invoice or check no., a name, a TIN, a description, an account code, or an amount (with or without commas). Every word you type must match. It searches the year open in the sidebar. All Entries has its own search box too.'],
   ['Why does the hub open so fast? Is it showing old numbers?', 'The hub keeps the books you last saw on this computer, so it opens at once, then asks Google only for what changed since. While it’s checking, the Refresh button spins; it stops when you’re up to date. Refresh, saving and coming back to the tab fetch only what changed, too. On a shared or borrowed computer, sign out when you’re done: that clears the copy kept on it.'],
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
@@ -7057,6 +7273,8 @@ function attention() {
   const out = [], push = (page, st, o) => { if (st && st.lvl !== 'blue' && canSee(page)) out.push({ page, lvl: st.lvl, st, ...o }); };
   D.bills.filter(b => live(b) && !isMemo(b) && !b.refOnly && b.dueDate).forEach(b => { const bal = billBalance(b); if (bal > 0.004) push('bills', dueState(b.dueDate), { what: `${b.payeeName}: invoice ${b.ref}`, amount: pesoOf(b, bal), due: b.dueDate, act: 'view-bill', id: b.id }); });
   (D.invoices || []).filter(i => live(i) && !isMemo(i) && i.dueDate).forEach(i => { const bal = invBalance(i); if (bal > 0.004) push('invoices', dueState(i.dueDate), { what: `${i.customerName}: invoice ${i.ref}`, amount: bal, due: i.dueDate, act: 'view-invoice', id: i.id }); });
+  if (canBooks('bills.edit')) billsToEnter().forEach(b => push('bills', { lvl: 'yellow', text: 'To enter' }, { what: `${b.payeeName}: ${monthLabel(todayIso().slice(0, 7))} bill`, amount: b.payable, act: 'repeat-bill', id: b.id }));
+  if (can('payments.approve')) D.vouchers.filter(canApprove).forEach(v => push(isTransfer(v) ? 'transfers' : 'vouchers', { lvl: 'yellow', text: 'For approval' }, { what: `${isTransfer(v) ? 'Payment' : 'Check'} ${v.cv} to ${v.payeeName}`, amount: v.checkAmount, due: v.date, act: 'view-voucher', id: v.id }));
   D.vouchers.forEach(v => push('checks', checkAge(v), { what: `Check ${v.checkNo || v.cv} to ${v.payeeName}`, amount: v.checkAmount, due: v.checkDate, act: 'view-voucher', id: v.id }));
   (D.collections || []).forEach(c => push('collections', depositAge(c), { what: `${c.cr}: ${c.customerName}`, amount: c.amount, due: c.date, act: 'view-collection', id: c.id }));
   advancesDue().forEach(e => push('advances', e.st, { what: `Cash advance: ${e.name}`, amount: e.out, due: e.due, act: 'nav', id: 'advances' }));
@@ -7304,6 +7522,13 @@ const ACT = {
   'unlock-month': () => { const ym = D.lockedThrough.slice(0, 7), [y, m] = ym.split('-').map(Number), prev = eom(`${m === 1 ? y - 1 : y}-${pad(m === 1 ? 12 : m - 1, 2)}`); openModal(`Unlock ${monthLabel(ym)}?`, `<p class="lead">Bills and vouchers in ${monthLabel(ym)} can be changed again. Earlier months stay locked.</p>`, () => {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
+  'approve-voucher': id => approveVoucher(id),
+  'approve-all': () => approveAllShown(),
+  'pay-bills': () => payBillsForm(),
+  'print-checks': () => printChecksForm(),
+  'repeat-bill': id => repeatBill(id),
+  payroll: () => payrollForm(),
+  files: id => openFiles(id),
   'void-voucher': id => voidVoucher(id),
   'clear-one': id => { const v = voucher(id), lr = lastRecon(vBank(v)); openModal(`Mark ${esc(v.checkNo)} Cleared`, F('m-cd', 'Cleared on (date on the bank statement)', inp('m-cd', todayIso(), 'date')), () => { const d = val('m-cd'); if (!d) return 'Enter the date.'; if (d < v.checkDate) return 'A check can’t clear before its date.'; if (lr && d <= lr.date) return `${acctName(vBank(v))} is reconciled through ${fdate(lr.date)}. A check that cleared by then belongs on that reconciliation: undo it and reconcile again.`; return markCleared(id, d); }, 'Mark cleared'); },
   unclear: id => { const v = voucher(id), lr = lastRecon(vBank(v)); if (lr && v.clearedOn <= lr.date) { toast(`Check ${v.checkNo} is on the ${fdate(lr.date)} bank reconciliation. Undo that reconciliation first.`, true); return; } saveNow('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')); },

@@ -195,7 +195,9 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .bv-red{background:#FCEBEA}.bv-red b{color:#A52A24}.bv-yellow{background:#FFF6D9}.bv-yellow b{color:#8A5A00}
 .bv-top{margin-top:18px}.bv-top h3{font:800 15px var(--display);margin:0 0 8px}.bv-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,2fr) auto 110px;gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--mist);font-size:14px}
 .bv-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bv-bar{height:8px;background:var(--mist);border-radius:999px;overflow:hidden}.bv-bar i{display:block;height:100%;background:var(--blue);border-radius:999px}.bv-n{font-variant-numeric:tabular-nums;text-align:right}.bv-p{color:var(--muted);font-size:12.5px;text-align:right}
-.bv-flags{list-style:none;margin:12px 0 0;padding:0}.bv-flags li{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--mist)}.bv-flags li .ic{margin-top:2px}.bv-flags b{display:block;font-size:14px;color:var(--ink)}.bv-flags span{font-size:13px;color:var(--muted);line-height:1.45}
+.bv-stand{margin-top:14px;padding:4px 16px 6px;border-radius:12px;background:#FFFBF0;box-shadow:inset 0 0 0 1px #FFE7A3}.bv-stand h3{font:800 15px var(--display);margin:10px 0 0}
+.bv-calm{display:flex;align-items:center;gap:8px;margin:14px 0 0;color:var(--green7);font-size:14px}
+.bv-flags{list-style:none;margin:6px 0 0;padding:0}.bv-flags li:first-child{border-top:0}.bv-flags li{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--mist)}.bv-flags li .ic{margin-top:2px}.bv-flags b{display:block;font-size:14px;color:var(--ink)}.bv-flags span{font-size:13px;color:var(--muted);line-height:1.45}
 .bv-f-red .ic{color:#D63C34}.bv-f-yellow .ic{color:#C28A00}
 @media (max-width:1100px){.bv-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:760px){.bv-row{grid-template-columns:1fr auto}.bv-bar,.bv-p{display:none}}
 .att-clear{padding:22px 24px;border-radius:14px;background:var(--green05);color:var(--green7);margin-top:28px}.att-clear b{display:block;font:800 18px var(--display);margin-bottom:4px}
@@ -570,7 +572,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.34';
+const APP_VERSION = '3.35';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -6586,7 +6588,7 @@ const GUIDE = {
     steps: [
       ['The four numbers', 'Cash in the banks against the bills due in the next two weeks; what customers owe you and how much is past due; what you owe suppliers; and this month’s profit or loss so far (before the stock count, cost of sales isn’t in yet). Click one to go to its page. Admins and Approvers see these.'],
       ['To do', 'Grouped by the job: fix what doesn’t tie, approve payments, pay bills, enter monthly bills, collect, deposit, follow up checks, liquidate advances, refill petty cash. The button on each does the job: Pay bills, Review payments, Make a deposit. A payment waiting for approval opens when you click it, to be read and approved there; a monthly bill has its own Enter button.'],
-      ['Flags', 'For Admins: what’s worth a look in sales and costs. A loss so far; expenses at 80% of sales or more (red at 100%); one expense over 15% of sales; a cost this month 1.5 times its average of the 3 months before (and ₱20,000 more); department budgets over 35% of the gross profit the year is on track for; budgets left that are more than the profit so far.'],
+      ['What stands out', 'For Admins, at the top of How the business is doing: what’s worth a look in sales and costs. A loss so far; expenses at 80% of sales or more (red at 100%); one expense over 15% of sales; a cost this month 1.5 times its average of the 3 months before (and ₱20,000 more); department budgets over 35% of the gross profit the year is on track for; budgets left that are more than the profit so far.'],
       ['How the business is doing', 'For Admins. Sales, gross margin, expenses and net margin as shares of sales, for this month or the year so far, and the six biggest costs as a share of sales. Until the month’s stock count is in, cost of sales is missing, so gross margin reads high.'],
       ['The tags', 'Each line says what kind of thing it is, with an icon: red with ! is late; amber with a clock is due soon; solid blue with a shield needs approval; outlined blue with a pencil is a bill to enter.'],
       ['What turns yellow and red', `Bills and invoices: yellow ${ATT.dueSoon} days before the due date, red once it’s passed. Cash advances: yellow ${ATT.advGrace} days before the liquidation due date, red once it’s passed. Checks and cash not deposited: yellow after ${ATT.depYellow} working day, red after ${ATT.depRed}. Outstanding checks: yellow after ${ATT.checkYellow} days, red after ${ATT.checkRed} (a check goes stale at six months). Petty cash: yellow below ${Math.round(ATT.pettyYellow * 100)}% of the fund, red below ${Math.round(ATT.pettyRed * 100)}%.`],
@@ -7457,11 +7459,10 @@ function businessSection(v) {
   const note = v.counted < Math.max(1, v.done) ? `<p class="hint" style="margin:10px 0 0">Cost of sales comes from the monthly stock count: ${v.counted ? `counted for ${plural(v.counted, 'month')} of ${YEAR}` : `no month of ${YEAR} is counted yet`}, so gross margin reads high until the counts are in.</p>` : '';
   const top = v.top.length ? `<div class="bv-top"><h3>Biggest costs, ${YEAR} so far</h3>${v.top.map(([a, n]) => { const sh = pct(n, v.ytd.rev); return `<div class="bv-row"><span class="bv-name">${esc(acctName(a))}</span><span class="bv-bar"><i style="width:${Math.min(100, sh == null ? 0 : sh * 100).toFixed(1)}%"></i></span><span class="bv-n">${peso(n)}</span><span class="bv-p">${sh == null ? '' : fpct(sh) + ' of sales'}</span></div>`; }).join('')}</div>` : '';
   return `<section class="bv"><header class="bv-head"><h2>How the business is doing</h2><div class="seg" role="group" aria-label="Period">${[['month', monthLabel(v.cur).replace(/ \d{4}$/, '')], ['year', `${YEAR} so far`]].map(([k, l]) => `<button type="button" class="${(S.hp || 'year') === k ? 'on' : ''}" data-act="home-period" data-id="${k}">${l}</button>`).join('')}</div></header>
+    ${v.flags.length ? `<div class="bv-stand"><h3>What stands out</h3><ul class="bv-flags">${v.flags.map(f => `<li class="bv-f-${f.lvl}">${icon(f.lvl === 'red' ? 'late' : 'due')}<div><b>${esc(f.t)}</b><span>${esc(f.d)}</span></div></li>`).join('')}</ul></div>` : `<p class="bv-calm">${icon('check')}Nothing stands out: no loss, costs in line with sales and with their usual months, budgets within the profit.</p>`}
     <div class="bv-tiles">${tile('Sales', peso(p.rev), lbl, '')}${tile('Gross margin', fpct(gm), `${peso(p.gross)} after cost of sales`, gm != null && gm < 0.15 ? 'yellow' : '')}${tile('Expenses', fpct(em), `of sales: ${peso(round2(p.opex + p.oexp))}`, em != null && em >= ATT.expRed ? 'red' : em != null && em >= ATT.expYellow ? 'yellow' : '')}${tile('Net margin', fpct(nm), `${p.net < 0 ? 'loss' : 'profit'} of ${peso(Math.abs(p.net))}`, p.net < 0 ? 'red' : '')}</div>
     ${note}${top}<p style="margin:14px 0 0">${btn('nav', 'Open the Financial Reports', 'link sm', 'reports')}</p></section>`;
 }
-const flagsCard = v => `<section class="cc-side"><header>${icon('chart', 'cc-ic')}<div class="cc-t"><h3>Flags</h3><p>${v.flags.length ? `${plural(v.flags.length, 'thing')} worth a look` : 'Nothing unusual in sales or costs'}</p></div></header>
-  ${v.flags.length ? `<ul class="bv-flags">${v.flags.map(f => `<li class="bv-f-${f.lvl}">${icon(f.lvl === 'red' ? 'late' : 'due')}<div><b>${esc(f.t)}</b><span>${esc(f.d)}</span></div></li>`).join('')}</ul>` : ''}</section>`;
 
 function homePage() {
   const h = new Date().getHours(), hi = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening', first = String(ME().name || '').split(' ')[0];
@@ -7504,7 +7505,7 @@ function homeBody() {
     <ul class="cc-steps">${ct.steps.map(st => `<li class="${st.ok ? 'ok' : ''}"><button type="button" data-act="nav" data-id="${st.page}">${icon(st.ok ? 'check' : 'due')}${esc(st.t)}</button></li>`).join('')}</ul>
     ${next ? btn('nav', `Next: ${next.t.replace(/ \(.*\)$/, '')}`, 'sm', next.page) : '<p class="hint">Done. Next month’s close starts on the 1st.</p>'}</section>` : '';
   // the analysis and its flags are for Admins
-  const bv = isAdmin() ? businessView() : null, side = (bv ? flagsCard(bv) : '') + close;
+  const bv = isAdmin() ? businessView() : null, side = close;
   return lead + kpis + `<div class="cc-grid${side ? '' : ' cc-one'}"><div class="cc-main"><h2 class="cc-h">To do</h2>${todo}</div>${side ? `<aside class="cc-aside">${side}</aside>` : ''}</div>${bv ? businessSection(bv) : ''}`;
 }
 

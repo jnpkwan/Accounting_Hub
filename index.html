@@ -530,11 +530,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.28';
+const APP_VERSION = '3.29';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 15;
+const API_NEEDED = 16;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -784,38 +784,118 @@ function rawFrom(tabs, foreign) {
   (foreign || []).forEach(g => rawRows(V, g.vouchers, raw[`Vouchers ${g.year}`] = {}));
   return raw;
 }
-/* The last full load. A save sends back only the tabs it changed; they're merged in here. */
+/* The books as last read: every tab's rows, and each tab's version. A load sends the versions it has and gets back only
+   the tabs that changed; a save gets back only the rows it changed (a patch), applied here. */
 let LAST = null;
+/* The tabs each kind of save may write, as Apps Script says (its ACTIONS): a save compares only those. */
+let KINDS = {};
 /* When the report tabs in the Google Sheet were last rebuilt, and why not, if they couldn't be. */
 let REPORTS_ST = null;
+/* A save's rows applied to our copy of a tab: rows deleted and updated (numbered as before the save), rows added
+   (numbered as after it), exactly as Apps Script did to the Sheet. */
+function applyPatch(tab, p) {
+  const gone = new Set(p.deleted), up = new Map(p.updates.map(u => [u.r, u.v])), del = p.deleted;
+  const below = r => { let lo = 0, hi = del.length; while (lo < hi) { const m = (lo + hi) >> 1; if (del[m] < r) lo = m + 1; else hi = m; } return lo; };
+  const rows = [];
+  (tab ? tab.rows : []).forEach(x => { if (!gone.has(x.r)) rows.push({ r: x.r - below(x.r), v: up.has(x.r) ? up.get(x.r) : x.v }); });
+  p.appends.forEach(x => rows.push(x));
+  return { headers: p.headers, rows };
+}
 /* Takes what Apps Script sent back, checks every row, and shows the books or what's wrong. */
 function applyLoad(res) {
-  if (res.partial && LAST) res = { ...LAST, ...res, tabs: { ...LAST.tabs, ...res.tabs }, foreign: res.foreign || LAST.foreign };
-  else if (res.partial) { loadBooks(true); return; }
-  if (!res.needsSetup) LAST = { tabs: res.tabs, foreign: res.foreign || [], years: res.years || [], closedThrough: res.closedThrough || 0 };
-  if (res.ms != null) console.log(`[hub] saved in ${res.ms} ms at Apps Script`);
+  const names = loadReq().load, same = h => LAST && (!LAST.tabs[h.n] || JSON.stringify(LAST.tabs[h.n].headers) === JSON.stringify(h.p.headers));
+  let changed = !LAST || !!res.cached;
+  if (res.patch) { // a save: patch the tabs we have as they were; any we don't is fetched again
+    if (!LAST) return 'stale';
+    const tabs = { ...LAST.tabs }, vers = { ...LAST.vers }, stale = [];
+    Object.keys(res.patch).forEach(n => {
+      if (LAST.vers[n] && LAST.vers[n] === res.prev[n] && same({ n, p: res.patch[n] })) { tabs[n] = applyPatch(LAST.tabs[n], res.patch[n]); vers[n] = res.vers[n]; }
+      else if (!LAST.tabs[n] && !res.prev[n]) { tabs[n] = applyPatch(null, res.patch[n]); vers[n] = res.vers[n]; }
+      else { stale.push(n); delete vers[n]; }
+    });
+    LAST = { ...LAST, tabs, vers, fkey: res.fkey, foreign: res.foreign || LAST.foreign, years: res.years || LAST.years, closedThrough: res.closedThrough ?? LAST.closedThrough };
+    changed = true;
+    if (stale.length) { console.log('[hub] someone else saved too; fetching', stale.join(', ')); LAST.year = YEAR; return 'stale'; }
+  } else if (res.delta) { // a load: only what changed came back
+    const keep = LAST && LAST.year === YEAR ? LAST : (LAST || { tabs: {}, vers: {} });
+    const tabs = {}, vers = {};
+    names.forEach(n => { if (n in res.tabs) { if (res.tabs[n]) tabs[n] = res.tabs[n]; changed = true; } else if (keep.tabs[n]) tabs[n] = keep.tabs[n]; if (res.vers[n] && (tabs[n] || n in res.tabs)) vers[n] = res.vers[n]; });
+    if (res.foreign !== undefined) changed = true;
+    if (!LAST || LAST.year !== YEAR || res.closedThrough !== LAST.closedThrough || JSON.stringify(res.years) !== JSON.stringify(LAST.years)) changed = true;
+    LAST = { year: YEAR, tabs, vers, fkey: res.fkey, foreign: res.foreign !== undefined ? res.foreign || [] : (keep.foreign || []), years: res.years || [], closedThrough: res.closedThrough || 0 };
+  } else if (res.cached) LAST = { ...res.cached };
+  else if (res.tabs) { // an older Code.gs: whole tabs, or after a save the changed ones whole
+    LAST = { year: YEAR, vers: {}, tabs: res.partial && LAST ? { ...LAST.tabs, ...res.tabs } : res.tabs, foreign: res.foreign || (LAST && LAST.foreign) || [], years: res.years || [], closedThrough: res.closedThrough || 0 };
+    changed = true;
+  }
   if (res.user) { SESSION.user = res.user; saveSession(); }
-  if (res.users !== undefined && !res.partial) USERS = res.users;
-  if (res.roles !== undefined && !res.partial) ROLE_LIST = res.roles;
+  if (res.users !== undefined && res.users !== null) USERS = res.users;
+  if (res.roles !== undefined && res.roles !== null) ROLE_LIST = res.roles;
   if (res.reports) REPORTS_ST = res.reports;
-  LOADED_AT = Date.now();
-  if (res.needsSetup) { D = emptyData(); RAW = {}; S0.screen = 'setup'; return; }
-  const r = dataFromTables(toSheets(res.tabs), { year: YEAR, foreign: res.foreign || [], closedThrough: res.closedThrough || 0, years: res.years || [] });
+  if (res.kinds) KINDS = res.kinds;
+  if (res.ms != null) console.log(`[hub] saved in ${res.ms} ms at Apps Script`);
+  if (!res.cached) LOADED_AT = Date.now();
+  if (res.needsSetup) { D = emptyData(); RAW = {}; LAST = null; S0.screen = 'setup'; return; }
+  // nothing new: the books on screen are already these
+  if (!changed && S0.screen === 'app') { keepOnDevice(); return 'same'; }
+  const r = dataFromTables(toSheets(LAST.tabs), { year: YEAR, foreign: LAST.foreign || [], closedThrough: LAST.closedThrough || 0, years: LAST.years || [] });
   if (r.errs) { S0.screen = 'problems'; S0.errs = r.errs; return; }
-  D = r.data; RAW = rawFrom(res.tabs, res.foreign); S0.screen = 'app';
+  D = r.data; RAW = rawFrom(LAST.tabs, LAST.foreign); S0.screen = 'app';
+  if (!res.cached) keepOnDevice();
   warmSigs();
 }
-const loadReq = () => ({ year: YEAR, load: TABLES.map(t => tabName(t)) });
+/* ---------- The books kept on this device ----------
+   The last books read are kept in the browser (IndexedDB), for this user and year, so the hub opens at once with
+   them and then fetches only what changed. Signing out clears them. Without IndexedDB (a private window) the hub
+   simply loads from Google each time. */
+const DEV_DB = 'acacia-hub', DEV_STORE = 'books';
+let devDb = null, devTimer = 0;
+function devOpen() {
+  if (devDb) return devDb;
+  devDb = new Promise(ok => { try { const q = indexedDB.open(DEV_DB, 1); q.onupgradeneeded = () => q.result.createObjectStore(DEV_STORE); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); } catch (e) { ok(null); } });
+  return devDb;
+}
+const devKey = () => SESSION && SESSION.user ? `${CFG.apiUrl}|${SESSION.user.username}|${YEAR}` : '';
+async function devGet() {
+  const db = await devOpen(), k = devKey(); if (!db || !k) return null;
+  return new Promise(ok => { try { const q = db.transaction(DEV_STORE).objectStore(DEV_STORE).get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); } catch (e) { ok(null); } });
+}
+/* Saved a moment after the screen settles, so it never holds up a click. */
+function keepOnDevice() {
+  clearTimeout(devTimer);
+  devTimer = setTimeout(async () => {
+    const db = await devOpen(), k = devKey(), L = LAST; if (!db || !k || !L) return;
+    try { db.transaction(DEV_STORE, 'readwrite').objectStore(DEV_STORE).put({ v: API_NEEDED, at: LOADED_AT, last: L, users: USERS, roles: ROLE_LIST, reports: REPORTS_ST }, k); } catch (e) { /* full, or private: next open loads from Google */ }
+  }, 1500);
+}
+async function forgetDevice() {
+  clearTimeout(devTimer);
+  const db = await devOpen(); if (!db) return;
+  try { db.transaction(DEV_STORE, 'readwrite').objectStore(DEV_STORE).clear(); } catch (e) { }
+}
+const loadReq = () => ({ year: YEAR, load: TABLES.map(t => tabName(t)), have: LAST ? LAST.vers || {} : {}, fkey: LAST && LAST.year === YEAR ? LAST.fkey : undefined });
 async function loadBooks(quiet) {
-  if (!quiet) { S0.screen = 'loading'; render(); }
-  try { applyLoad(await api('load', loadReq())); if (!quiet) S.enter = true; }
+  if (!quiet) {
+    // the copy on this device first: the books show at once, then what changed since comes in
+    const c = LAST && LAST.year === YEAR ? null : await devGet().catch(() => null);
+    if (c && c.v === API_NEEDED && c.last && c.last.year === YEAR) {
+      USERS = c.users || USERS; ROLE_LIST = c.roles || ROLE_LIST; REPORTS_ST = c.reports || REPORTS_ST; LOADED_AT = c.at || 0;
+      applyLoad({ cached: c.last });
+      if (S0.screen === 'app') { S.enter = true; SYNCING = true; render(); quiet = true; }
+    }
+    if (!quiet) { S0.screen = 'loading'; render(); }
+  }
+  try { const same = applyLoad(await api('load', loadReq())); if (!quiet) S.enter = true; if (same === 'same' && !SYNCING) return; }
   catch (e) {
     if (e.code === 'auth') return signedOut(e.message);
-    if (quiet) { toast('Couldn’t refresh: ' + e.message, true); return; }
+    if (quiet) { if (SYNCING) { SYNCING = false; render(); } toast('Couldn’t refresh: ' + e.message, true); return; }
     S0.screen = 'failed'; S0.msg = e.message;
   }
+  SYNCING = false;
   render();
 }
+/* True while the books on screen came from this device and what changed since is still on its way. */
+let SYNCING = false;
 function switchYear(y) {
   YEAR = Number(y); if (SESSION) { SESSION.year = YEAR; saveSession(); }
   S.sm = YEAR === THIS_YEAR() ? todayIso().slice(0, 7) : `${YEAR}-12`; S.vm = ''; S.q = '';
@@ -832,15 +912,24 @@ const groupRows = (t, rows) => { const k = t.cols.findIndex(c => c[0] === t.key)
 /* The books as rows, grouped by owner, worked out once per version of the books (D is never changed in place;
    a save works on a copy). Built while the screen is idle after a load, so the first save doesn't wait for it. */
 const ROWSIG = new WeakMap();
-function rowSigs(d) {
+const sigOf = (d, t) => { const g = groupRows(t, rowsWith(d, t)), s = {}; Object.keys(g).forEach(o => { s[o] = JSON.stringify(g[o]); }); return s; };
+function rowSigs(d, tables = TABLES) {
   let m = ROWSIG.get(d);
-  if (!m) { m = {}; TABLES.forEach(t => { const g = groupRows(t, rowsWith(d, t)), s = {}; Object.keys(g).forEach(o => { s[o] = JSON.stringify(g[o]); }); m[t.name] = s; }); ROWSIG.set(d, m); }
+  if (!m) ROWSIG.set(d, m = {});
+  tables.forEach(t => { if (!m[t.name]) m[t.name] = sigOf(d, t); });
   return m;
 }
-const warmSigs = () => { const d = D; setTimeout(() => { if (d === D && S0.screen === 'app') rowSigs(d); }, 400); };
-function diffBooks(before, after) {
-  const changes = [], sigs = rowSigs(before);
-  TABLES.forEach(t => {
+/* Worked out a table at a time while the screen is idle, so it never holds up typing or a click. */
+const warmSigs = () => {
+  const d = D, todo = TABLES.slice(), idle = window.requestIdleCallback || (f => setTimeout(() => f({ timeRemaining: () => 8 }), 50));
+  const step = dl => { if (d !== D || S0.screen !== 'app') return; let m = ROWSIG.get(d); if (!m) ROWSIG.set(d, m = {});
+    do { const t = todo.shift(); if (t && !m[t.name]) m[t.name] = sigOf(d, t); } while (todo.length && dl.timeRemaining() > 4);
+    if (todo.length) idle(step); };
+  setTimeout(() => idle(step), 300);
+};
+function diffBooks(before, after, kind) {
+  const changes = [], may = KINDS[kind], tables = Array.isArray(may) ? TABLES.filter(t => may.includes(t.name)) : TABLES, sigs = rowSigs(before, tables);
+  tables.forEach(t => {
     const B = sigs[t.name], A = groupRows(t, rowsWith(after, t)), name = tabName(t);
     [...new Set([...Object.keys(B), ...Object.keys(A)])].forEach(o => {
       if (B[o] === (A[o] ? JSON.stringify(A[o]) : undefined)) return;
@@ -863,7 +952,7 @@ const SPEC = () => Object.fromEntries(TABLES.map(t => [t.name, { key: t.key, col
 function busy(msg) { const b = document.getElementById('busy'); b.textContent = msg || ''; b.classList.toggle('on', !!msg); document.body.classList.toggle('busy', !!msg); }
 async function send(kind, changes, newIds, extra) {
   busy('Saving…');
-  try { const res = await api('commit', { kind, changes, newIds, spec: SPEC(), ...loadReq(), ...(extra || {}) }); applyLoad(res); return { map: res.map || {} }; }
+  try { const res = await api('commit', { kind, changes, newIds, spec: SPEC(), ...loadReq(), ...(extra || {}) }); if (applyLoad(res) === 'stale') await loadBooks(true); return { map: res.map || {} }; }
   catch (e) {
     if (e.code === 'auth') { closeModal(); signedOut(e.message); return { handled: true }; }
     if (e.code === 'conflict') {
@@ -880,7 +969,7 @@ async function save(kind, mutate, done) {
   D = work;
   try { err = mutate(); } finally { D = before; }
   if (err) return err;
-  const { changes, newIds } = diffBooks(before, work);
+  const { changes, newIds } = diffBooks(before, work, kind);
   if (!changes.length) { closeModal(); render(); return; }
   const r = await send(kind, changes, newIds);
   if (r.err) return r.err;
@@ -1642,6 +1731,7 @@ const skeleton = () => `<div class="skel" aria-busy="true" aria-label="Loading t
   <div class="skel-table">${'<div class="skel-row"></div>'.repeat(7)}</div><p class="skel-note">Loading the ${YEAR} books…</p></div>`;
 let renderedPage = null;
 function render() {
+  setTimeout(() => document.querySelectorAll('[data-act="refresh"]').forEach(b => { b.classList.toggle('busy', SYNCING); if (SYNCING) b.title = 'Getting what changed since you last opened the hub…'; }), 0);
   const app = document.getElementById('app');
   const loadingInApp = S0.screen === 'loading' && SESSION && SESSION.user;
   if (S0.screen !== 'app' && !loadingInApp) {
@@ -3489,7 +3579,7 @@ async function signIn() {
   }
 }
 function signedOut(msg) {
-  SESSION = null; USERS = null; ROLE_LIST = null; LAST = null; saveSession();
+  SESSION = null; USERS = null; ROLE_LIST = null; LAST = null; saveSession(); forgetDevice();
   D = emptyData(); RAW = {};
   closeModal();
   S0.screen = 'login'; S0.msg = msg || '';
@@ -3681,12 +3771,13 @@ function tableRows(sheets, spec, errs) {
   const head = (rows[1] || []).map(h => String(h ?? '').trim()), missing = want.filter(h => !head.includes(h));
   if (missing.length) { errs.push(`The ${spec.name} tab is missing its ${missing.join(', ')} column${missing.length === 1 ? '' : 's'} (row 1).`); return []; }
   const idx = {}; head.forEach((h, i) => { if (h && idx[h] == null) idx[h] = i; });
-  const out = [];
+  const out = [], read = spec.cols.filter(c => c[3] !== 'derived'), wantIx = want.map(h => idx[h]);
   for (const r of Object.keys(rows).map(Number).filter(r => r > 1).sort((a, b) => a - b)) {
-    if (!want.some(h => rows[r][idx[h]] != null && String(rows[r][idx[h]]).trim() !== '')) continue;
+    const row = rows[r];
+    if (!wantIx.some(i => row[i] != null && String(row[i]).trim() !== '')) continue;
     const o = { _row: r };
-    spec.cols.filter(c => c[3] !== 'derived').forEach(([h, t]) => {
-      let v = idx[h] == null ? null : rows[r][idx[h]]; if (v === '' || v === undefined) v = null;
+    read.forEach(([h, t]) => {
+      let v = idx[h] == null ? null : row[idx[h]]; if (v === '' || v === undefined) v = null;
       if (v !== null) {
         if (t === 's') v = String(v).trim() || null;
         else if (t === 'n' || t === 'i') { const x = typeof v === 'number' ? v : numIn(v); v = isNaN(x) ? (errs.push(`${spec.name} row ${r}: ${h} isn’t a number.`), null) : t === 'n' ? round2(x) : x; }
@@ -3702,7 +3793,7 @@ function tableRows(sheets, spec, errs) {
 /* Rebuild the hub's data from the tabs, checking every rule the hub enforces when typing. */
 function dataFromTables(sheets, ctx = {}) {
   const year = ctx.year || YEAR, errs = [], E = (o, msg) => errs.push(`${o._tab} row ${o._row}: ${msg}`);
-  const T = {}; TABLES.forEach(t => { T[t.name] = tableRows(sheets, t, errs).map(o => ({ ...o, _tab: tabName(t, year) })); });
+  const T = {}; TABLES.forEach(t => { const tab = tabName(t, year); T[t.name] = tableRows(sheets, t, errs); T[t.name].forEach(o => { o._tab = tab; }); });
   if (errs.length) return { errs };
   const isYes = (o, h) => { const v = String(o[h] || '').toLowerCase(); if (v !== 'yes' && v !== 'no') E(o, `${h} must be Yes or No.`); return v === 'yes'; };
   const uniq = (list, key, label, blankOk) => { const seen = new Set(); list.forEach(o => { const k = String(o[key] || '').toLowerCase(); if (!k) { if (!blankOk) E(o, `${label} is blank.`); } else if (seen.has(k)) E(o, `${label} ${o[key]} appears twice.`); seen.add(k); }); };
@@ -6067,6 +6158,13 @@ function healthChecks(asOf) {
     out.push({ key: 'sus-' + a.id, title: `${acctName(a.id)} is cleared`, state: near(B(a.id), 0) ? 'ok' : 'todo', page: 'gj',
       text: near(B(a.id), 0) ? 'Nothing left waiting to be sorted.' : `${peso(B(a.id))} is still waiting. Move it to the right accounts with a journal entry before the month is locked.` });
   });
+  // room left in the Google Sheet: Google stops a file at 10 million cells, and the books grow every year
+  const sz = REPORTS_ST && REPORTS_ST.size;
+  if (sz && sz.cap) {
+    const used = sz.cells / sz.cap, ys = Object.entries(sz.years || {}).sort((a, b) => b[0] - a[0]), per = ys.length ? Math.max(...ys.map(y => y[1])) : 0, left = per ? Math.floor((sz.cap - sz.cells) / per) : null;
+    out.push({ key: 'size', title: 'The Google Sheet has room to grow', state: used >= 0.85 ? 'off' : used >= 0.7 ? 'todo' : 'ok', page: 'company',
+      text: `${Math.round(used * 100)}% of Google’s 10-million-cell limit used (${(sz.cells / 1e6).toFixed(1)} million)${per ? `; the busiest year takes ${(per / 1e6).toFixed(1)} million, so there’s room for about ${left} more like it` : ''}.${used >= 0.7 ? ' Time to move closed years to an archive file before the Sheet fills up.' : ''}` });
+  }
   // months closed
   const lockTo = D.lockedThrough || '', ended = lastEnded >= `${YEAR}-01-01` ? lastEnded : '';
   if (ended) out.push({ key: 'lock', title: 'Months are locked once closed', state: lockTo >= ended ? 'ok' : 'todo', page: 'summary',
@@ -6417,6 +6515,7 @@ const HELP_CLOSE = [
   ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
 ];
 const HELP_FAQ = [
+  ['Why does the hub open so fast? Is it showing old numbers?', 'The hub keeps the books you last saw on this computer, so it opens at once, then asks Google only for what changed since. While it’s checking, the Refresh button spins; it stops when you’re up to date. Refresh, saving and coming back to the tab fetch only what changed, too. On a shared or borrowed computer, sign out when you’re done: that clears the copy kept on it.'],
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
   ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],
   ['The invoice shows VAT. Do I type the amount with or without VAT?', 'With VAT, exactly as printed. Tick VAT on those lines and the hub takes it out for you.'],
@@ -7263,7 +7362,7 @@ window.addEventListener('afterprint', () => { document.body.classList.remove('pv
 setInterval(() => { if (SESSION && Date.now() - (SESSION.last || 0) > IDLE_MS) signedOut('You were signed out after 3 hours without use.'); }, 60000);
 /* Coming back to the tab picks up what others saved, unless a form is open. */
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && S0.screen === 'app' && !document.querySelector('#modal-root .overlay') && Date.now() - LOADED_AT > 120000) loadBooks(true);
+  if (document.visibilityState === 'visible' && S0.screen === 'app' && !document.querySelector('#modal-root .overlay') && Date.now() - LOADED_AT > 30000) loadBooks(true);
 });
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 probeLogo('light'); probeLogo('dark');

@@ -166,6 +166,38 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .att-steps{display:flex;flex-wrap:wrap;gap:10px}.att-step{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--silver);background:#fff;font:600 14px var(--body);color:var(--carbon);cursor:pointer}
 .att-step.ok{border-color:var(--green05);background:var(--green05);color:var(--green7)}.att-step.todo{border-color:#FFC62E;background:#FFF6D9;color:#8A5A00}
 .att-mark{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:1.5px solid currentColor}
+.cc-lead{font:500 19px/1.55 var(--body);color:var(--carbon);max-width:880px;margin:-6px 0 22px}.cc-warn{display:inline-flex;align-items:center;gap:6px;color:#A52A24;font-weight:600}.cc-warn .ic{width:18px;height:18px}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:30px}
+.kpi{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:18px 20px;border-radius:14px;background:#fff;box-shadow:var(--lift);cursor:pointer;border-top:4px solid var(--blue)}
+.kpi:hover,.kpi:focus-visible{outline:2px solid var(--blue05)}.kpi-l{font:700 11.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.kpi b{font:800 24px var(--display);color:var(--ink)}.kpi-s{font-size:13px;color:var(--muted);line-height:1.4}
+.kpi-red{border-top-color:#D63C34}.kpi-red b,.kpi-red .kpi-s{color:#A52A24}.kpi-yellow{border-top-color:#FFC62E}.kpi-yellow .kpi-s{color:#8A5A00}
+.cc-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}.cc-h{margin:0 0 14px}
+.cc-job,.cc-side{background:#fff;border-radius:16px;box-shadow:var(--lift);padding:18px 20px 14px;margin-bottom:16px;border-left:5px solid var(--silver)}
+.cc-job.cc-red{border-left-color:#D63C34}.cc-job.cc-yellow{border-left-color:#FFC62E}.cc-job.cc-blue{border-left-color:var(--blue)}.cc-side{border-left:0}
+.cc-job header,.cc-side header{display:flex;align-items:center;gap:14px}.cc-ic{width:38px;height:38px;padding:9px;border-radius:12px;background:var(--mist);color:var(--blue7);box-sizing:border-box}
+.cc-red .cc-ic{background:#FCEBEA;color:#A52A24}.cc-yellow .cc-ic{background:#FFF6D9;color:#8A5A00}.cc-t{flex:1;min-width:0}.cc-t h3{margin:0;font:800 17px var(--display);color:var(--ink)}.cc-t p{margin:3px 0 0;font-size:13px;color:var(--muted)}.cc-t p b{color:#A52A24}
+.cc-job ul{list-style:none;margin:12px 0 0;padding:0}.cc-item{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--mist)}
+.cc-what{all:unset;flex:1;min-width:0;cursor:pointer;color:var(--blue7);font-weight:600}.cc-what:hover{text-decoration:underline}.cc-what .sub{display:block;font-weight:400}.cc-amt{font-variant-numeric:tabular-nums;color:var(--carbon);white-space:nowrap}.cc-more{margin-top:6px}
+.kp{display:inline-flex;align-items:center;gap:5px;padding:3px 10px 3px 8px;border-radius:999px;font:700 11.5px/1.4 var(--display);white-space:nowrap;flex:none;width:152px;box-sizing:border-box}.kp .ic{width:13px;height:13px;stroke-width:2.4}
+.kp-late{background:#FCEBEA;color:#A52A24}.kp-due{background:#FFF6D9;color:#8A5A00}.kp-wait{background:#fff;color:#8A5A00;box-shadow:inset 0 0 0 1.5px #FFC62E}
+.kp-approve{background:var(--blue);color:#fff}.kp-enter{background:#fff;color:var(--blue7);box-shadow:inset 0 0 0 1.5px var(--blue)}
+.cc-bar{height:8px;border-radius:999px;background:var(--mist);margin:14px 0 10px;overflow:hidden}.cc-bar span{display:block;height:100%;background:var(--green);border-radius:999px}
+.cc-steps{list-style:none;margin:0 0 12px;padding:0}.cc-steps li button{all:unset;display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;color:#8A5A00;font-size:14px}.cc-steps li.ok button{color:var(--green7)}.cc-steps li button:hover{text-decoration:underline}
+.cc-quick{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+@media (max-width:1100px){.cc-grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.kpis{grid-template-columns:1fr}.cc-job,.cc-side{padding:16px}.cc-job header{flex-wrap:wrap}.cc-t{flex:1 1 calc(100% - 60px)}.cc-job header>.btn{width:100%;margin-top:4px}
+  .cc-item{flex-wrap:wrap;gap:6px 10px}.kp{width:auto}.cc-what{flex:1 1 100%;order:1}.cc-amt{order:2}.cc-do{order:3;margin-left:auto}}
+.bv{background:#fff;border-radius:16px;box-shadow:var(--lift);padding:20px 22px;margin-top:8px}.bv-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}.bv-head h2{margin:0}
+.seg{display:inline-flex;background:var(--mist);border-radius:10px;padding:3px}.seg button{all:unset;padding:6px 12px;border-radius:8px;font:600 13px var(--body);color:var(--muted);cursor:pointer}.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.bv-tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}.bv-tile{display:flex;flex-direction:column;gap:3px;padding:14px 16px;border-radius:12px;background:var(--mist)}
+.bv-tile span{font:700 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.bv-tile b{font:800 26px var(--display);color:var(--ink)}.bv-tile small{font-size:12.5px;color:var(--muted)}
+.bv-red{background:#FCEBEA}.bv-red b{color:#A52A24}.bv-yellow{background:#FFF6D9}.bv-yellow b{color:#8A5A00}
+.bv-top{margin-top:18px}.bv-top h3{font:800 15px var(--display);margin:0 0 8px}.bv-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,2fr) auto 110px;gap:12px;align-items:center;padding:7px 0;border-top:1px solid var(--mist);font-size:14px}
+.bv-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bv-bar{height:8px;background:var(--mist);border-radius:999px;overflow:hidden}.bv-bar i{display:block;height:100%;background:var(--blue);border-radius:999px}.bv-n{font-variant-numeric:tabular-nums;text-align:right}.bv-p{color:var(--muted);font-size:12.5px;text-align:right}
+.bv-flags{list-style:none;margin:12px 0 0;padding:0}.bv-flags li{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--mist)}.bv-flags li .ic{margin-top:2px}.bv-flags b{display:block;font-size:14px;color:var(--ink)}.bv-flags span{font-size:13px;color:var(--muted);line-height:1.45}
+.bv-f-red .ic{color:#D63C34}.bv-f-yellow .ic{color:#C28A00}
+@media (max-width:1100px){.bv-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}@media (max-width:760px){.bv-row{grid-template-columns:1fr auto}.bv-bar,.bv-p{display:none}}
 .att-clear{padding:22px 24px;border-radius:14px;background:var(--green05);color:var(--green7);margin-top:28px}.att-clear b{display:block;font:800 18px var(--display);margin-bottom:4px}
 /* View cards: the views of a page, each with its figure; the one picked is the list shown. Static on Home. */
 .vtabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
@@ -538,7 +570,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.32';
+const APP_VERSION = '3.33';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -659,7 +691,7 @@ const fmtRate = r => Number(r).toLocaleString('en-US', { maximumFractionDigits: 
 const spread = (parts, total) => { const s = parts.reduce((a, x) => a + x, 0); let left = round2(total); return parts.map((p, i) => { if (i === parts.length - 1) return round2(left); const n = s ? round2(total * p / s) : 0; left = round2(left - n); return n; }); };
 /* When things turn yellow and red (see What needs attention): days before a due date, days a check is out, working days
    a receipt waits for the bank, the share of a petty cash fund left. */
-const ATT = { dueSoon: 14, advGrace: 7, checkYellow: 90, checkRed: 150, depYellow: 1, depRed: 3, pettyYellow: 0.25, pettyRed: 0.10 };
+const ATT = { dueSoon: 14, advGrace: 7, checkYellow: 90, checkRed: 150, depYellow: 1, depRed: 3, pettyYellow: 0.25, pettyRed: 0.10, expYellow: .8, expRed: 1, acctShare: .15, spikeX: 1.5, spikeMin: 20000, budgetShare: .35 };
 const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 const eom = ym => { const [y, m] = ym.split('-').map(Number); return iso(new Date(y, m, 0)); };
 /* ---------- Amounts typed with commas ----------
@@ -6549,14 +6581,18 @@ const GUIDE_GROUPS = [
 ];
 const GUIDE = {
   home: { who: 'everyday',
-    what: 'The first page you see: everything that needs someone, most urgent first, from every page you can open. Nothing here is entered; it’s worked out from the books each time.',
-    when: 'Start each day here. Clear the red first, then the yellow.',
+    what: 'Your to-do for the day: one sentence on what needs doing, four numbers on where the money stands, and the jobs waiting for you, most urgent first, each with the button that does it. Nothing here is entered; it’s worked out from the books each time.',
+    when: 'Start each day here. Work down the To do list from the top.',
     steps: [
-      ['The colors', 'Red: late, or the books don’t tie. Yellow: coming due, or a task is waiting. Blue: open but not due. Green: done. The words always say why, like “12 days past due”.'],
+      ['The four numbers', 'Cash in the banks against the bills due in the next two weeks; what customers owe you and how much is past due; what you owe suppliers; and this month’s profit or loss so far (before the stock count, cost of sales isn’t in yet). Click one to go to its page. Admins and Approvers see these.'],
+      ['To do', 'Grouped by the job: fix what doesn’t tie, approve payments, pay bills, enter monthly bills, collect, deposit, follow up checks, liquidate advances, refill petty cash. The button on each does the job: Pay bills, Review payments, Make a deposit. A payment waiting for you has its own Approve button, and a monthly bill its own Enter button.'],
+      ['Flags', 'For Admins and Approvers: what’s worth a look in sales and costs. A loss so far; expenses at 80% of sales or more (red at 100%); one expense over 15% of sales; a cost this month 1.5 times its average of the 3 months before (and ₱20,000 more); department budgets over 35% of the gross profit the year is on track for; budgets left that are more than the profit so far.'],
+      ['How the business is doing', 'Sales, gross margin, expenses and net margin as shares of sales, for this month or the year so far, and the six biggest costs as a share of sales. Until the month’s stock count is in, cost of sales is missing, so gross margin reads high.'],
+      ['The tags', 'Each line says what kind of thing it is, with an icon: red with ! is late; amber with a clock is due soon; solid blue with a shield needs approval; outlined blue with a pencil is a bill to enter.'],
       ['What turns yellow and red', `Bills and invoices: yellow ${ATT.dueSoon} days before the due date, red once it’s passed. Cash advances: yellow ${ATT.advGrace} days before the liquidation due date, red once it’s passed. Checks and cash not deposited: yellow after ${ATT.depYellow} working day, red after ${ATT.depRed}. Outstanding checks: yellow after ${ATT.checkYellow} days, red after ${ATT.checkRed} (a check goes stale at six months). Petty cash: yellow below ${Math.round(ATT.pettyYellow * 100)}% of the fund, red below ${Math.round(ATT.pettyRed * 100)}%.`],
       ['The numbers in the sidebar', 'How many items on that page are red or yellow. The badge is red if any of them is.'],
       ['Bills due', `What’s owed in the next ${ATT.dueSoon} days, against what the peso bank accounts hold. Red when it’s more.`],
-      ['Closing the month', 'For Approvers and Admins: what last month’s close still needs. Click a step to go to it.']
+      ['Closing the month', 'For Approvers and Admins: last month’s close as a checklist, how far along it is, and a button for the next step.']
     ],
     book: null, shows: ['Nothing in the books.'], watch: ['A bill or invoice without a due date never turns yellow or red. Enter the due date from its terms.']
   },
@@ -7308,31 +7344,169 @@ function closeTracker() {
   steps.push({ t: 'Month locked', ok: (D.lockedThrough || '') >= end, page: 'summary' });
   return { month: monthLabel(ym), steps };
 }
+/* ---------- Home: the command center ----------
+   Not what's in the books, but what to do about them. A sentence on where things stand; four numbers that matter,
+   each with what it means; then the to-do, grouped by the job (approve, pay, collect, deposit…), most urgent first,
+   each with the button that does it. Pills say what kind of thing each line is, with an icon, not only a color:
+   late (red), due soon (amber), waiting for approval (solid blue), to enter (outlined blue). */
+const ICONS = {
+  late: '<path d="M12 8v5M12 16.5v.01"/><circle cx="12" cy="12" r="9"/>',
+  due: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  approve: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+  enter: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  wait: '<path d="M7 3h10M7 21h10M8 3c0 5 8 5 8 9s-8 4-8 9M16 3c0 5-8 5-8 9"/>',
+  fix: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+  pay: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/>',
+  collect: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 21h16"/>',
+  deposit: '<path d="M3 10l9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 21h18"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', close: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8.5 15l2.5 2.5 4.5-4.5"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-3.5 3.2-5.5 6.5-5.5s6 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.6c1.9.7 3.2 2.5 3.5 5.4"/>',
+  box: '<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+};
+const icon = (k, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[k] || ''}</svg>`;
+/* The kind of each to-do line, from its status. */
+const kindOf = x => x.st.text === 'For approval' ? 'approve' : x.st.text === 'To enter' ? 'enter' : x.lvl === 'red' ? 'late' : /^Due|due/.test(x.st.text) ? 'due' : 'wait';
+const kpill = x => { const k = kindOf(x); return `<span class="kp kp-${k}">${icon({ approve: 'approve', enter: 'enter', late: 'late', due: 'due', wait: 'wait' }[k])}${esc(k === 'approve' ? 'Needs approval' : x.st.text)}</span>`; };
+/* The jobs, in the order they're usually most urgent. */
+const JOBS = [
+  { key: 'fix', icon: 'fix', title: 'Fix what doesn’t tie', why: 'Until these are sorted, the reports can’t be trusted.', match: x => x.page === 'health', cta: () => ['nav', 'health', 'Open Books Health'] },
+  { key: 'approve', icon: 'approve', title: 'Approve payments', why: 'Checks print and transfers go out once they’re approved.', match: x => x.st.text === 'For approval',
+    cta: xs => xs.every(x => x.page === 'transfers') ? ['home-go', 'transfers:tk:approve', 'Review payments'] : ['home-go', 'vouchers:vf:approve', 'Review payments'] },
+  { key: 'pay', icon: 'pay', title: 'Pay supplier bills', why: 'Late bills first, then what falls due in the next two weeks.', match: x => x.page === 'bills' && x.act === 'view-bill',
+    cta: () => canBooks('vouchers.edit') || canBooks('transfers.edit') ? ['pay-bills', '', 'Pay bills'] : ['home-go', 'bills:bf:unpaid', 'Open the bills'] },
+  { key: 'enter', icon: 'enter', title: 'Enter this month’s bills', why: 'Monthly bills not entered yet, filled in from last month.', match: x => x.act === 'repeat-bill', cta: () => ['home-go', 'bills:bf:repeat', 'See them all'] },
+  { key: 'collect', icon: 'collect', title: 'Collect from customers', why: 'Invoices past due or coming due. A call now beats a late payment later.', match: x => x.page === 'invoices', cta: () => ['home-go', 'invoices:if:unpaid', 'Open what’s owed'] },
+  { key: 'deposit', icon: 'deposit', title: 'Deposit checks and cash', why: 'Received but not in the bank yet.', match: x => x.page === 'collections', cta: () => canBooks('collections.edit') ? ['new-deposit', '', 'Make a deposit'] : ['nav', 'collections', 'Open Collections'] },
+  { key: 'checks', icon: 'wait', title: 'Follow up old checks', why: 'Issued but not cleared. A check goes stale at 180 days.', match: x => x.page === 'checks', cta: () => ['nav', 'checks', 'Open Check Monitoring'] },
+  { key: 'advances', icon: 'people', title: 'Get cash advances liquidated', why: 'Advances past their liquidation date.', match: x => x.page === 'advances', cta: () => ['nav', 'advances', 'Open Cash Advances'] },
+  { key: 'petty', icon: 'pay', title: 'Refill petty cash', why: 'Funds running low.', match: x => x.page === 'petty', cta: () => ['nav', 'petty', 'Open Petty Cash'] },
+  { key: 'ship', icon: 'box', title: 'Clear shipment differences', why: 'Costs left on shipments already received.', match: x => x.page === 'shipments', cta: () => ['nav', 'shipments', 'Open Shipments'] },
+  { key: 'budget', icon: 'chart', title: 'Watch department budgets', why: 'Near or over their bucket for the year.', match: x => x.page === 'budgets', cta: () => ['nav', 'budgets', 'Open Budgets'] }
+];
+function homeJobs() {
+  const items = attention(), used = new Set();
+  return JOBS.map(j => { const xs = items.filter(x => !used.has(x) && j.match(x)); xs.forEach(x => used.add(x)); return { ...j, xs, red: xs.filter(x => x.lvl === 'red').length }; })
+    .filter(j => j.xs.length).sort((a, b) => (b.red > 0) - (a.red > 0) || (a.key === 'approve' ? -1 : b.key === 'approve' ? 1 : 0) || JOBS.indexOf(JOBS.find(x => x.key === a.key)) - JOBS.indexOf(JOBS.find(x => x.key === b.key)));
+}
+/* Where the money stands: banks against what's due out, what customers owe and what's owed to suppliers, and the
+   month's profit so far. */
+function homeNumbers() {
+  const in14 = iso(new Date(parseD(todayIso()).getTime() + ATT.dueSoon * 864e5));
+  const cash = round2(sum(recBanks().filter(x => bankCur(x.id) === 'PHP').map(x => bankBalance(x.id).php)));
+  const bills = D.bills.filter(b => live(b) && !isMemo(b) && !b.refOnly).map(b => ({ b, bal: pesoOf(b, billBalance(b)) })).filter(x => x.bal > 0.004);
+  const ap = round2(sum(bills.map(x => x.bal))), apSoon = round2(sum(bills.filter(x => x.b.dueDate && x.b.dueDate <= in14).map(x => x.bal)));
+  const invs = (D.invoices || []).filter(i => live(i) && !isMemo(i) && !i.refOnly).map(i => ({ i, bal: invBalance(i) })).filter(x => x.bal > 0.004);
+  const ar = round2(sum(invs.map(x => x.bal))), arLate = round2(sum(invs.filter(x => x.i.dueDate && x.i.dueDate < todayIso()).map(x => x.bal)));
+  const ym = YEAR === THIS_YEAR() ? todayIso().slice(0, 7) : `${YEAR}-12`, pm = (() => { const d = parseD(ym + '-01'); d.setMonth(d.getMonth() - 1); return iso(d).slice(0, 7); })();
+  const pl = m => { let sales = 0, net = 0; journal().forEach(d => { if (!d.date.startsWith(m)) return; d.lines.forEach(l => { const t = (acct(l.acct) || {}).type, n = (l.cr || 0) - (l.dr || 0);
+    if (t === 'Income') { sales += n; net += n; } else if (t === 'Other Income') net += n; else if (['Cost of Goods Sold', 'Expense', 'Other Expense'].includes(t)) net += n; }); }); return { sales: round2(sales), net: round2(net) }; };
+  const now = pl(ym), last = pm.startsWith(String(YEAR)) ? pl(pm) : null;
+  return { cash, ap, apSoon, ar, arLate, in14, ym, now, last, counted: !!countOf(ym) };
+}
+/* ---------- How the business is doing ----------
+   For the stockholders, in numbers and plain words: sales, margins as a share of sales, the biggest costs, and flags
+   when a cost jumps, eats too much of sales, or budgets outrun the profit. Worked out from the open year's entries
+   (not the opening balances). Thresholds are in ATT. */
+const PL_CACHE = new WeakMap();
+function plMonths() {
+  let m = PL_CACHE.get(D); if (m) return m; m = {};
+  journal().forEach(d => { if (d.src === 'ob' || !d.date.startsWith(String(YEAR))) return; const k = d.date.slice(0, 7), x = m[k] = m[k] || { rev: 0, oinc: 0, cogs: 0, opex: 0, oexp: 0, acc: {} };
+    d.lines.forEach(l => { const t = (acct(l.acct) || {}).type, n = round2((l.dr || 0) - (l.cr || 0));
+      if (t === 'Income') x.rev -= n; else if (t === 'Other Income') x.oinc -= n;
+      else if (t === 'Cost of Goods Sold' || t === 'Expense' || t === 'Other Expense') { if (t === 'Cost of Goods Sold') x.cogs += n; else if (t === 'Expense') x.opex += n; else x.oexp += n; x.acc[l.acct] = round2((x.acc[l.acct] || 0) + n); } }); });
+  Object.values(m).forEach(x => ['rev', 'oinc', 'cogs', 'opex', 'oexp'].forEach(k => { x[k] = round2(x[k]); }));
+  PL_CACHE.set(D, m); return m;
+}
+function plSum(months) {
+  const all = plMonths(), out = { rev: 0, oinc: 0, cogs: 0, opex: 0, oexp: 0, acc: {} };
+  months.forEach(k => { const x = all[k]; if (!x) return; ['rev', 'oinc', 'cogs', 'opex', 'oexp'].forEach(f => { out[f] = round2(out[f] + x[f]); }); Object.entries(x.acc).forEach(([a, n]) => { out.acc[a] = round2((out.acc[a] || 0) + n); }); });
+  out.gross = round2(out.rev - out.cogs); out.net = round2(out.rev + out.oinc - out.cogs - out.opex - out.oexp); return out;
+}
+const pct = (a, b) => b > 0 ? a / b : null, fpct = x => x == null ? '—' : `${(x * 100).toFixed(Math.abs(x) < 0.1 ? 1 : 0)}%`;
+function businessView() {
+  const cur = YEAR === THIS_YEAR() ? todayIso().slice(0, 7) : `${YEAR}-12`, mi = Number(cur.slice(5)), ym = i => `${YEAR}-${pad(i, 2)}`;
+  const ytdMonths = Array.from({ length: mi }, (_, i) => ym(i + 1)), mtd = plSum([cur]), ytd = plSum(ytdMonths);
+  const counted = ytdMonths.filter(k => countOf(k)).length, done = THIS_YEAR() === YEAR ? mi - 1 : 12;
+  const flags = [];
+  // a loss, or costs eating the sales
+  const er = pct(ytd.opex + ytd.oexp, ytd.rev);
+  if (ytd.net < 0 && (ytd.rev || ytd.opex)) flags.push({ lvl: 'red', t: `${YEAR} so far is a loss of ${peso(-ytd.net)}`, d: ytd.rev ? `Expenses take ${fpct(er)} of sales. Every peso of sales costs more than a peso to run.` : 'No sales are booked yet this year.' });
+  else if (er != null && er >= ATT.expRed) flags.push({ lvl: 'red', t: `Expenses take ${fpct(er)} of sales`, d: `Running costs are more than the year’s sales of ${peso(ytd.rev)}.` });
+  else if (er != null && er >= ATT.expYellow) flags.push({ lvl: 'yellow', t: `Expenses take ${fpct(er)} of sales`, d: `Little is left once costs are paid: net margin is ${fpct(pct(ytd.net, ytd.rev))}.` });
+  if (mtd.net < 0 && ytd.net >= 0 && mi > 1) flags.push({ lvl: 'yellow', t: `${monthLabel(cur)} is running at a loss so far`, d: `${peso(-mtd.net)} so far, on ${peso(mtd.rev)} of sales.` });
+  // one cost taking too much of sales
+  Object.entries(ytd.acc).filter(([a]) => (acct(a) || {}).type !== 'Cost of Goods Sold').forEach(([a, n]) => { const sh = pct(n, ytd.rev); if (sh != null && sh >= ATT.acctShare && n > 0) flags.push({ lvl: 'yellow', t: `${acctName(a)} is ${fpct(sh)} of sales`, d: `${peso(n)} this year, on ${peso(ytd.rev)} of sales.` }); });
+  // a cost that jumped this month against its usual
+  const prev = [mi - 1, mi - 2, mi - 3].filter(i => i >= 1).map(ym), all = plMonths();
+  if (prev.length) Object.entries(mtd.acc).forEach(([a, n]) => { const avg = round2(sum(prev.map(k => (all[k] && all[k].acc[a]) || 0)) / prev.length);
+    if (n >= ATT.spikeMin && (avg <= 0 ? n >= ATT.spikeMin * 2 : n >= avg * ATT.spikeX && n - avg >= ATT.spikeMin) && (acct(a) || {}).type !== 'Cost of Goods Sold')
+      flags.push({ lvl: 'yellow', t: `${acctName(a)} jumped in ${monthLabel(cur).replace(/ \d{4}$/, '')}`, d: avg > 0 ? `${peso(n)} so far, ${(n / avg).toFixed(1)}× its ${prev.length}-month average of ${peso(avg)}.` : `${peso(n)} so far, against nothing in the months before.` }); });
+  // budgets against the profit the year is on track for
+  const bs = D.hasDepartments ? buckets().filter(b => b.total != null) : [], btot = round2(sum(bs.map(b => b.total))), bleft = round2(sum(bs.map(b => Math.max(0, b.left))));
+  const months = Math.max(1, THIS_YEAR() === YEAR ? mi - 1 + Number(todayIso().slice(8)) / 30 : 12), paceGross = ytd.gross > 0 ? round2(ytd.gross / months * 12) : 0;
+  if (btot > 0 && paceGross > 0 && btot / paceGross >= ATT.budgetShare) flags.push({ lvl: btot >= paceGross ? 'red' : 'yellow', t: `Budgets are ${fpct(btot / paceGross)} of the gross profit ${YEAR} is on track for`, d: `${peso(btot)} in department budgets, against about ${peso(paceGross)} of gross profit at this year’s pace.` });
+  if (bleft > 0 && ytd.net > 0 && bleft > ytd.net) flags.push({ lvl: 'yellow', t: 'Budgets left are more than the profit so far', d: `Departments can still spend ${peso(bleft)}; ${YEAR} has made ${peso(ytd.net)}. Spending it all turns the year to a loss unless sales grow.` });
+  else if (btot > 0 && ytd.net <= 0 && bleft > 0) flags.push({ lvl: 'red', t: 'Budgets are still open while the year is at a loss', d: `${peso(bleft)} is left in department budgets.` });
+  const order = { red: 0, yellow: 1 }; flags.sort((a, b) => order[a.lvl] - order[b.lvl]);
+  return { cur, mtd, ytd, counted, done, flags, top: Object.entries(ytd.acc).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 6) };
+}
+function businessSection(v) {
+  const p = S.hp === 'month' ? v.mtd : v.ytd, lbl = S.hp === 'month' ? monthLabel(v.cur) : `${YEAR} so far`;
+  const tile = (label, big, sub, lvl) => `<div class="bv-tile ${lvl ? 'bv-' + lvl : ''}"><span>${label}</span><b>${big}</b><small>${sub}</small></div>`;
+  const gm = pct(p.gross, p.rev), em = pct(p.opex + p.oexp, p.rev), nm = pct(p.net, p.rev);
+  const note = v.counted < Math.max(1, v.done) ? `<p class="hint" style="margin:10px 0 0">Cost of sales comes from the monthly stock count: ${v.counted ? `counted for ${plural(v.counted, 'month')} of ${YEAR}` : `no month of ${YEAR} is counted yet`}, so gross margin reads high until the counts are in.</p>` : '';
+  const top = v.top.length ? `<div class="bv-top"><h3>Biggest costs, ${YEAR} so far</h3>${v.top.map(([a, n]) => { const sh = pct(n, v.ytd.rev); return `<div class="bv-row"><span class="bv-name">${esc(acctName(a))}</span><span class="bv-bar"><i style="width:${Math.min(100, sh == null ? 0 : sh * 100).toFixed(1)}%"></i></span><span class="bv-n">${peso(n)}</span><span class="bv-p">${sh == null ? '' : fpct(sh) + ' of sales'}</span></div>`; }).join('')}</div>` : '';
+  return `<section class="bv"><header class="bv-head"><h2>How the business is doing</h2><div class="seg" role="group" aria-label="Period">${[['month', monthLabel(v.cur).replace(/ \d{4}$/, '')], ['year', `${YEAR} so far`]].map(([k, l]) => `<button type="button" class="${(S.hp || 'year') === k ? 'on' : ''}" data-act="home-period" data-id="${k}">${l}</button>`).join('')}</div></header>
+    <div class="bv-tiles">${tile('Sales', peso(p.rev), lbl, '')}${tile('Gross margin', fpct(gm), `${peso(p.gross)} after cost of sales`, gm != null && gm < 0.15 ? 'yellow' : '')}${tile('Expenses', fpct(em), `of sales: ${peso(round2(p.opex + p.oexp))}`, em != null && em >= ATT.expRed ? 'red' : em != null && em >= ATT.expYellow ? 'yellow' : '')}${tile('Net margin', fpct(nm), `${p.net < 0 ? 'loss' : 'profit'} of ${peso(Math.abs(p.net))}`, p.net < 0 ? 'red' : '')}</div>
+    ${note}${top}<p style="margin:14px 0 0">${btn('nav', 'Open the Financial Reports', 'link sm', 'reports')}</p></section>`;
+}
+const flagsCard = v => `<section class="cc-side"><header>${icon('chart', 'cc-ic')}<div class="cc-t"><h3>Flags</h3><p>${v.flags.length ? `${plural(v.flags.length, 'thing')} worth a look` : 'Nothing unusual in sales or costs'}</p></div></header>
+  ${v.flags.length ? `<ul class="bv-flags">${v.flags.map(f => `<li class="bv-f-${f.lvl}">${icon(f.lvl === 'red' ? 'late' : 'due')}<div><b>${esc(f.t)}</b><span>${esc(f.d)}</span></div></li>`).join('')}</ul>` : ''}</section>`;
+
 function homePage() {
-  return pageHead('home', 'What needs someone, most urgent first. Red is late or doesn’t tie; yellow is coming due. Click any line to open it.') + `<div id="list">${homeBody()}</div>`;
+  const h = new Date().getHours(), hi = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening', first = String(ME().name || '').split(' ')[0];
+  const q = ` <button type="button" class="qhelp" data-act="page-help" data-id="home" aria-label="How this page works" aria-expanded="${S.guideOpen === 'home'}">?</button>`;
+  return head('', `${hi}${first ? ', ' + esc(first) : ''}${q}`, '', refreshBtn()) + `<div id="list">${homeBody()}</div>`;
 }
 function homeBody() {
-  if (yearClosed()) return `<div class="empty"><b>${YEAR} is closed</b>Nothing in a closed year comes due. Switch to the current year to see what needs attention.</div>`;
-  const a = attention(), red = a.filter(x => x.lvl === 'red'), yel = a.filter(x => x.lvl === 'yellow');
-  const money0 = xs => peso(sum(xs.filter(x => x.amount != null && ['bills', 'invoices'].includes(x.page)).map(x => x.amount)));
-  // the next 14 days of bills against what the peso banks hold
-  const soon = D.bills.filter(b => live(b) && !isMemo(b) && !b.refOnly && b.dueDate && dayDiff(todayIso(), b.dueDate) <= ATT.dueSoon).map(b => ({ b, bal: pesoOf(b, billBalance(b)) })).filter(x => x.bal > 0.004);
-  const cash = round2(sum(recBanks().filter(x => bankCur(x.id) === 'PHP').map(x => bankBalance(x.id).php)));
-  const owe = round2(sum(soon.map(x => x.bal)));
-  const tiles = [
-    { lvl: red.length ? 'red' : 'green', n: red.length, label: red.length ? 'Late or not tying' : 'Nothing late', sub: red.length ? `${money0(red)} in bills and invoices` : 'All on time' },
-    { lvl: yel.length ? 'yellow' : 'green', n: yel.length, label: 'Coming due', sub: yel.length ? `within ${ATT.dueSoon} days, or waiting` : 'Nothing waiting' },
-    ...(canSee('bills') ? [{ lvl: owe > cash ? 'red' : 'blue', n: peso(owe), label: `Bills due by ${fdate(iso(new Date(parseD(todayIso()).getTime() + ATT.dueSoon * 864e5)))}`, sub: `Peso banks hold ${peso(cash)}${owe > cash ? ': short' : ''}` }] : [])
-  ];
-  const tileHtml = statCards(tiles.map(t => ({ label: t.label, big: typeof t.n === 'number' ? t.n.toLocaleString('en-US') : t.n, small: t.sub, lvl: t.lvl === 'blue' ? '' : t.lvl })));
-  const list = a.length ? `<h2 class="mt">Needs attention</h2><div class="att-list">` + table([
-    { h: 'Status', k: x => sPill(x.st) },
-    { h: 'What', k: x => `<button type="button" class="btn link att-go" data-act="${x.act}" data-id="${esc(x.id)}">${esc(x.what)}</button><span class="sub">${esc(labelOf(x.page))}${x.due && ['bills', 'invoices'].includes(x.page) ? ` · due ${fdate(x.due)}` : ''}</span>` },
-    { h: 'Amount', num: 1, k: x => x.amount == null ? '' : peso(x.amount) }
-  ], a, '', '', x => 'att-' + x.lvl) + '</div>' : `<div class="att-clear"><b>Nothing needs attention</b>No bill or invoice is late, every check and collection is on track, and the books tie.</div>`;
-  const ct = seesClosing() ? closeTracker() : null;
-  const close = ct ? `<h2 class="mt">Closing ${esc(ct.month)}</h2><div class="att-steps">${ct.steps.map(s => `<button type="button" class="att-step ${s.ok ? 'ok' : 'todo'}" data-act="nav" data-id="${s.page}"><span class="att-mark" aria-hidden="true">${s.ok ? '✓' : ''}</span>${esc(s.t)}</button>`).join('')}</div>` : '';
-  return tileHtml + close + list;
+  if (yearClosed()) return `<div class="empty"><b>${YEAR} is closed</b>Nothing in a closed year comes due. Switch to the current year to see what needs doing.</div>`;
+  const jobs = homeJobs(), n = homeNumbers(), seesMoney = canSee('reports') || isAdmin();
+  const short = canSee('bills') && n.apSoon > n.cash + 0.004;
+  // the sentence: what needs doing, in words
+  const say = { fix: k => `${plural(k, 'check')} in Books Health ${k === 1 ? 'doesn’t' : 'don’t'} tie`, approve: (k, t) => `${plural(k, 'payment')} ${k === 1 ? 'waits' : 'wait'} for approval (${peso(t)})`,
+    pay: (k, t, r) => r ? `${plural(r, 'bill')} ${r === 1 ? 'is' : 'are'} late` : `${plural(k, 'bill')} ${k === 1 ? 'is' : 'are'} due soon (${peso(t)})`, enter: k => `${plural(k, 'monthly bill')} to enter`,
+    collect: (k, t, r) => r ? `${plural(r, 'customer invoice')} ${r === 1 ? 'is' : 'are'} past due` : `${plural(k, 'invoice')} to collect soon`, deposit: k => `${plural(k, 'collection')} to deposit`,
+    checks: k => `${plural(k, 'old check')} to follow up`, advances: k => `${plural(k, 'cash advance')} to liquidate`, petty: () => 'petty cash is low', ship: k => `${plural(k, 'shipment')} with a cost difference`, budget: k => `${plural(k, 'department')} near or over budget` };
+  const parts = jobs.slice(0, 3).map(j => say[j.key](j.xs.length, sum(j.xs.map(x => x.amount || 0)), j.red));
+  const sentence = jobs.length ? `${parts.length === 1 ? parts[0] : parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1]}${jobs.length > 3 ? `, and ${plural(jobs.length - 3, 'more thing')} below` : ''}.` : 'Nothing needs you right now. Everything is on time and the books tie.';
+  const lead = `<p class="cc-lead">${esc(sentence.charAt(0).toUpperCase() + sentence.slice(1))}${short ? ` <span class="cc-warn">${icon('late')}The peso banks hold ${peso(n.cash)} against ${peso(n.apSoon)} of bills due by ${fdate(n.in14)}.</span>` : ''}</p>`;
+  // four numbers, each with what it means
+  const kpi = (lvl, label, big, sub, act, id) => `<button type="button" class="kpi ${lvl ? 'kpi-' + lvl : ''}" data-act="${act}" data-id="${esc(id)}"><span class="kpi-l">${label}</span><b>${big}</b><span class="kpi-s">${sub}</span></button>`;
+  const net = n.now.net, sales = n.now.sales, lastNet = n.last ? n.last.net : null;
+  const kpis = seesMoney ? `<div class="kpis">
+    ${kpi(short ? 'red' : '', 'Cash in the banks', peso(n.cash), n.apSoon ? `${peso(n.apSoon)} of bills due by ${fdate(n.in14)}${short ? `: ${peso(round2(n.apSoon - n.cash))} short` : `; ${peso(round2(n.cash - n.apSoon))} left after`}` : 'No bills due in the next two weeks', 'nav', 'recon')}
+    ${kpi(n.arLate > 0 ? 'yellow' : '', 'Customers owe you', peso(n.ar), n.arLate > 0 ? `${peso(n.arLate)} of it past due` : n.ar ? 'None of it past due' : 'Nothing outstanding', 'home-go', 'invoices:if:unpaid')}
+    ${kpi('', 'You owe suppliers', peso(n.ap), n.ap ? `${peso(n.apSoon)} due in the next two weeks` : 'Nothing unpaid', 'home-go', 'bills:bf:unpaid')}
+    ${kpi(net < 0 ? 'red' : '', `${monthLabel(n.ym).replace(/ \d{4}$/, '')} so far`, `${net < 0 ? '−' : ''}${peso(Math.abs(net))}`, `${net < 0 ? 'loss' : 'profit'} on ${peso(sales)} sales${lastNet != null ? `; last month ${lastNet < 0 ? 'lost' : 'made'} ${peso(Math.abs(lastNet))}` : ''}${n.counted ? '' : '. Before the stock count, so cost of sales isn’t in yet'}`, 'nav', 'reports')}
+  </div>` : '';
+  // the to-do
+  const row = (j, x) => { const inline = x.act === 'view-voucher' && x.st.text === 'For approval' && canApprove(voucher(x.id)) ? btn('approve-voucher', 'Approve', 'sm', x.id) : x.act === 'repeat-bill' && canBooks('bills.edit') ? btn('repeat-bill', 'Enter', 'sm', x.id) : '';
+    return `<li class="cc-item">${kpill(x)}<button type="button" class="cc-what" data-act="${x.act}" data-id="${esc(x.id)}">${esc(x.what)}${x.due && ['bills', 'invoices'].includes(x.page) ? `<span class="sub">due ${fdate(x.due)}</span>` : ''}</button><span class="cc-amt">${x.amount == null ? '' : peso(x.amount)}</span>${inline ? `<span class="cc-do">${inline}</span>` : ''}</li>`; };
+  const card = j => { const [act, id, label] = j.cta(j.xs), tone = j.red ? 'red' : j.key === 'approve' ? 'blue' : j.key === 'enter' ? 'blue' : 'yellow', tot = sum(j.xs.map(x => x.amount || 0)), show = j.xs.slice(0, 4);
+    return `<section class="cc-job cc-${tone}"><header>${icon(j.icon, 'cc-ic')}<div class="cc-t"><h3>${j.title}</h3><p>${plural(j.xs.length, j.key === 'fix' ? 'item' : 'item')}${tot ? ` · ${peso(tot)}` : ''}${j.red ? ` · <b>${j.red} late</b>` : ''} · ${esc(j.why)}</p></div>${btn(act, label, j.key === jobs[0].key ? '' : 'ghost', id)}</header>
+      <ul>${show.map(x => row(j, x)).join('')}</ul>${j.xs.length > show.length ? `<button type="button" class="btn link sm cc-more" data-act="${act}" data-id="${esc(id)}">${j.xs.length - show.length} more</button>` : ''}</section>`; };
+  const todo = jobs.length ? jobs.map(card).join('') : `<div class="att-clear"><b>All clear</b>No bill or invoice is late, nothing waits for approval, every check and collection is on track, and the books tie.</div>`;
+  // closing last month, and quick actions
+  const ct = seesClosing() ? closeTracker() : null, done = ct ? ct.steps.filter(s => s.ok).length : 0, next = ct ? ct.steps.find(s => !s.ok) : null;
+  const close = ct ? `<section class="cc-side"><header>${icon('close', 'cc-ic')}<div class="cc-t"><h3>Close ${esc(ct.month)}</h3><p>${done} of ${ct.steps.length} done</p></div></header>
+    <div class="cc-bar"><span style="width:${Math.round(done / ct.steps.length * 100)}%"></span></div>
+    <ul class="cc-steps">${ct.steps.map(st => `<li class="${st.ok ? 'ok' : ''}"><button type="button" data-act="nav" data-id="${st.page}">${icon(st.ok ? 'check' : 'due')}${esc(st.t)}</button></li>`).join('')}</ul>
+    ${next ? btn('nav', `Next: ${next.t.replace(/ \(.*\)$/, '')}`, 'sm', next.page) : '<p class="hint">Done. Next month’s close starts on the 1st.</p>'}</section>` : '';
+  const quick = [canBooks('bills.edit') && ['new-bill', 'New bill'], canBooks('vouchers.edit') && ['new-voucher', 'New check voucher'], (canBooks('vouchers.edit') || canBooks('transfers.edit')) && ['pay-bills', 'Pay bills'],
+    canBooks('sales.edit') && ['new-invoice', 'New sales invoice'], canBooks('collections.edit') && ['new-collection', 'Record a collection'], canBooks('staff.edit') && canSee('petty') && ['new-pcv', 'Petty cash voucher'], canBooks('journal.edit') && ['payroll', 'Payroll'], ['search', 'Search  ⌘K']].filter(Boolean);
+  const quickHtml = `<section class="cc-side"><header>${icon('enter', 'cc-ic')}<div class="cc-t"><h3>Start something</h3></div></header><div class="cc-quick">${quick.map(([a, l]) => btn(a, l, 'ghost sm')).join('')}</div></section>`;
+  const bv = seesMoney ? businessView() : null;
+  return lead + kpis + `<div class="cc-grid"><div class="cc-main"><h2 class="cc-h">To do</h2>${todo}</div><aside class="cc-aside">${bv ? flagsCard(bv) : ''}${close}${quickHtml}</aside></div>${bv ? businessSection(bv) : ''}`;
 }
 
 /* ---------- Change log ----------
@@ -7426,6 +7600,8 @@ const go = (page, fromHistory) => {
 };
 const ACT = {
   nav: id => go(id),
+  'home-period': id => { S.hp = id; document.getElementById('list').innerHTML = homeBody(); },
+  'home-go': id => { const [pg, k, v] = id.split(':'); if (k) S[k] = v; go(pg); },
   search: () => searchAll(),
   'gs-open': id => { const h = GS_HITS[Number(id)]; if (!h) return; closeModal(true); setTimeout(() => h.open(), 0); },
   'view-budget': id => { S.bd = id; go('budgets'); },

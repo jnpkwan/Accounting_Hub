@@ -277,10 +277,24 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .p-for-approval{background:var(--blue);color:#fff}
 .p-partly-paid,.p-partly-applied{background:var(--blue1);color:var(--ink);box-shadow:none}
 .d8{color:var(--muted);font-size:13px;white-space:nowrap}
+/* The search and filters sit on the list itself, as its top strip, not floating alone on the canvas */
+@media (min-width:761px){
+  .toolbar:has(+ #list > .tbl-wrap:first-child){margin:0;padding:10px 12px;background:#fff;border-radius:12px 12px 0 0;box-shadow:var(--rest);clip-path:inset(-24px -24px 0 -24px);border-bottom:1px solid var(--mist)}
+  .toolbar:has(+ #list > .tbl-wrap:first-child) input,.toolbar:has(+ #list > .tbl-wrap:first-child) select{background:var(--mist);border-color:transparent}
+  .toolbar:has(+ #list > .tbl-wrap:first-child) input[type=search]{max-width:420px}
+  .toolbar + #list > .tbl-wrap:first-child{border-radius:0 0 12px 12px}}
+.bstrip{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin:0 0 14px;background:#fff;border-radius:14px;box-shadow:var(--rest);overflow:hidden}
+.bs-h{margin:0;padding:12px 18px;display:flex;flex-direction:column;justify-content:center;background:var(--blue05);font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--blue7)}
+.bs-h span{margin-top:3px;font:400 12.5px var(--body);letter-spacing:0;text-transform:none;color:var(--muted)}
+.bs-i{flex:1 1 180px;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:10px 18px;border-left:1px solid var(--mist);min-width:0}
+.bs-n{font:700 12.5px var(--display);color:var(--carbon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bs-i b{font:800 18px var(--display);color:var(--ink);font-variant-numeric:tabular-nums}.bs-i small{font-size:12.5px;color:var(--muted)}
+.bs-neg{box-shadow:inset 4px 0 0 #A52A24}.bs-neg b{color:#A52A24}.bs-neg small{color:#A52A24;font-weight:600}
 tr.att-red>td:first-child{box-shadow:inset 5px 0 0 #A52A24}tr.att-yellow>td:first-child{box-shadow:inset 5px 0 0 #FFC62E}
 /* One line per row: the grey detail under a name or number sits beside it, not under it (amount columns keep theirs
    stacked so figures line up). More rows on screen. */
-@media (min-width:761px){.tbl-wrap td:not(.num)>.sub{display:inline;margin:0 0 0 6px}td{padding-top:9px;padding-bottom:9px}}
+@media (min-width:761px){.tbl-wrap td:not(.num)>.sub{display:inline;margin:0 0 0 6px}td{padding-top:9px;padding-bottom:9px}
+  /* a document no. and its date never break in the middle (at worst the date drops whole to the next line) */
+  .tbl-wrap td:first-child>b,.tbl-wrap td:first-child>.sub,.d8{white-space:nowrap}}
 /* The page band */
 .pb{background:var(--depth);border-radius:18px;padding:20px 24px 18px;margin:0 0 16px;color:#fff;box-shadow:var(--shadow)}
 .pb-top{display:flex;justify-content:space-between;align-items:center;gap:14px 20px;flex-wrap:wrap}
@@ -6061,8 +6075,7 @@ function transfersPage() {
   const months = [...new Set(D.vouchers.filter(v => own(v) && isTransfer(v)).map(v => entryDate(v).slice(0, 7)).concat((D.journals || []).filter(j => j.kind === 'Transfer').map(j => j.date.slice(0, 7))))].sort().reverse();
   return pageHead('transfers', 'Payments sent from the bank, telegraphic transfers included, and money moved between the company’s own accounts.',
     (S.tk === 'approve' && D.vouchers.some(v => isTransfer(v) && canApprove(v)) ? btn('approve-all', 'Approve all', 'ghost') : '') + (canBooks('transfers.edit') ? `${btn('new-move', 'Move between accounts', 'ghost')}${btn('new-transfer', 'New payment')}` : ''))
-    + bankStrip()
-    + transferTabs() + `<div class="toolbar"><input id="q" type="search" placeholder="Search PV or BT no., payee, reference, particulars" value="${esc(S.q)}" aria-label="Search">
+    + transferTabs() + bankStrip() + `<div class="toolbar"><input id="q" type="search" placeholder="Search PV or BT no., payee, reference, particulars" value="${esc(S.q)}" aria-label="Search">
       <select id="tm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.tm)).join('')}</select></div>
     <div id="list">${transferList()}</div>`;
 }
@@ -6073,13 +6086,9 @@ function bankStrip() {
   journal().forEach(d => { if (d.date > asOf) return; d.lines.forEach(l => { const x = bal[l.acct] || (bal[l.acct] = { php: 0, usd: 0 }); x.php = round2(x.php + (l.dr || 0) - (l.cr || 0)); if (l.usd) x.usd = round2(x.usd + (l.dr ? l.usd : -l.usd)); }); });
   const rows = bankAccounts().map(a => { const x = bal[a.id] || { php: 0, usd: 0 }; return { a, b: { ...x, rate: x.usd > 0 ? Math.round(x.php / x.usd * 10000) / 10000 : 0 }, cur: bankCur(a.id) }; }).filter(x => x.b.php || x.b.usd || x.a.id === D.control.bank);
   if (!rows.length) return '';
-  return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Bank Balances <span class="hint" style="font-weight:400">as of ${fdate(asOf)}, per the books</span></h2>${table([
-    { h: 'Account', k: x => `<b>${esc(acctLabel(x.a))}</b>${bankInfo(x.a.id).number ? `<span class="sub">${esc(bankInfo(x.a.id).number)}</span>` : ''}` },
-    { h: 'Currency', k: x => x.cur === 'USD' ? 'US dollars' : 'Pesos' },
-    { h: 'Dollars', num: 1, k: x => x.cur === 'USD' ? amt(x.b.usd, 'USD') : '' },
-    { h: 'Rate', num: 1, k: x => x.cur === 'USD' && x.b.rate ? fmtRate(x.b.rate) : '' },
-    { h: 'In pesos', num: 1, k: x => peso(x.b.php) }
-  ], rows, '')}</section>`;
+  // one slim strip, not a table: each account and what it holds, red when the books show it below zero
+  return `<section class="bstrip" aria-label="Balances per the books"><p class="bs-h">Balances<span>${fdate(asOf)}, per the books</span></p>${rows.map(x => { const neg = x.b.php < -0.004;
+    return `<div class="bs-i${neg ? ' bs-neg' : ''}"><span class="bs-n" title="${esc(acctLabel(x.a))}">${esc(x.a.name)}</span><b>${peso(x.b.php)}</b>${x.cur === 'USD' ? `<small>${amt(x.b.usd, 'USD')}${x.b.rate ? ` at ${fmtRate(x.b.rate)}` : ''}</small>` : neg ? '<small>below zero in the books</small>' : ''}</div>`; }).join('')}</section>`;
 }
 function transferTabs() {
   const pays = D.vouchers.filter(v => own(v) && isTransfer(v)), moves = (D.journals || []).filter(j => j.kind === 'Transfer');

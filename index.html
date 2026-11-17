@@ -370,8 +370,12 @@ tbody tr.jrow.alt td{background:var(--mist)}
 @keyframes spin{to{transform:rotate(360deg)}}
 body.busy #app{pointer-events:none}
 /* modal */
-.overlay{position:fixed;inset:0;background:rgba(16,33,59,.55);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;z-index:50;animation:fade .2s ease}
-.modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--lift);animation:rise .25s cubic-bezier(.4,0,.2,1)}
+.overlay{position:fixed;inset:0;background:rgba(16,33,59,.55);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:hidden;z-index:50;animation:fade .2s ease}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--lift);animation:rise .25s cubic-bezier(.4,0,.2,1);
+  /* a dialog never runs off the screen: its head and its buttons stay put, and only the middle scrolls between them */
+  display:flex;flex-direction:column;max-height:calc(100vh - 64px);max-height:calc(100dvh - 64px);overflow:hidden}
+.modal>.modal-head,.modal>.modal-foot{flex:none}
+.modal>.modal-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .modal.wide{max-width:1040px}
 .modal.mid{max-width:820px}
 /* A window opens like a page: a Deep Ink band with where it came from and its title; Save and Cancel on a bar
@@ -383,7 +387,7 @@ body.busy #app{pointer-events:none}
 .modal-head .m-x:hover,.modal-head .m-x:focus-visible{background:var(--green7);color:#fff}
 .modal-body{padding:26px 30px}
 .modal-body .lead{margin:0 0 16px}
-.modal-foot{position:sticky;bottom:0;z-index:2;padding:14px 30px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border-top:1px solid var(--silver);border-radius:0 0 16px 16px;box-shadow:0 -10px 24px rgba(16,33,59,.06)}
+.modal-foot{position:relative;z-index:2;padding:14px 30px;display:flex;justify-content:flex-end;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border-top:1px solid var(--silver);border-radius:0 0 16px 16px;box-shadow:0 -10px 24px rgba(16,33,59,.06)}
 .modal-foot .btn:not(.link){padding:13px 26px;font-size:15px;border-radius:10px}
 @keyframes fade{from{opacity:0}}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}}
@@ -586,11 +590,11 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
   .fields{grid-template-columns:1fr 1fr}
   input,select,textarea{font-size:16px}
   .overlay{padding:0}
-  .modal,.modal.wide,.modal.mid{max-width:none;min-height:100%;border-radius:0}
+  .modal,.modal.wide,.modal.mid{max-width:none;height:100%;max-height:none;border-radius:0}
   .modal-head{padding:14px 12px 14px 16px;padding-top:max(14px,env(safe-area-inset-top));border-radius:0}
   .modal-head h2{font-size:21px}
   .modal-body{padding:20px 16px}
-  .modal-foot{position:sticky;bottom:0;background:#fff;border-radius:0;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(16,33,59,.08)}
+  .modal-foot{background:#fff;border-radius:0;padding:12px 16px;padding-bottom:max(12px,env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(16,33,59,.08)}
   .modal-foot .form-err{flex:1 1 100%}
   .checkamt{flex-wrap:wrap;padding:16px 18px}
   .checkamt .big{font-size:26px}
@@ -667,7 +671,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.41';
+const APP_VERSION = '3.42';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */

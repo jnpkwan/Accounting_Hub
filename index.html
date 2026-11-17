@@ -666,11 +666,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.39';
+const APP_VERSION = '3.40';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 18;
+const API_NEEDED = 19;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -832,6 +832,13 @@ const dupMsg = (b, who) => `${isMemo(b) ? 'Debit memo' : 'Invoice'} ${b.ref} fro
 const needsApproval = v => !!v && live(v) && own(v) && !v.from && !v.foreign && !v.approvedBy;
 const mineLast = v => { const w = v.updatedBy || v.createdBy || ''; return !!w && (w === whoAmI() || w === ME().name); };
 const canApprove = v => needsApproval(v) && can('payments.approve') && (isAdmin() || !mineLast(v));
+/* An approval given by mistake can be withdrawn by whoever gave it, or an Admin, until the payment clears the bank. */
+const canWithdraw = v => !!v.approvedBy && live(v) && !v.clearedOn && can('payments.approve') && (isAdmin() || v.approvedBy === whoAmI() || v.approvedBy === ME().name);
+function withdrawApproval(id) {
+  const v = voucher(id), t = isTransfer(v);
+  openModal(`Withdraw the approval on ${esc(v.cv)}?`, `<p class="lead">It goes back to For approval${t ? '. Don’t send it from the bank until it’s approved again.' : ', and the check can’t be printed until it’s approved again. If it’s already printed, hold the check.'} The change log keeps who approved it and who withdrew it.</p>`,
+    () => save('withdrawApproval', () => { Object.assign(voucher(id), { approvedBy: '', approvedOn: '' }); }, () => { toast(`${v.cv} is back to For approval`); setTimeout(() => viewVoucher(id), 0); }), 'Withdraw approval', { danger: true });
+}
 const approvalPill = v => needsApproval(v) ? pill('For approval') : '';
 function approveVoucher(id, then) {
   const v = voucher(id); if (!canApprove(v)) { toast(mineLast(v) ? 'Someone else approves a payment you entered or changed.' : 'Your role can’t approve payments.', true); return; }
@@ -2770,7 +2777,7 @@ function viewVoucher(id) {
     return;
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, live(v) && !needsApproval(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, live(v) && !needsApproval(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
   const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}</span></p>`
     : needsApproval(v) ? `<p class="stamp appr-wait">${approvalPill(v)} <span>${t ? 'Waiting for approval before it’s sent.' : 'Waiting for approval. The check prints once it’s approved.'}${canApprove(v) ? '' : can('payments.approve') ? ' You entered or changed it last, so someone else approves it.' : ' An Approver or Admin approves it.'}</span></p>` : '';
   openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
@@ -6717,7 +6724,7 @@ const GUIDE = {
       ['Tick the bills', 'Tick each bill this check pays. You can pay part of a bill; the rest stays unpaid.'],
       ['Check no., check date, bank account', 'As written on the check. The bank account is the one the check is drawn on.'],
       ['Lines (only with no bill)', 'For a payment that was never billed, add lines instead, the same way as on a bill.'],
-      ['Save, then approval', 'It waits as For approval until an Approver or Admin opens it and chooses Approve. Someone other than whoever entered it approves it (an Admin can approve their own).'],
+      ['Save, then approval', 'It waits as For approval until an Approver or Admin opens it and chooses Approve. Someone other than whoever entered it approves it (an Admin can approve their own). Approved by mistake? Open it and choose Withdraw approval (whoever approved it, or an Admin), any time before it clears.'],
       ['Print', 'Once approved: print the voucher, attach the bills and the check, and pass it for signatures. Changing what it pays sends it back for approval.']
     ],
     book: { say: 'Check 1001 pays Prime Realty’s rent bill.',
@@ -6732,7 +6739,7 @@ const GUIDE = {
     steps: [
       ['New payment', 'Works like a check voucher: pick the payee, tick the bills, and put the bank’s reference number where the check number would go. Add any bank charge the transfer cost.'],
       ['A TT for a bill in dollars or yuan', 'Choose the bill’s currency, tick it, and type the rate the bank charged. If the pesos it took differ from what the bill was booked at, the hub books the difference as an exchange gain or loss.'],
-      ['Approval', 'A payment waits as For approval until an Approver or Admin approves it. Send it from the bank once it’s approved.'],
+      ['Approval', 'A payment waits as For approval until an Approver or Admin opens it and approves it. Send it from the bank once it’s approved. Approved by mistake? Open it and choose Withdraw approval, any time before it clears.'],
       ['Move between accounts', 'From one of the company’s accounts to another: pick From and To, the amount that left, and any bank charge. These don’t need approval.']
     ],
     book: { say: 'The forklift bill of ₱240,000 is paid by transfer from Metrobank.',
@@ -7824,6 +7831,7 @@ const ACT = {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
   'approve-voucher': id => approveVoucher(id),
+  'withdraw-approval': id => withdrawApproval(id),
   'pay-bills': () => payBillsForm(),
   'print-checks': () => printChecksForm(),
   'repeat-bill': id => repeatBill(id),

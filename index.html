@@ -285,6 +285,20 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
   .toolbar:has(+ #list > .tbl-wrap:first-child) input,.toolbar:has(+ #list > .tbl-wrap:first-child) select{background:var(--mist);border-color:transparent}
   .toolbar:has(+ #list > .tbl-wrap:first-child) input[type=search]{max-width:420px}
   .toolbar + #list > .tbl-wrap:first-child{border-radius:0 0 12px 12px}}
+/* A check: 8 × 3 in, positions in mm from its top-left corner. Black ink only; the bank's own printing is on the paper. */
+.ck{position:relative;width:203.2mm;height:76.2mm;box-sizing:border-box;background:#fff;color:#000;font-family:var(--body);transform-origin:0 0;overflow:hidden}
+.ck-f{position:absolute;line-height:1;white-space:nowrap}
+.ck-c{transform:translateX(-50%);font-weight:700;font-size:1.1em}
+.ck-payee{font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.ck-amt{font-weight:800;font-size:1.1em;letter-spacing:.02em}
+.ck-words{white-space:normal;line-height:1.55;font-weight:700;font-size:.92em}
+.ck-acp{font:800 7.5pt var(--display);letter-spacing:.08em;padding:1.1mm 2.2mm;border-top:.45mm solid #000;border-bottom:.45mm solid #000}
+.ck-bearer{position:absolute;height:0;border-top:.5mm solid #000}
+.ck-test{box-shadow:inset 0 0 0 .3mm #999}.ck-test .ck-f{outline:.2mm dotted #aaa;outline-offset:.4mm}
+.ck-guide{position:absolute;font:400 6.5pt var(--body);color:#888;white-space:nowrap}
+.ck-prev{overflow-x:auto;padding:16px;border-radius:12px;background:var(--mist)}.ck-prev .ck{box-shadow:var(--rest)}
+@media print{.ck-page{width:203.2mm;height:76.2mm;overflow:hidden;break-after:page;page-break-after:always}.ck-page:last-child{break-after:auto;page-break-after:auto}
+  .ck-page.letter{width:215.9mm;height:auto;padding-left:6.35mm}.ck-test{box-shadow:none;outline:.3mm dashed #999}}
 .bstrip{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin:0 0 14px;background:#fff;border-radius:14px;box-shadow:var(--rest);overflow:hidden}
 .bs-h{margin:0;padding:12px 18px;display:flex;flex-direction:column;justify-content:center;background:var(--blue05);font:800 12px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--blue7)}
 .bs-h span{margin-top:3px;font:400 12.5px var(--body);letter-spacing:0;text-transform:none;color:var(--muted)}
@@ -671,11 +685,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.42';
+const APP_VERSION = '3.43';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 19;
+const API_NEEDED = 20;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -841,7 +855,7 @@ const canApprove = v => needsApproval(v) && can('payments.approve') && (isAdmin(
 const canWithdraw = v => !!v.approvedBy && live(v) && !v.clearedOn && can('payments.approve') && (isAdmin() || v.approvedBy === whoAmI() || v.approvedBy === ME().name);
 function withdrawApproval(id) {
   const v = voucher(id), t = isTransfer(v);
-  openModal(`Withdraw the approval on ${esc(v.cv)}?`, `<p class="lead">It goes back to For approval${t ? '. Don’t send it from the bank until it’s approved again.' : ', and the check can’t be printed until it’s approved again. If it’s already printed, hold the check.'} The change log keeps who approved it and who withdrew it.</p>`,
+  openModal(`Withdraw the approval on ${esc(v.cv)}?`, `<p class="lead">It goes back to For approval${t ? '. Don’t send it from the bank until it’s approved again.' : v.printedOn ? `. Its check was printed on ${fdate(String(v.printedOn).slice(0, 10))}: hold it, and don’t release it until it’s approved again.` : ', and the check can’t be printed until it’s approved again.'} The change log keeps who approved it and who withdrew it.</p>`,
     () => save('withdrawApproval', () => { Object.assign(voucher(id), { approvedBy: '', approvedOn: '' }); }, () => { toast(`${v.cv} is back to For approval`); setTimeout(() => viewVoucher(id), 0); }), 'Withdraw approval', { danger: true });
 }
 const approvalPill = v => needsApproval(v) ? pill('For approval') : '';
@@ -1800,13 +1814,16 @@ function payBillsForm() {
 function printChecksForm() {
   const vs = D.vouchers.filter(v => own(v) && isCheck(v) && live(v) && !needsApproval(v) && !v.clearedOn).sort((a, b) => b.date.localeCompare(a.date) || b.cv.localeCompare(a.cv)).slice(0, 80);
   if (!vs.length) { toast('No approved checks waiting to be printed: approve them first.'); return; }
-  const recent = vs[0].date;
-  openModal('Print Checks', `<p class="lead">Approved checks not cleared yet, newest first. Those dated ${fdate(recent)} are ticked.</p>
-    <div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:36px"></th><th>CV no.</th><th>Payee</th><th>Check</th><th class="num">Amount</th></tr></thead><tbody>
-    ${vs.map(v => `<tr><td><input type="checkbox" class="pc-on" value="${esc(v.id)}" ${v.date === recent ? 'checked' : ''} aria-label="Print ${esc(v.cv)}"></td><td><b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span></td><td>${esc(v.payeeName)}</td><td>${esc(v.checkNo)}</td><td class="num">${money(v.checkAmount)}</td></tr>`).join('')}</tbody></table></div>`, () => {
+  // ticked: the checks not printed yet (or, when every one is printed, the newest day's)
+  const fresh = vs.filter(v => !v.printedOn), recent = vs[0].date, tick = v => fresh.length ? !v.printedOn : v.date === recent;
+  openModal('Print Checks', `<p class="lead">Approved checks not cleared yet, newest first. ${fresh.length ? `The ${plural(fresh.length, 'check')} not printed yet ${fresh.length === 1 ? 'is' : 'are'} ticked.` : `Every one has been printed; those dated ${fdate(recent)} are ticked.`}</p>
+    <div class="fields" style="margin-bottom:14px">${F('pc-what', 'Print', `<select id="pc-what">${opt('check', 'On the checks (the bank’s check stock)', 'check')}${opt('voucher', 'The vouchers (Letter paper)', 'check')}</select>`, 'span2')}</div>
+    <div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:36px"></th><th>CV no.</th><th>Payee</th><th>Check</th><th class="num">Amount</th><th>Printed</th></tr></thead><tbody>
+    ${vs.map(v => `<tr><td><input type="checkbox" class="pc-on" value="${esc(v.id)}" ${tick(v) ? 'checked' : ''} aria-label="Print ${esc(v.cv)}"></td><td><b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span></td><td>${esc(v.payeeName)}</td><td>${esc(v.checkNo)}</td><td class="num">${money(v.checkAmount)}</td><td>${v.printedOn ? fdate(String(v.printedOn).slice(0, 10)) : '<span class="hint">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div>`, () => {
     const ids = [...document.querySelectorAll('.pc-on:checked')].map(c => c.value);
     if (!ids.length) return 'Tick at least one check.';
-    closeModal(true); setTimeout(() => printVouchers(ids), 0);
+    const onCheck = val('pc-what') === 'check';
+    closeModal(true); setTimeout(() => onCheck ? printCheckAsk(ids) : printVouchers(ids), 0);
   }, 'Print');
 }
 
@@ -1987,7 +2004,7 @@ function openModal(title, body, onSave, saveLabel = 'Save', opts = {}) {
   document.getElementById('modal-root').innerHTML = `<div class="overlay"><div class="modal ${opts.size || ''}" role="dialog" aria-modal="true" aria-labelledby="m-title">
     <div class="modal-head"><div>${(() => { const n = NAV.flatMap(g => g.items).find(i => i.id === S.page); return n ? `<p class="modal-eye">${esc(n.title || n.label)}</p>` : ''; })()}<h2 id="m-title">${title}</h2></div><button class="btn link m-x" data-act="close-modal" aria-label="Close">✕</button></div>
     <div class="modal-body">${body}${opts.doc ? docStamp(opts.doc) : ''}</div>
-    <div class="modal-foot"><p class="form-err" id="m-err" role="alert"></p>${opts.extra || ''}<button class="btn ghost" data-act="close-modal">${onSave ? 'Cancel' : 'Close'}</button>${onSave ? `<button class="btn ${opts.danger ? 'dark' : ''}" data-act="save-modal">${saveLabel}</button>` : ''}</div>
+    <div class="modal-foot"><p class="form-err" id="m-err" role="alert"></p>${opts.extra || ''}<button class="btn ghost" data-act="close-modal">${opts.cancelLabel || (onSave ? 'Cancel' : 'Close')}</button>${onSave ? `<button class="btn ${opts.danger ? 'dark' : ''}" data-act="save-modal">${saveLabel}</button>` : ''}</div>
   </div></div>`;
   modalSave = onSave;
   histModal();
@@ -2758,6 +2775,7 @@ function voucherDoc(v) {
 /* Each voucher is measured at print width: one that fits half a sheet (5 in) takes half (two share a page, with a cut line
    between), one with a long entry takes the page. */
 function printVouchers(ids) {
+  const pg0 = document.getElementById('pg-style'); if (pg0) pg0.remove(); // a page size left by another print
   const all = ids.map(voucher).filter(Boolean), wait = all.filter(needsApproval), vs = all.filter(v => !needsApproval(v));
   if (wait.length) toast(`${wait.map(v => v.cv).join(', ')} ${wait.length === 1 ? 'isn’t' : 'aren’t'} approved yet, so ${wait.length === 1 ? 'it' : 'they'} can’t be printed.`, true);
   if (!vs.length) return;
@@ -2772,6 +2790,95 @@ function printVouchers(ids) {
   document.body.classList.add('pv');
   window.print();
 }
+/* ---------- Printing on the check itself (in place of a cheque writer) ----------
+   Philippine checks are 8 × 3 in (PCHC). Since May 1, 2024 the date goes in boxes as MM-DD-YYYY and the ₱ sign sits
+   outside the amount box. The hub prints the date, payee, amount in figures and in words, and "A/C Payee Only" onto
+   the bank's own check stock; the bank's printing (boxes, lines, logo, MICR) is already on the paper. Positions are
+   in mm from the check's top-left corner, one layout per bank account, saved in the Settings tab (Check layouts).
+   The starting layout is Metrobank's; "Print a test" on plain paper, held against a real check, shows what to nudge. */
+const CHECK_W = 203.2, CHECK_H = 76.2;
+const CHECK_DEFAULT = { dateX: 143, dateY: 15, datePitch: 5.2, dateGap: 3.2, payeeX: 37, payeeY: 28.5, amtX: 195, amtY: 28.5,
+  wordsX: 20, wordsY: 38.5, wordsW: 172, acp: true, acpX: 8, acpY: 5, bearer: false, bearerX: 147, bearerY: 27.5, bearerW: 18,
+  font: 11, offX: 0, offY: 0, paper: 'check' };
+const checkLayout = bank => ({ ...CHECK_DEFAULT, ...((D.checkLayouts || {})[bank] || {}) });
+const wordsFor = (n, cur) => { const w = inWords(n); return (cur === 'USD' ? w.replace(' pesos and ', ' US dollars and ') : w).toUpperCase(); };
+/* The digits of MM-DD-YYYY, each centred in its box; the dashes between groups are printed on the check. */
+function checkDate(iso, L) {
+  const [y, m, d] = iso.split('-'), ch = [...m, ...d, ...y];
+  let x = L.dateX; return ch.map((c, i) => { const at = x; x += L.datePitch + (i === 1 || i === 3 ? L.dateGap : 0); return `<span class="ck-f ck-c" style="left:${at}mm;top:${L.dateY}mm">${c}</span>`; }).join('');
+}
+function checkFace(v, L, test) {
+  const cur = isFx(v.currency) ? v.currency : 'PHP', amount = v.checkAmount, fig = `**${money(amount)}**`;
+  const at = (x, y) => `left:${x}mm;top:${y}mm`;
+  return `<div class="ck${test ? ' ck-test' : ''}" style="font-size:${L.font}pt;transform:translate(${L.offX}mm,${L.offY}mm)">
+    ${test ? `<span class="ck-guide" style="${at(4, 70)}">Test print. Hold against a real check; nudge under Setup, Company and Printing, Check printing.</span>` : ''}
+    ${L.acp ? `<span class="ck-f ck-acp" style="${at(L.acpX, L.acpY)}">A/C PAYEE ONLY</span>` : ''}
+    ${checkDate(v.checkDate || v.date, L)}
+    <span class="ck-f ck-payee" style="${at(L.payeeX, L.payeeY)};max-width:${Math.max(40, L.amtX - 50 - L.payeeX)}mm">${esc(v.payeeName)}</span>
+    ${L.bearer ? `<span class="ck-bearer" style="${at(L.bearerX, L.bearerY)};width:${L.bearerW}mm"></span>` : ''}
+    <span class="ck-f ck-amt" style="right:${CHECK_W - L.amtX}mm;top:${L.amtY}mm">${fig}</span>
+    <span class="ck-f ck-words" style="${at(L.wordsX, L.wordsY)};width:${L.wordsW}mm">***${esc(wordsFor(amount, cur))}***</span></div>`;
+}
+/* Print onto the check stock. The page is the check (8 × 3 in) or Letter with the check at the top centre. */
+function printOnChecks(vs, test, lay) {
+  const L = v => lay || checkLayout(vBank(v));
+  const pa = document.getElementById('print-area');
+  pa.innerHTML = vs.map(v => `<div class="ck-page${L(v).paper === 'letter' ? ' letter' : ''}">${checkFace(v, L(v), test)}</div>`).join('');
+  let pg = document.getElementById('pg-style'); if (!pg) { pg = document.createElement('style'); pg.id = 'pg-style'; document.head.appendChild(pg); }
+  const letter = vs.length && L(vs[0]).paper === 'letter';
+  pg.textContent = `@media print{@page{size:${letter ? 'letter' : `${CHECK_W}mm ${CHECK_H}mm`};margin:0}}`;
+  document.body.classList.add('pv');
+  if (!test) printOnChecks.after = vs.map(v => v.id);
+  window.print();
+}
+/* After the print dialog: ask, then record which checks came out right. Nothing is marked without a yes. */
+window.addEventListener('afterprint', () => { const ids = printOnChecks.after; printOnChecks.after = null; if (!ids || !ids.length) return;
+  setTimeout(() => openModal(ids.length === 1 ? 'Did the check print correctly?' : `Did the ${ids.length} checks print correctly?`,
+    `<p class="lead">Yes marks ${ids.length === 1 ? `${esc(voucher(ids[0]).cv)}` : 'them'} as printed, with today’s date and your name. If the print was off or the printer jammed, choose Not yet: nothing is marked, and you can adjust the position under Setup, Company and Printing, Check printing.</p>`,
+    () => save('markPrinted', () => { const at = new Date().toISOString(); ids.forEach(id => Object.assign(voucher(id), { printedOn: at, printedBy: whoAmI() })); }, () => toast(ids.length === 1 ? 'Marked printed' : `${ids.length} checks marked printed`)), 'Yes, mark printed', { cancelLabel: 'Not yet' }), 300); });
+/* What can be printed on a check: an approved, live peso or dollar check, not carried from last year. */
+const canPrintCheck = v => v && isCheck(v) && live(v) && !needsApproval(v) && !v.from && !v.clearedOn && canBooks('vouchers.edit');
+function printCheckAsk(ids) {
+  const vs = ids.map(voucher).filter(canPrintCheck), again = vs.filter(v => v.printedOn);
+  if (!vs.length) { toast('Only approved checks that haven’t cleared can be printed.', true); return; }
+  if (!again.length) return printOnChecks(vs);
+  openModal('Print again?', `<p class="lead">${again.map(v => `${esc(v.cv)} (check ${esc(v.checkNo)}) was printed on ${fdate(String(v.printedOn).slice(0, 10))} by ${esc(v.printedBy)}.`).join(' ')} Print again only if that check was spoiled; write VOID across it and keep it with the voucher.</p>`,
+    () => { closeModal(true); setTimeout(() => printOnChecks(vs), 0); }, 'Print again');
+}
+/* Setup: where each field lands on the bank's checks. */
+function checkLayoutForm(bank) {
+  const banks = recBanks(), b = bank && banks.some(a => a.id === bank) ? bank : (banks.find(a => a.id === D.control.bank) || banks[0] || {}).id;
+  if (!b) { toast('Add a bank account first.', true); return; }
+  const L = checkLayout(b), ro = !can('company.edit');
+  const n = (id, label, v, step = 0.5) => F(id, label, inp(id, v, 'number', `step="${step}" data-plain ${ro ? 'disabled' : ''}`));
+  const sample = { checkAmount: 1529298.94, payeeName: 'Shandong Yi’ao Intl Trading', checkDate: todayIso(), currency: bankInfo(b).currency };
+  const body = `<p class="lead">Where each part prints on the ${esc(bankInfo(b).printed || acctName(b))} checks, in millimetres from the check’s top-left corner. The check is 8 × 3 inches (203.2 × 76.2 mm), the Philippine standard. Print a test on plain paper, hold it over a real check against the light, and move what’s off.</p>
+    <div class="vform">${banks.length > 1 ? `<div class="section"><div class="fields">${F('cl-bank', 'Bank account', `<select id="cl-bank">${banks.map(a => opt(a.id, acctName(a.id), b)).join('')}</select>`, 'span2')}</div></div>` : ''}
+    <div class="section"><h3>Preview</h3><div class="ck-prev"><div id="cl-prev"></div></div></div>
+    <div class="section"><h3>Date (MM-DD-YYYY, one digit per box)</h3><div class="fields">${n('cl-dx', 'First box, across', L.dateX)}${n('cl-dy', 'Down', L.dateY)}${n('cl-dp', 'Box to box', L.datePitch, 0.1)}${n('cl-dg', 'Extra at each dash', L.dateGap, 0.1)}</div></div>
+    <div class="section"><h3>Payee and amount</h3><div class="fields">${n('cl-px', 'Payee, across', L.payeeX)}${n('cl-py', 'Payee, down', L.payeeY)}${n('cl-ax', 'Amount, right edge', L.amtX)}${n('cl-ay', 'Amount, down', L.amtY)}
+      ${n('cl-wx', 'Amount in words, across', L.wordsX)}${n('cl-wy', 'Words, down', L.wordsY)}${n('cl-ww', 'Words, width', L.wordsW)}${n('cl-fs', 'Text size (pt)', L.font)}</div></div>
+    <div class="section"><h3>Crossing</h3><div class="fields">
+      <label class="check span2"><input type="checkbox" id="cl-acp" ${L.acp ? 'checked' : ''} ${ro ? 'disabled' : ''}> Print “A/C PAYEE ONLY”</label>${n('cl-cx', 'Across', L.acpX)}${n('cl-cy', 'Down', L.acpY)}
+      <label class="check span2"><input type="checkbox" id="cl-br" ${L.bearer ? 'checked' : ''} ${ro ? 'disabled' : ''}> Strike out “or bearer”</label>${n('cl-bx', 'Line starts, across', L.bearerX)}${n('cl-by', 'Down', L.bearerY)}</div></div>
+    <div class="section"><h3>Printer</h3><div class="fields">${F('cl-pp', 'Paper', `<select id="cl-pp" ${ro ? 'disabled' : ''}>${opt('check', 'One check (8 × 3 in) fed by hand', L.paper)}${opt('letter', 'Letter, check at the top centre', L.paper)}</select>`, 'span2')}
+      ${n('cl-ox', 'Move everything right (mm, − for left)', L.offX)}${n('cl-oy', 'Move everything down (mm, − for up)', L.offY)}</div>
+      <p class="hint" style="margin-top:10px">In the print dialog choose the same paper size and set the scale to 100% (Actual size), with no margins.</p></div></div>`;
+  const read = () => { const g = id => { const x = parseFloat(val(id)); return isNaN(x) ? 0 : x; };
+    return { dateX: g('cl-dx'), dateY: g('cl-dy'), datePitch: g('cl-dp'), dateGap: g('cl-dg'), payeeX: g('cl-px'), payeeY: g('cl-py'), amtX: g('cl-ax'), amtY: g('cl-ay'), wordsX: g('cl-wx'), wordsY: g('cl-wy'), wordsW: g('cl-ww') || 160,
+      acp: document.getElementById('cl-acp').checked, acpX: g('cl-cx'), acpY: g('cl-cy'), bearer: document.getElementById('cl-br').checked, bearerX: g('cl-bx'), bearerY: g('cl-by'), bearerW: L.bearerW,
+      font: g('cl-fs') || 11, offX: g('cl-ox'), offY: g('cl-oy'), paper: val('cl-pp') }; };
+  const draw = () => { const el = document.getElementById('cl-prev'); if (el) el.innerHTML = checkFace(sample, { ...read(), offX: 0, offY: 0 }, true); };
+  openModal('Check Printing', body, ro ? null : () => { const lay = read();
+    return save('saveCheckLayout', () => { D.checkLayouts = { ...(D.checkLayouts || {}), [b]: lay }; }, () => toast('Check layout saved')); }, 'Save layout',
+    { size: 'wide', extra: `${btn('cl-test', 'Print a test on plain paper', 'ghost', b)}${ro ? '' : btn('cl-reset', 'Back to the Metrobank layout', 'link', b)}`,
+      onOpen: () => { draw(); const m = document.querySelector('#modal-root .modal'); m.addEventListener('input', draw); m.addEventListener('change', e => { if (e.target.id === 'cl-bank') checkLayoutForm(e.target.value); else draw(); });
+        checkLayoutForm.read = () => ({ bank: b, lay: read(), sample }); } });
+}
+function checkLayoutReset() { const D0 = CHECK_DEFAULT, set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  [['cl-dx', 'dateX'], ['cl-dy', 'dateY'], ['cl-dp', 'datePitch'], ['cl-dg', 'dateGap'], ['cl-px', 'payeeX'], ['cl-py', 'payeeY'], ['cl-ax', 'amtX'], ['cl-ay', 'amtY'], ['cl-wx', 'wordsX'], ['cl-wy', 'wordsY'], ['cl-ww', 'wordsW'], ['cl-fs', 'font'], ['cl-cx', 'acpX'], ['cl-cy', 'acpY'], ['cl-bx', 'bearerX'], ['cl-by', 'bearerY'], ['cl-ox', 'offX'], ['cl-oy', 'offY'], ['cl-pp', 'paper']].forEach(([id, k]) => set(id, D0[k]));
+  document.getElementById('cl-acp').checked = D0.acp; document.getElementById('cl-br').checked = D0.bearer;
+  document.querySelector('#modal-root .modal').dispatchEvent(new Event('input')); toast('Metrobank layout back in place. Save to keep it.'); }
 function viewVoucher(id) {
   const v = voucher(id);
   if (v.from) {
@@ -2782,8 +2889,8 @@ function viewVoucher(id) {
     return;
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, live(v) && !needsApproval(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
-  const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}</span></p>`
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, live(v) && !needsApproval(v) && `<button class="btn${canPrintCheck(v) ? ' ghost' : ''}" data-act="print-voucher" data-id="${id}">${t ? 'Print' : 'Print voucher'}</button>`, canPrintCheck(v) && `<button class="btn" data-act="print-on-check" data-id="${id}">${v.printedOn ? 'Print on check again' : 'Print on check'}</button>`].filter(Boolean).join('');
+  const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}${v.printedOn ? `. Check printed on ${fdate(String(v.printedOn).slice(0, 10))} by ${esc(v.printedBy)}` : ''}</span></p>`
     : needsApproval(v) ? `<p class="stamp appr-wait">${approvalPill(v)} <span>${t ? 'Waiting for approval before it’s sent.' : 'Waiting for approval. The check prints once it’s approved.'}${canApprove(v) ? '' : can('payments.approve') ? ' You entered or changed it last, so someone else approves it.' : ' An Approver or Admin approves it.'}</span></p>` : '';
   openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
 }
@@ -3928,7 +4035,7 @@ function companyPage() {
       ${F('s-chk', 'Checked by', inp('s-chk', D.signers.checked, 'text', x), 'span2')}${F('s-appr', 'Approved by', inp('s-appr', D.signers.approved, 'text', x), 'span2')}
     </div></section>
     ${ro ? '' : `<p>${btn('save-settings', 'Save')}</p>`}
-    ${reportsCard()}${backupCard()}${filesCard()}`;
+    ${checkCard()}${reportsCard()}${backupCard()}${filesCard()}`;
 }
 const atStamp = at => { const d = new Date(at); return isNaN(d) ? at : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
 function reportsCard() {
@@ -3940,6 +4047,12 @@ function reportsCard() {
     ${line}${can('company.edit') ? `<p style="margin-top:14px">${btn('rebuild-reports', 'Rebuild the reports now', 'ghost')}</p>` : ''}</section>`;
 }
 /* Where the scans and photos are: one shared folder, a folder per document inside it. */
+/* Check printing: the hub prints approved checks onto the bank's check stock. */
+function checkCard() {
+  const set = Object.keys(D.checkLayouts || {}).length;
+  return `<section class="card" style="margin-top:28px"><h2>Check Printing</h2><p class="hint" style="margin-bottom:14px">Approved checks print straight onto the bank’s check stock: the date in its MM-DD-YYYY boxes, the payee, the amount in figures and in words, and “A/C PAYEE ONLY”. ${set ? 'A layout is saved.' : 'It starts from Metrobank’s layout; print a test on plain paper and nudge what’s off before the first real check.'}</p>
+    <p>${btn('check-setup', can('company.edit') ? 'Set up check printing' : 'See the check layout', 'ghost')}</p></section>`;
+}
 function filesCard() {
   const url = (REPORTS_ST || {}).files || '';
   return `<section class="card" style="margin-top:28px"><h2>Files</h2>
@@ -4120,11 +4233,11 @@ const TABLES = [
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15], ['Voucher date', 'd', 13], ['Check no.', 's', 16], ['Check date', 'd', 13], ['Payee ID', 's', 10], ['Payee', 's', 30], ['TIN', 's', 17], ['Particulars', 's', 40],
       ['Includes VAT', 's', 9], ['Invoice total', 'n', 15], ['Input VAT', 'n', 13], ['VAT typed in', 's', 9], ['ATC', 's', 8], ['EWT withheld', 'n', 13], ['EWT typed in', 's', 9], ['Bills paid', 'n', 15, 'derived'], ['Check amount', 'n', 15],
       ['Status', 's', 12], ['Cleared on', 'd', 13], ['Carried from', 'i', 10], ['Void reason', 's', 28], ['Voided on', 'd', 13], ['Notes', 's', 30], ['Created', 't', 24, 'server'], ['Created by', 's', 18, 'server'], ['Last edited', 't', 24, 'server'], ['Last edited by', 's', 18, 'server'],
-      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional'], ['Approved by', 's', 22, 'server'], ['Approved on', 't', 24, 'server']],
+      ['Method', 's', 10, 'optional'], ['Bank account ID', 's', 12, 'optional'], ['Currency', 's', 9, 'optional'], ['Rate', 's', 10, 'optional'], ['Bank charges', 'n', 13, 'optional'], ['Import VAT', 'n', 13, 'derived'], ['Import entry no.', 's', 18, 'optional'], ['EWT base', 'n', 15, 'derived'], ['Over budget', 's', 44, 'optional'], ['Approved by', 's', 22, 'server'], ['Approved on', 't', 24, 'server'], ['Check printed on', 't', 24, 'server'], ['Check printed by', 's', 22, 'server']],
     rows: () => D.vouchers.filter(v => !v.foreign).sort(byDateCv).map(v => [v.id, v.cv, v.date, v.checkNo || null, v.checkDate, v.payeeId, v.payeeName, v.tin || null, v.particulars,
       yn(v.vatable), vGross(v), v.vat, yn(v.vatManual), v.atc || null, v.atc ? v.ewt : null, yn(v.ewtManual), sum((v.bills || []).map(p => p.amount)), v.checkAmount,
       vStatus(v), v.clearedOn || null, v.from || null, v.voidReason || null, v.voidedOn || null, v.notes || null, v.createdAt || null, v.createdBy || null, v.updatedAt || null, v.updatedBy || null,
-      v.method || null, v.bankAcct || null, isFx(v.currency) ? v.currency : null, isFx(v.currency) ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null, docImportVat(v) || null, v.importEntry || null, docEwtBase(v), v.overBudget || null, v.approvedBy || null, v.approvedOn || null]) },
+      v.method || null, v.bankAcct || null, isFx(v.currency) ? v.currency : null, isFx(v.currency) ? String(v.rate) : null, isTransfer(v) && v.charges ? v.charges : null, docImportVat(v) || null, v.importEntry || null, docEwtBase(v), v.overBudget || null, v.approvedBy || null, v.approvedOn || null, v.printedOn || null, v.printedBy || null]) },
   { name: 'Voucher lines', key: 'Voucher ID', yearly: true, optional: true, subtitle: 'What each voucher pays for, one row per account line, as typed from the invoice.',
     cols: [['Voucher ID', 's', 12], ['CV no.', 's', 15, 'derived'], ['Line', 'i', 6], ['Account ID', 's', 11], ['Code', 's', 10, 'derived'], ['Account', 's', 40, 'derived'], ['Description', 's', 36], ['Amount per invoice', 'n', 16], ['Department', 's', 18, 'optional'], ['VAT', 's', 7, 'optional'], ['EWT', 's', 7, 'optional'], ['Barcode', 's', 16, 'optional'], ['Pieces', 'i', 9, 'optional'], ...TAG_COLS],
     rows: () => D.vouchers.filter(own).sort(byDateCv).flatMap(v => v.lines.map((l, i) => [v.id, v.cv, i + 1, l.accountId, acctCode(l.accountId) || null, acctPlain(l.accountId), l.desc || null, round2(l.amount), l.dept || null, ...lineTaxVals(l), ...tagVals(l.accountId, l.tag)])) },
@@ -4237,7 +4350,8 @@ const TABLES = [
     cols: [['Setting', 's', 30], ['Value', 's', 60]],
     rows: () => [['Company name', D.company.name], ['Company TIN', D.company.tin || null], ['Address', D.company.address || null], ['Bank, as printed', D.bankName],
       ['Prepared by', D.signers.prepared || null], ['Checked by', D.signers.checked || null], ['Approved by', D.signers.approved || null],
-      ['Opening balances as of', D.switchOpening.date || null], ['Books locked through', D.lockedThrough || null], ['Years closed through', D.closedThrough ? String(D.closedThrough) : null]] }
+      ['Opening balances as of', D.switchOpening.date || null], ['Books locked through', D.lockedThrough || null], ['Years closed through', D.closedThrough ? String(D.closedThrough) : null],
+      ['Check layouts', D.checkLayouts && Object.keys(D.checkLayouts).length ? JSON.stringify(D.checkLayouts) : null]] }
 ];
 /* Turn one tab into objects keyed by header name, headers in row 1. Every column the hub reads must be present;
    rows keep their sheet row number, so a problem points at the right row. */
@@ -4552,7 +4666,7 @@ function dataFromTables(sheets, ctx = {}) {
     if (o.TIN && !TIN_RE.test(o.TIN)) E(o, 'TIN must be written 000-000-000 or 000-000-000-000.');
     const v = { id: o['Voucher ID'], cv: o['CV no.'], date: o['Voucher date'], checkDate: o['Check date'], checkNo: o['Check no.'] || '', method: o.Method || '', bankAcct, ...cur, charges,
       payeeId: o['Payee ID'], payeeName: p ? p.name : o.Payee, tin: o.TIN || '', particulars: o.Particulars,
-      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '', approvedBy: o['Approved by'] || '', approvedOn: o['Approved on'] || '',
+      bills: pays, lines, ...tax, checkAmount: o['Check amount'], notes: o.Notes || '', importEntry: o['Import entry no.'] || '', overBudget: o['Over budget'] || '', approvedBy: o['Approved by'] || '', approvedOn: o['Approved on'] || '', printedOn: o['Check printed on'] || '', printedBy: o['Check printed by'] || '',
       status: status || 'active', voidReason: o['Void reason'] || '', voidedOn: o['Voided on'] || '', clearedOn: o['Cleared on'] || '', createdAt: o.Created || '', updatedAt: o['Last edited'] || '', createdBy: o['Created by'] || '', updatedBy: o['Last edited by'] || '' };
     const src = transfer ? 'pt' : 'cv';
     readVoid(o, v.checkDate, src, v.id);
@@ -4879,6 +4993,7 @@ function dataFromTables(sheets, ctx = {}) {
   return { data: {
     company: { name: S_['Company name'], tin: S_['Company TIN'] || '', address: S_.Address || '' }, bankName: S_['Bank, as printed'] || 'Metrobank', control,
     signers: { prepared: S_['Prepared by'] || '', checked: S_['Checked by'] || '', approved: S_['Approved by'] || '' },
+    checkLayouts: (() => { try { return JSON.parse(S_['Check layouts'] || '{}') || {}; } catch (e) { return {}; } })(),
     accounts, contacts, bills: bills.concat(foreignBills), vouchers: vouchers.concat(foreignVouchers), journals, banks,
     invoices: invoices.concat(foreignInvoices), collections: collections.concat(foreignCollections), deposits, departments, hasDepartments: !!sheets.Departments, budgets,
     shipments, pettyCash, liquidations, recons, assets,
@@ -6730,6 +6845,7 @@ const GUIDE = {
       ['Check no., check date, bank account', 'As written on the check. The bank account is the one the check is drawn on.'],
       ['Lines (only with no bill)', 'For a payment that was never billed, add lines instead, the same way as on a bill.'],
       ['Save, then approval', 'It waits as For approval until an Approver or Admin opens it and chooses Approve. Someone other than whoever entered it approves it (an Admin can approve their own). Approved by mistake? Open it and choose Withdraw approval (whoever approved it, or an Admin), any time before it clears.'],
+      ['Printing the check', 'Once it’s approved, open it and choose Print on check (or Print Checks for several), with the bank’s check stock in the printer. Afterwards the hub asks whether it printed right; Yes marks it printed. A spoiled check: write VOID across it, keep it, and print again.'],
       ['Print', 'Once approved: print the voucher, attach the bills and the check, and pass it for signatures. Changing what it pays sends it back for approval.']
     ],
     book: { say: 'Check 1001 pays Prime Realty’s rent bill.',
@@ -6948,7 +7064,7 @@ const GUIDE = {
   company: { who: 'setup',
     what: 'The company details printed on vouchers, who signs them, how to send the books to the accounting firm, and the daily backup.',
     when: 'Once, and when a signatory changes.',
-    steps: [['Details and signatories', 'Name, TIN, address; Prepared by, Checked by, Approved by.'], ['Books for the Accounting Firm', 'Rebuild the reports, then download the Google Sheet as Excel.'], ['Daily Backup', 'When the last copy was made; Back up now before anything risky.']],
+    steps: [['Details and signatories', 'Name, TIN, address; Prepared by, Checked by, Approved by.'], ['Check Printing', 'Where the date, payee, amount and words land on the bank’s checks, in mm from the top-left corner (8 × 3 in, MM-DD-YYYY boxes). It starts from Metrobank’s layout. Print a test on plain paper, hold it over a real check against the light, move what’s off, and Save.'], ['Books for the Accounting Firm', 'Rebuild the reports, then download the Google Sheet as Excel.'], ['Daily Backup', 'When the last copy was made; Back up now before anything risky.']],
     book: null, shows: ['On every printed voucher.'], watch: ['The address and TIN print exactly as typed.']
   },
   users: { who: 'setup',
@@ -7835,6 +7951,10 @@ const ACT = {
   'unlock-month': () => { const ym = D.lockedThrough.slice(0, 7), [y, m] = ym.split('-').map(Number), prev = eom(`${m === 1 ? y - 1 : y}-${pad(m === 1 ? 12 : m - 1, 2)}`); openModal(`Unlock ${monthLabel(ym)}?`, `<p class="lead">Bills and vouchers in ${monthLabel(ym)} can be changed again. Earlier months stay locked.</p>`, () => {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
+  'print-on-check': id => printCheckAsk([id]),
+  'check-setup': () => checkLayoutForm(),
+  'cl-test': () => { const x = checkLayoutForm.read(); printOnChecks([x.sample], true, x.lay); },
+  'cl-reset': () => checkLayoutReset(),
   'approve-voucher': id => approveVoucher(id),
   'withdraw-approval': id => withdrawApproval(id),
   'pay-bills': () => payBillsForm(),

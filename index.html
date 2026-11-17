@@ -172,7 +172,7 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .kpi{all:unset;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:18px 20px;border-radius:14px;background:#fff;box-shadow:var(--lift);cursor:pointer;border-top:4px solid var(--blue)}
 .kpi:hover,.kpi:focus-visible{outline:2px solid var(--blue05)}.kpi-l{font:700 11.5px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}.kpi b{font:800 24px var(--display);color:var(--ink)}.kpi-s{font-size:13px;color:var(--muted);line-height:1.4}
 .kpi-red{border-top-color:#D63C34}.kpi-red b,.kpi-red .kpi-s{color:#A52A24}.kpi-yellow{border-top-color:#FFC62E}.kpi-yellow .kpi-s{color:#8A5A00}
-.cc-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}.cc-h{margin:0 0 14px}
+.cc-grid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:24px;align-items:start}.cc-grid.cc-one{grid-template-columns:minmax(0,1fr)}.cc-h{margin:0 0 14px}
 .cc-job,.cc-side{background:#fff;border-radius:16px;box-shadow:var(--lift);padding:18px 20px 14px;margin-bottom:16px;border-left:5px solid var(--silver)}
 .cc-job.cc-red{border-left-color:#D63C34}.cc-job.cc-yellow{border-left-color:#FFC62E}.cc-job.cc-blue{border-left-color:var(--blue)}.cc-side{border-left:0}
 .cc-job header,.cc-side header{display:flex;align-items:center;gap:14px}.cc-ic{width:38px;height:38px;padding:9px;border-radius:12px;background:var(--mist);color:var(--blue7);box-sizing:border-box}
@@ -213,7 +213,7 @@ table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{b
 .gs-list{display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow:auto}.gs-hit{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;text-align:left;width:100%;padding:10px 12px;border:0;border-radius:10px;background:none;cursor:pointer;font:inherit;color:var(--carbon)}
 .gs-hit:hover,.gs-hit:focus-visible{background:var(--blue05);outline:none}.gs-main{display:flex;flex-direction:column}.gs-amt{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--carbon);font-weight:600}
 .sub-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:6px 0 16px}.sub-head h2{margin:0;display:flex;align-items:center;gap:8px}.sub-head p{margin:6px 0 0;color:var(--muted);max-width:720px}
-.s-green{background:var(--green05);color:var(--green7)}
+.s-green{background:var(--green05);color:var(--green7)}.p-approved,.p-done{background:var(--green05);color:var(--green7)}
 .files-line{display:flex;align-items:center;gap:10px;color:var(--muted)}.pb-group td{background:var(--mist);padding-top:10px}
 .appr-ok,.appr-wait{display:flex;align-items:center;gap:8px;margin:0 0 14px;color:var(--carbon)}
 .bk-card{padding:20px 22px;margin-bottom:6px}.bk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.bk-acts{display:flex;gap:10px;align-items:center}
@@ -570,7 +570,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.33';
+const APP_VERSION = '3.34';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -6012,7 +6012,7 @@ function transferTabs() {
   return viewTabs('tk', [
     ...(wait.length || S.tk === 'approve' ? [{ id: 'approve', label: 'For approval', big: wait.length.toLocaleString('en-US'), small: wait.length ? `${peso(sum(wait.map(v => round2(v.checkAmount * rateOf(v)))))} waiting` : 'nothing waiting', lvl: wait.length ? 'yellow' : '' }] : []),
     { id: 'all', label: 'All transfers', big: (pays.length + moves.length).toLocaleString('en-US'), small: 'void included' },
-    { id: 'pay', label: 'Payments', big: peso(sum(pays.filter(live).map(v => round2(v.checkAmount * rateOf(v))))), small: `${plural(pays.length, 'payment')} sent` },
+    { id: 'pay', label: 'Payments', big: peso(sum(pays.filter(live).map(v => round2(v.checkAmount * rateOf(v))))), small: plural(pays.length, 'payment') },
     { id: 'move', label: 'Between accounts', big: moves.length.toLocaleString('en-US'), small: 'moves between the company’s own accounts' }], cur, 'Bank transfers');
 }
 function transferList() {
@@ -6028,7 +6028,7 @@ function transferList() {
     { h: 'Paid to or moved', k: x => `${esc(x.who)}<span class="sub">${esc(x.what)}</span>` },
     { h: 'Reference', k: x => `${esc(x.ref || '')}<span class="sub">${x.kind === 'pay' ? 'Payment' : 'Between accounts'}</span>` },
     { h: 'Amount', num: 1, k: x => `<span class="amt">${amt(x.amount, x.cur)}</span>${x.cur === 'USD' ? `<span class="sub">${peso(x.php)}</span>` : ''}` },
-    { h: 'Status', k: x => (x.kind === 'pay' && needsApproval(voucher(x.id)) ? approvalPill(voucher(x.id)) : pill(x.void ? 'Void' : 'Sent')) + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
+    { h: 'Status', k: x => (x.kind === 'pay' && needsApproval(voucher(x.id)) ? approvalPill(voucher(x.id)) : x.void ? pill('Void') : x.kind === 'pay' ? pill('Approved') : pill('Done')) + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
     { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], canApprove(voucher(x.id)) && ['approve-voucher', x.id, 'Approve'], !x.void && !needsApproval(voucher(x.id)) && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
   ];
   const lv = rows.filter(x => !x.void);
@@ -6585,9 +6585,9 @@ const GUIDE = {
     when: 'Start each day here. Work down the To do list from the top.',
     steps: [
       ['The four numbers', 'Cash in the banks against the bills due in the next two weeks; what customers owe you and how much is past due; what you owe suppliers; and this month’s profit or loss so far (before the stock count, cost of sales isn’t in yet). Click one to go to its page. Admins and Approvers see these.'],
-      ['To do', 'Grouped by the job: fix what doesn’t tie, approve payments, pay bills, enter monthly bills, collect, deposit, follow up checks, liquidate advances, refill petty cash. The button on each does the job: Pay bills, Review payments, Make a deposit. A payment waiting for you has its own Approve button, and a monthly bill its own Enter button.'],
-      ['Flags', 'For Admins and Approvers: what’s worth a look in sales and costs. A loss so far; expenses at 80% of sales or more (red at 100%); one expense over 15% of sales; a cost this month 1.5 times its average of the 3 months before (and ₱20,000 more); department budgets over 35% of the gross profit the year is on track for; budgets left that are more than the profit so far.'],
-      ['How the business is doing', 'Sales, gross margin, expenses and net margin as shares of sales, for this month or the year so far, and the six biggest costs as a share of sales. Until the month’s stock count is in, cost of sales is missing, so gross margin reads high.'],
+      ['To do', 'Grouped by the job: fix what doesn’t tie, approve payments, pay bills, enter monthly bills, collect, deposit, follow up checks, liquidate advances, refill petty cash. The button on each does the job: Pay bills, Review payments, Make a deposit. A payment waiting for approval opens when you click it, to be read and approved there; a monthly bill has its own Enter button.'],
+      ['Flags', 'For Admins: what’s worth a look in sales and costs. A loss so far; expenses at 80% of sales or more (red at 100%); one expense over 15% of sales; a cost this month 1.5 times its average of the 3 months before (and ₱20,000 more); department budgets over 35% of the gross profit the year is on track for; budgets left that are more than the profit so far.'],
+      ['How the business is doing', 'For Admins. Sales, gross margin, expenses and net margin as shares of sales, for this month or the year so far, and the six biggest costs as a share of sales. Until the month’s stock count is in, cost of sales is missing, so gross margin reads high.'],
       ['The tags', 'Each line says what kind of thing it is, with an icon: red with ! is late; amber with a clock is due soon; solid blue with a shield needs approval; outlined blue with a pencil is a bill to enter.'],
       ['What turns yellow and red', `Bills and invoices: yellow ${ATT.dueSoon} days before the due date, red once it’s passed. Cash advances: yellow ${ATT.advGrace} days before the liquidation due date, red once it’s passed. Checks and cash not deposited: yellow after ${ATT.depYellow} working day, red after ${ATT.depRed}. Outstanding checks: yellow after ${ATT.checkYellow} days, red after ${ATT.checkRed} (a check goes stale at six months). Petty cash: yellow below ${Math.round(ATT.pettyYellow * 100)}% of the fund, red below ${Math.round(ATT.pettyRed * 100)}%.`],
       ['The numbers in the sidebar', 'How many items on that page are red or yellow. The badge is red if any of them is.'],
@@ -7490,7 +7490,8 @@ function homeBody() {
     ${kpi(net < 0 ? 'red' : '', `${monthLabel(n.ym).replace(/ \d{4}$/, '')} so far`, `${net < 0 ? '−' : ''}${peso(Math.abs(net))}`, `${net < 0 ? 'loss' : 'profit'} on ${peso(sales)} sales${lastNet != null ? `; last month ${lastNet < 0 ? 'lost' : 'made'} ${peso(Math.abs(lastNet))}` : ''}${n.counted ? '' : '. Before the stock count, so cost of sales isn’t in yet'}`, 'nav', 'reports')}
   </div>` : '';
   // the to-do
-  const row = (j, x) => { const inline = x.act === 'view-voucher' && x.st.text === 'For approval' && canApprove(voucher(x.id)) ? btn('approve-voucher', 'Approve', 'sm', x.id) : x.act === 'repeat-bill' && canBooks('bills.edit') ? btn('repeat-bill', 'Enter', 'sm', x.id) : '';
+  // nothing is approved from here: a payment opens, and is approved there, where it can be read first
+  const row = (j, x) => { const inline = x.act === 'repeat-bill' && canBooks('bills.edit') ? btn('repeat-bill', 'Enter', 'sm', x.id) : '';
     return `<li class="cc-item">${kpill(x)}<button type="button" class="cc-what" data-act="${x.act}" data-id="${esc(x.id)}">${esc(x.what)}${x.due && ['bills', 'invoices'].includes(x.page) ? `<span class="sub">due ${fdate(x.due)}</span>` : ''}</button><span class="cc-amt">${x.amount == null ? '' : peso(x.amount)}</span>${inline ? `<span class="cc-do">${inline}</span>` : ''}</li>`; };
   const card = j => { const [act, id, label] = j.cta(j.xs), tone = j.red ? 'red' : j.key === 'approve' ? 'blue' : j.key === 'enter' ? 'blue' : 'yellow', tot = sum(j.xs.map(x => x.amount || 0)), show = j.xs.slice(0, 4);
     return `<section class="cc-job cc-${tone}"><header>${icon(j.icon, 'cc-ic')}<div class="cc-t"><h3>${j.title}</h3><p>${plural(j.xs.length, j.key === 'fix' ? 'item' : 'item')}${tot ? ` · ${peso(tot)}` : ''}${j.red ? ` · <b>${j.red} late</b>` : ''} · ${esc(j.why)}</p></div>${btn(act, label, j.key === jobs[0].key ? '' : 'ghost', id)}</header>
@@ -7502,11 +7503,9 @@ function homeBody() {
     <div class="cc-bar"><span style="width:${Math.round(done / ct.steps.length * 100)}%"></span></div>
     <ul class="cc-steps">${ct.steps.map(st => `<li class="${st.ok ? 'ok' : ''}"><button type="button" data-act="nav" data-id="${st.page}">${icon(st.ok ? 'check' : 'due')}${esc(st.t)}</button></li>`).join('')}</ul>
     ${next ? btn('nav', `Next: ${next.t.replace(/ \(.*\)$/, '')}`, 'sm', next.page) : '<p class="hint">Done. Next month’s close starts on the 1st.</p>'}</section>` : '';
-  const quick = [canBooks('bills.edit') && ['new-bill', 'New bill'], canBooks('vouchers.edit') && ['new-voucher', 'New check voucher'], (canBooks('vouchers.edit') || canBooks('transfers.edit')) && ['pay-bills', 'Pay bills'],
-    canBooks('sales.edit') && ['new-invoice', 'New sales invoice'], canBooks('collections.edit') && ['new-collection', 'Record a collection'], canBooks('staff.edit') && canSee('petty') && ['new-pcv', 'Petty cash voucher'], canBooks('journal.edit') && ['payroll', 'Payroll'], ['search', 'Search  ⌘K']].filter(Boolean);
-  const quickHtml = `<section class="cc-side"><header>${icon('enter', 'cc-ic')}<div class="cc-t"><h3>Start something</h3></div></header><div class="cc-quick">${quick.map(([a, l]) => btn(a, l, 'ghost sm')).join('')}</div></section>`;
-  const bv = seesMoney ? businessView() : null;
-  return lead + kpis + `<div class="cc-grid"><div class="cc-main"><h2 class="cc-h">To do</h2>${todo}</div><aside class="cc-aside">${bv ? flagsCard(bv) : ''}${close}${quickHtml}</aside></div>${bv ? businessSection(bv) : ''}`;
+  // the analysis and its flags are for Admins
+  const bv = isAdmin() ? businessView() : null, side = (bv ? flagsCard(bv) : '') + close;
+  return lead + kpis + `<div class="cc-grid${side ? '' : ' cc-one'}"><div class="cc-main"><h2 class="cc-h">To do</h2>${todo}</div>${side ? `<aside class="cc-aside">${side}</aside>` : ''}</div>${bv ? businessSection(bv) : ''}`;
 }
 
 /* ---------- Change log ----------

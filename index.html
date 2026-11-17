@@ -1744,11 +1744,11 @@ const NAV = [
   { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
   { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets', needAny: ['reports.view', 'budgets.edit'] }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
+  { group: 'Help and Checks', items: [{ id: 'help', label: 'How to Use the Hub' }, { id: 'health', label: 'Books Health' }, { id: 'log', label: 'Change Log' }] },
   // one Setup item in the sidebar; its tabs are pages of their own (under: 'setup'), with their own permissions
   { group: 'Setup', bare: true, items: [{ id: 'setup', label: 'Setup', kids: ['contacts', 'users', 'accounts', 'departments', 'company'] },
     { id: 'contacts', label: 'Contacts', under: 'setup' }, { id: 'users', label: 'Users and Roles', need: 'users.manage', under: 'setup' }, { id: 'accounts', label: 'Chart of Accounts', under: 'setup' },
-    { id: 'departments', label: 'Departments', needAny: ['reports.view', 'budgets.edit'], under: 'setup' }, { id: 'company', label: 'Company and Printing', under: 'setup' }] },
-  { group: 'Help and Checks', items: [{ id: 'help', label: 'How to Use the Hub' }, { id: 'health', label: 'Books Health' }, { id: 'log', label: 'Change Log' }] }
+    { id: 'departments', label: 'Departments', needAny: ['reports.view', 'budgets.edit'], under: 'setup' }, { id: 'company', label: 'Company and Printing', under: 'setup' }] }
 ];
 const allowed = n => n.kids ? n.kids.some(k => allowed(NAV.flatMap(g => g.items).find(i => i.id === k))) : !n.soon && (!n.need || can(n.need)) && (!n.needAny || n.needAny.some(p => can(p)));
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
@@ -6636,7 +6636,7 @@ const GUIDE_START = `
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
   '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
   '<b>Cards at the top of a page.</b> A page with more than one list (unpaid and paid bills, collections and deposits) shows a card for each with its total. Click a card to see that list; the outlined one is showing. A red or yellow line under the total means something there needs attention.',
-  '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup (contacts, users and roles, the chart of accounts, departments and company details, one tab each), and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
+  '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what), and last, Setup (contacts, users and roles, the chart of accounts, departments and company details, one tab each). You see only the pages your role uses.',
   '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
   '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
   '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];
@@ -6880,16 +6880,20 @@ function budgetForm(dept) {
     ? `The amount ${esc(dept)} started ${YEAR} with. To add to it during the year, use Top up, so the reason stays on record; change it here only to correct the starting amount.`
     : `A bucket for a department that has none yet. Departments with a budget are changed from their own card, with Change the budget.`}</p>
     <div class="fields">${deptField}
-    ${F('b-whole', `${change ? 'Starting budget' : 'Budget'} for ${YEAR} (₱)`, inp('b-whole', startOf(cur0) ? String(startOf(cur0).amount) : '', 'number', 'step="0.01" min="0" inputmode="decimal" style="text-align:right"'))}</div>
+    ${F('b-whole', `${change ? 'Starting budget' : 'Budget'} for ${YEAR} (₱)`, inp('b-whole', startOf(cur0) ? String(startOf(cur0).amount) : '', 'number', 'step="0.01" min="0" inputmode="decimal" style="text-align:right"'))}
+    ${change ? F('b-why', 'Reason for the change', inp('b-why', '', 'text', 'placeholder="e.g. Approved plan was ₱450,000, typed wrong"'), 'full') : ''}</div>
     <p class="hint" id="b-note" style="margin-top:8px"></p>`, () => {
     const d = val('b-dept'), n = numIn(val('b-whole'));
     if (!d) return 'Choose the department.';
     if (val('b-whole') === '' || isNaN(n) || n < 0) return 'Enter the budget for the year, zero or more.';
     if (!change && hasBudget(d)) return `${d} already has a budget. Open its card and choose Change the budget.`;
+    const was = startOf(d), why = change ? val('b-why') : '';
+    if (change && was && Math.abs(was.amount - n) < 0.005) return 'That’s the amount it already has. Change the amount, or Cancel.';
+    if (change && !why) return 'Enter the reason for the change. It stays with the budget.';
     const others = (D.budgets || []).filter(b => b.dept === d && !b.acct && (b.type || 'Budget') !== 'Budget'), used = deptSpent(d, '*');
     const total = round2(n + sum(others.map(b => b.amount)));
     if (total + 0.004 < used && !isAdmin()) return `${d} has already used ${peso(used)}, more than ${peso(total)}. Only an Admin can set it below what’s used.`;
-    return save('saveBudget', () => { D.budgets = (D.budgets || []).filter(b => !(b.dept === d && (b.acct || (b.type || 'Budget') === 'Budget'))).concat([{ dept: d, acct: '', amount: round2(n), type: 'Budget', date: '', reason: '' }]); S.bd = d; }, () => toast(`${d}: ${peso(total)} for ${YEAR}`));
+    return save('saveBudget', () => { D.budgets = (D.budgets || []).filter(b => !(b.dept === d && (b.acct || (b.type || 'Budget') === 'Budget'))).concat([{ dept: d, acct: '', amount: round2(n), type: 'Budget', date: change ? (inYear(todayIso()) ? todayIso() : `${YEAR}-12-31`) : '', reason: change ? `Changed from ${peso(was ? was.amount : 0)}: ${why}` : '' }]); S.bd = d; }, () => toast(`${d}: ${peso(total)} for ${YEAR}`));
   }, change ? 'Save the change' : 'Save budget', { onOpen: () => {
     const note = () => { const d = val('b-dept'), b = bucketOf(d), extra = b ? round2((b.total || 0) - (startOf(d) ? startOf(d).amount : 0)) : 0; document.getElementById('b-note').textContent = b ? `${d} has used ${peso(b.used)} so far${extra ? `; top-ups and moves add ${peso(extra)}` : ''}.` : ''; };
     const sel = document.getElementById('b-dept');

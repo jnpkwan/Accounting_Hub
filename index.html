@@ -392,9 +392,10 @@ body.busy #app{pointer-events:none}
 #toast.err{background:#fff;color:var(--ink);font-weight:600;box-shadow:inset 4px 0 0 var(--blue),var(--lift)}
 /* printed voucher */
 .dv{position:relative;font-size:13px;color:var(--carbon);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.dv-grid{display:grid;grid-template-columns:110px 1fr 110px 150px;gap:8px 16px;margin-bottom:18px;align-items:baseline}
+.dv-grid{display:grid;grid-template-columns:110px minmax(0,1.3fr) 110px minmax(0,1fr);gap:8px 16px;margin-bottom:18px;align-items:baseline}
 .dv-grid dt{font:700 10px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 .dv-grid dd{margin:0;padding-bottom:6px;border-bottom:1px solid var(--silver);font-size:13.5px;min-height:1.4em}
+.dv-grid dt.dv-wide-l{grid-column:1}.dv-grid dd.dv-wide{grid-column:2 / -1}
 .dv-grid dd.payee{font:700 16px var(--display);color:var(--ink)}
 .dv-amt{display:grid;grid-template-columns:110px 1fr;gap:6px 16px;margin:8px 0 22px;align-items:baseline}
 .dv-amt dt{font:700 10px var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
@@ -666,7 +667,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.40';
+const APP_VERSION = '3.41';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -2772,7 +2773,7 @@ function viewVoucher(id) {
   if (v.from) {
     openModal(`Check ${esc(v.checkNo)}`, `<p class="lead">${esc(fromNote(v))}. Its voucher, lines and entry are in the ${v.from} books; switch the year at the top of the sidebar to see or print it.</p>
       <div class="preview-wrap"><div class="dv"><dl class="dv-grid"><dt>Payee</dt><dd class="payee">${esc(v.payeeName)}</dd><dt>CV no.</dt><dd>${esc(v.cv)}</dd>
-        <dt>Particulars</dt><dd>${esc(v.particulars)}</dd><dt>Check date</dt><dd>${fdate(v.checkDate)}</dd><dt>Status</dt><dd>${pill(vStatus(v))}</dd><dt>Cleared on</dt><dd>${v.clearedOn ? fdate(v.clearedOn) : ''}</dd></dl>
+        <dt>Check date</dt><dd>${fdate(v.checkDate)}</dd><dt>Status</dt><dd>${pill(vStatus(v))}</dd><dt>Cleared on</dt><dd>${v.clearedOn ? fdate(v.clearedOn) : ''}</dd><dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(v.particulars)}</dd></dl>
         <dl class="dv-amt"><dt>Amount</dt><dd class="big">${peso(v.checkAmount)}</dd></dl></div></div>`, null, '', { size: 'mid' });
     return;
   }
@@ -2860,9 +2861,9 @@ function viewBill(id) {
       <dl class="dv-grid">
         <dt>Payee</dt><dd class="payee">${esc(b.payeeName)}</dd><dt>${memo ? 'Memo no.' : 'Invoice no.'}</dt><dd>${esc(b.ref)}</dd>
         <dt>TIN</dt><dd>${esc(b.tin || '')}</dd><dt>${memo ? 'Memo date' : 'Invoice date'}</dt><dd>${fdate(b.date)}</dd>
-        <dt>Particulars</dt><dd>${esc(b.particulars)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (b.appliesTo ? `Invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}` : 'A later payment') : b.dueDate ? fdate(b.dueDate) : ''}</dd>
+        <dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(b.particulars)}</dd>
       </dl>
-      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Payable'}</dt><dd class="big">${amt(b.payable, b.currency)}</dd>${isFx(b.currency) ? `<dt>In pesos</dt><dd>${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(b) ? `<dt>Balance</dt><dd>${amt(round2(b.payable - paid), b.currency)}</dd>` : ''}</dl>
+      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Payable'}</dt><dd class="big">${amt(b.payable, b.currency)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (b.appliesTo ? `Invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}` : 'A later payment') : b.dueDate ? fdate(b.dueDate) : '—'}</dd>${isFx(b.currency) ? `<dt>In pesos</dt><dd>${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(b) ? `<dt>Balance</dt><dd>${amt(round2(b.payable - paid), b.currency)}</dd>` : ''}</dl>
       ${b.from ? '' : `<p class="dv-sect">Accounting entry</p>
       <table><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${lines.map(e => `<tr><td class="${e.cr ? 'cr' : ''}">${esc(acctName(e.acct))}${e.memo ? ` <span style="color:var(--muted)">· ${esc(e.memo)}</span>` : ''}</td><td class="num">${e.dr ? money(e.dr) : ''}</td><td class="num">${e.cr ? money(e.cr) : ''}</td></tr>`).join('')}</tbody>
         <tfoot><tr><td>Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table>`}
@@ -5104,8 +5105,8 @@ function viewInvoice(id) {
     <div class="preview-wrap"><div class="dv">${i.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid"><dt>Customer</dt><dd class="payee">${esc(i.customerName)}</dd><dt>${memo ? 'Memo no.' : 'Invoice no.'}</dt><dd>${esc(i.ref)}</dd>
         <dt>TIN</dt><dd>${esc(i.tin || '')}</dd><dt>Date</dt><dd>${fdate(i.date)}</dd>
-        <dt>Particulars</dt><dd>${esc(i.particulars)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (i.appliesTo ? `Invoice ${esc((invoiceOf(i.appliesTo) || {}).ref || '')}` : 'A later collection') : i.dueDate ? fdate(i.dueDate) : ''}</dd></dl>
-      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Receivable'}</dt><dd class="big">${peso(i.receivable)}</dd>${!memo && (i.cwt || invLess(i).length) ? `<dt>Invoice total</dt><dd>${peso(vGross(i))}</dd><dt>Taken off</dt><dd>${peso(round2(vGross(i) - i.receivable))}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(i) ? `<dt>Balance</dt><dd>${peso(invBalance(i))}</dd>` : ''}</dl>
+        <dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(i.particulars)}</dd></dl>
+      <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Receivable'}</dt><dd class="big">${peso(i.receivable)}</dd><dt>${memo ? 'Applies to' : 'Due date'}</dt><dd>${memo ? (i.appliesTo ? `Invoice ${esc((invoiceOf(i.appliesTo) || {}).ref || '')}` : 'A later collection') : i.dueDate ? fdate(i.dueDate) : '—'}</dd>${!memo && (i.cwt || invLess(i).length) ? `<dt>Invoice total</dt><dd>${peso(vGross(i))}</dd><dt>Taken off</dt><dd>${peso(round2(vGross(i) - i.receivable))}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(i) ? `<dt>Balance</dt><dd>${peso(invBalance(i))}</dd>` : ''}</dl>
       ${i.from ? '' : `<p class="dv-sect">Accounting entry</p>${entryTable(i.entry || [], { noBal: true })}`}
       ${by.length ? `<p class="dv-sect" style="margin-top:22px">${memo ? 'Used by' : 'Collected by'}</p><table><thead><tr><th>Document</th><th class="num">Amount</th></tr></thead><tbody>${by.map(c => `<tr><td>${esc(c.cr || `Credit memo ${c.ref}`)}<span class="sub">${fdate(c.date)}</span></td><td class="num">${money(c.cr ? sum(c.invoices.filter(p => p.invoiceId === id).map(p => p.amount)) : c.receivable)}</td></tr>`).join('')}</tbody></table>` : ''}
     </div></div>${i.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(i.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: i });
@@ -5300,7 +5301,7 @@ function viewCollection(id) {
     <div class="preview-wrap"><div class="dv">${c.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid"><dt>Customer</dt><dd class="payee">${esc(c.customerName)}</dd><dt>CR no.</dt><dd>${esc(c.cr)}</dd>
         <dt>Paid by</dt><dd>${esc(c.method)}${c.refNo ? ` ${esc(c.refNo)}` : ''}${c.custBank ? `, ${esc(c.custBank)}` : ''}</dd><dt>Received</dt><dd>${fdate(c.date)}</dd>
-        <dt>Particulars</dt><dd>${esc(c.particulars)}</dd><dt>Into</dt><dd>${esc(acctName(c.into))}</dd></dl>
+        <dt class="dv-wide-l">Into</dt><dd class="dv-wide">${esc(acctName(c.into))}</dd><dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(c.particulars)}</dd></dl>
       <dl class="dv-amt"><dt>Received</dt><dd class="big">${peso(c.amount)}</dd>${c.cwt ? `<dt>Withheld</dt><dd>${peso(c.cwt)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd></dl>
       ${c.from ? '' : `<p class="dv-sect">Invoices</p><table><tbody>${(c.invoices || []).map(p => { const i = invoiceOf(p.invoiceId) || {}; return `<tr><td>${isMemo(i) ? 'Credit memo ' : 'Invoice '}${esc(i.ref || p.invoiceId)}<span class="sub">${fdate(i.date)}</span></td><td class="num">${isMemo(i) ? `(${money(p.amount)})` : money(p.amount)}</td></tr>`; }).join('')}</tbody></table>
       <p class="dv-sect" style="margin-top:22px">Accounting entry</p>${entryTable(c.entry || [], { noBal: true })}`}
@@ -5712,7 +5713,7 @@ function viewPcv(id) {
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-pcv" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-pcv" data-id="${id}">Edit</button>`].filter(Boolean).join('');
   openModal(`Petty Cash Voucher ${esc(x.no)}`, `${x.status === 'void' ? `<p class="lead">Voided ${fdate(x.voidedOn)}: ${esc(x.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${x.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
-      <dl class="dv-grid"><dt>Paid to</dt><dd class="payee">${esc(x.paidTo || '')}</dd><dt>PCV no.</dt><dd>${esc(x.no)}</dd><dt>From</dt><dd>${esc(acctName(x.fund))}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd><dt>Particulars</dt><dd>${esc(x.particulars)}</dd></dl>
+      <dl class="dv-grid"><dt>Paid to</dt><dd class="payee">${esc(x.paidTo || '')}</dd><dt>PCV no.</dt><dd>${esc(x.no)}</dd><dt>From</dt><dd>${esc(acctName(x.fund))}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd><dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(x.particulars)}</dd></dl>
       <dl class="dv-amt"><dt>Paid out</dt><dd class="big">${peso(vGross(x))}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(x.entry || [], { noBal: true })}
     </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: x });
@@ -5853,8 +5854,8 @@ function viewLiq(id) {
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-liq" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-liq" data-id="${id}">Edit</button>`].filter(Boolean).join('');
   openModal(`Liquidation ${esc(x.no)}`, `${x.status === 'void' ? `<p class="lead">Voided ${fdate(x.voidedOn)}: ${esc(x.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${x.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
-      <dl class="dv-grid"><dt>Employee</dt><dd class="payee">${esc((contact(x.employee) || {}).name || '')}</dd><dt>LQ no.</dt><dd>${esc(x.no)}</dd><dt>Particulars</dt><dd>${esc(x.particulars)}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd>
-        ${x.returned || x.reimbursed ? `<dt>${x.returned ? 'Returned' : 'Reimbursed'}</dt><dd>${peso(x.returned || x.reimbursed)}, ${esc(acctName(x.cashAcct))}</dd>` : ''}</dl>
+      <dl class="dv-grid"><dt>Employee</dt><dd class="payee">${esc((contact(x.employee) || {}).name || '')}</dd><dt>LQ no.</dt><dd>${esc(x.no)}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd>
+        ${x.returned || x.reimbursed ? `<dt>${x.returned ? 'Returned' : 'Reimbursed'}</dt><dd>${peso(x.returned || x.reimbursed)}, ${esc(acctName(x.cashAcct))}</dd>` : ''}<dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(x.particulars)}</dd></dl>
       <dl class="dv-amt"><dt>Receipts</dt><dd>${peso(vGross(x))}</dd><dt>Advance cleared</dt><dd class="big">${peso(cleared)}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(x.entry || [], { noBal: true })}
     </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: x });
@@ -5982,7 +5983,7 @@ function viewReceipt(id) {
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(j) && canVoid() && canBooks('inventory.void') && `<button class="btn ghost" data-act="void-receipt" data-id="${id}">Void</button>`, open && canBooks('inventory.edit') && `<button class="btn" data-act="edit-receipt" data-id="${id}">Edit</button>`].filter(Boolean).join('');
   openModal(`Receipt ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
-      <dl class="dv-grid"><dt>Shipment</dt><dd class="payee">${esc(s.no || '')}</dd><dt>Receipt no.</dt><dd>${esc(j.no)}</dd><dt>Memo</dt><dd>${esc(j.memo)}</dd><dt>Date</dt><dd>${fdate(j.date)}</dd></dl>
+      <dl class="dv-grid"><dt>Shipment</dt><dd class="payee">${esc(s.no || '')}</dd><dt>Receipt no.</dt><dd>${esc(j.no)}</dd><dt>Date</dt><dd>${fdate(j.date)}</dd><dt class="dv-wide-l">Memo</dt><dd class="dv-wide">${esc(j.memo)}</dd></dl>
       <dl class="dv-amt"><dt>${j.amount < 0 ? 'Back to transit' : 'Into inventory'}</dt><dd class="big">${peso(Math.abs(j.amount))}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}
     </div></div>`, null, '', { size: 'mid', extra, doc: j });
@@ -6322,7 +6323,7 @@ function viewJournal(id) {
   const facts = t ? `<dt>From</dt><dd>${esc(acctName(j.from))}</dd><dt>Amount out</dt><dd>${amt(j.amountOut, c.fc)}</dd><dt>To</dt><dd>${esc(acctName(j.to))}</dd><dt>Amount in</dt><dd>${amt(c.inn, c.tc)}</dd>${j.refNo ? `<dt>Reference</dt><dd>${esc(j.refNo)}</dd>` : ''}${j.charges ? `<dt>Bank charges</dt><dd>${amt(j.charges, c.fc)}</dd>` : ''}`
     : `${j.name ? `<dt>Name</dt><dd>${esc(j.name)}</dd>` : ''}${j.reverses ? `<dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd>` : ''}`;
   openModal(`${t ? 'Transfer' : 'Journal Entry'} ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : rv ? `<p class="lead">${esc(rv.no)} reverses it on ${fdate(rv.date)}. To change or void this entry, void ${esc(rv.no)} first.</p>` : live(j) && isLocked(j.date) ? '<p class="lead">In a locked month. It can be voided on an open date, but not changed.</p>' : ''}
-    <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}<dl class="dv-grid"><dt>Date</dt><dd>${fdate(j.date)}</dd><dt>Memo</dt><dd>${esc(j.memo)}</dd>${facts}</dl>
+    <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}<dl class="dv-grid"><dt>Date</dt><dd>${fdate(j.date)}</dd>${facts}<dt class="dv-wide-l">Memo</dt><dd class="dv-wide">${esc(j.memo)}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}</div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: j });
 }
 function voidJournal(id) {

@@ -131,6 +131,7 @@ img.side-logo{width:112px;max-width:112px}
 .page-head h1{font-size:clamp(30px,3.4vw,42px);font-weight:800;letter-spacing:-.02em;line-height:1.08}
 .page-head p{margin:8px 0 0;color:var(--muted);max-width:62ch}
 .head-acts{display:flex;gap:12px;flex-wrap:wrap}
+.btn.refresh{display:inline-flex;align-items:center;gap:7px}.btn.refresh.busy svg{animation:spin .8s linear infinite}
 .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
 .toolbar input[type=search]{max-width:320px}
 .toolbar select,.toolbar input[type=month],.toolbar input[type=date]{width:auto;min-width:160px}
@@ -419,6 +420,7 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
   .page-head h1{font-size:30px}
   .head-acts{width:100%}
   .head-acts .btn{flex:1 1 auto}
+  .head-acts .btn.refresh{flex:0 0 auto}
   .toolbar input[type=search],.toolbar select,.toolbar input[type=month],.toolbar input[type=date]{max-width:none;width:100%;flex:1 1 100%;min-width:0}
   .fields{grid-template-columns:1fr 1fr}
   input,select,textarea{font-size:16px}
@@ -504,7 +506,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.21';
+const APP_VERSION = '3.22';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -1661,7 +1663,20 @@ addEventListener('resize', () => { navAt = null; placeNav(); });
 /* Years with books, this year, and next year from December on. */
 const yearChoices = () => { const t = THIS_YEAR(), ys = new Set([...(D.years || []), t, YEAR]); if (TODAY().getMonth() === 11) ys.add(t + 1); return [...ys].sort((a, b) => b - a); };
 const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + welcomeLine() + PAGES[S.page](); };
-const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : ''; return head(groupOf(id), (n.title || n.label) + q, sub, actions); };
+/* Refresh: fetch the books again and redraw this page where it is (what others saved since), without reloading
+   the browser, signing in again or losing the page, its filters or the scroll. */
+const REFRESH_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const refreshBtn = () => `<button type="button" class="btn ghost refresh" data-act="refresh" title="${LOADED_AT ? `Last refreshed ${new Date(LOADED_AT).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Refresh'}">${REFRESH_ICON}<span>Refresh</span></button>`;
+const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : ''; return head(groupOf(id), (n.title || n.label) + q, sub, (id === 'help' ? '' : refreshBtn()) + (actions || '')); };
+let refreshing = false;
+async function refreshPage() {
+  if (refreshing) return; refreshing = true;
+  const b = document.querySelector('[data-act="refresh"]'); if (b) { b.disabled = true; b.classList.add('busy'); }
+  const y = scrollY, before = LOADED_AT;
+  try { await loadBooks(true); } finally { refreshing = false; }
+  scrollTo(0, y);
+  if (LOADED_AT !== before) toast(`Up to date as of ${new Date(LOADED_AT).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`);
+}
 
 /* ---------- Payables: check vouchers ---------- */
 function vouchersPage() {
@@ -3027,6 +3042,8 @@ function closeYearForm() {
 function contactsPage() {
   const tagged = new Set(journal().flatMap(d => d.lines.map(l => l.tag)).concat((D.liquidations || []).map(x => x.employee), Object.values(D.banks || {}).map(b => b.custodian)).filter(Boolean));
   const used = id => D.vouchers.some(v => v.payeeId === id) || D.bills.some(b => b.payeeId === id) || (D.invoices || []).some(x => x.customerId === id) || (D.collections || []).some(x => x.customerId === id) || tagged.has(id);
+  // bills, vouchers, invoices and collections in this year's books (it showed true or false before)
+  const docCount = id => D.vouchers.filter(v => v.payeeId === id).length + D.bills.filter(b => b.payeeId === id).length + (D.invoices || []).filter(x => x.customerId === id).length + (D.collections || []).filter(x => x.customerId === id).length;
   const q = S.q.toLowerCase();
   const rows = D.contacts.filter(p => (!q || [p.name, p.tin].some(x => String(x || '').toLowerCase().includes(q))) && (!S.cr || p.roles.includes(S.cr))).sort((a, b) => a.name.localeCompare(b.name));
   return pageHead('contacts', 'Everyone the company pays or bills, spelled once. Payees are added automatically when a bill or voucher is saved.', can('contacts.edit') ? btn('new-contact', 'Add contact') : '')
@@ -3038,7 +3055,7 @@ function contactsPage() {
       { h: 'TIN', k: p => esc(p.tin || '') },
       { h: 'Usual account', k: p => p.accountId ? esc(acctName(p.accountId)) : '' },
       { h: 'Usual withholding', k: p => esc(p.atc || '') },
-      { h: 'Bills and vouchers', num: 1, k: p => used(p.id) },
+      { h: 'Documents', num: 1, k: p => { const n = docCount(p.id); return n ? n.toLocaleString('en-US') : '<span style="color:var(--muted)">—</span>'; } },
       { h: '', k: p => can('contacts.edit') ? rowActs([['edit-contact', p.id, 'Edit'], !used(p.id) && ['delete-contact', p.id, 'Delete']]) : '' }
     ], rows, D.contacts.length ? 'No contacts match.' : '<b>No contacts yet</b>They’re added as you save bills and vouchers.')}</div>`;
 }
@@ -6597,6 +6614,7 @@ const ACT = {
   'void-pcv': id => voidPcv(id),
   'new-liq': () => liqForm(),
   liquidate: id => liqForm(null, id),
+  'refresh': () => refreshPage(),
   'page-help': () => { S.guideOpen === S.page ? closeGuide() : openGuide(S.page); },
   'guide-close': () => closeGuide(),
   'guide-all': () => { closeGuide(); S.q = ''; go('help'); },

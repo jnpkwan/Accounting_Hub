@@ -176,7 +176,12 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .vtab.static{cursor:default}.vtab.static:hover{border-color:var(--silver)}
 table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{box-shadow:none}table.cards tr.att-red{box-shadow:inset 4px 0 0 #D63C34}table.cards tr.att-yellow{box-shadow:inset 4px 0 0 #FFC62E}
 @media (max-width:760px){.vtabs{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}.vtab{padding:10px 10px;border-radius:12px}.vtab span{font-size:9.5px;letter-spacing:.04em}.vtab b{font-size:15px}.vtab small{font-size:11px;line-height:1.3}}
-.over-note{align-items:center;gap:8px;color:var(--carbon)}.over-note+.stamp{margin-top:8px;border-top:0;padding-top:0}.bk-card{padding:20px 22px;margin-bottom:6px}.bk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.bk-acts{display:flex;gap:10px;align-items:center}
+.over-note{align-items:center;gap:8px;color:var(--carbon)}.over-note+.stamp{margin-top:8px;border-top:0;padding-top:0}.side-search{display:flex;align-items:center;justify-content:space-between;width:calc(100% - 24px);margin:4px 12px 10px;padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.82);font:600 13.5px var(--body);cursor:pointer}
+.side-search:hover,.side-search:focus-visible{background:rgba(255,255,255,.12);color:#fff}.side-search kbd{font:600 11px var(--body);opacity:.7;border:1px solid rgba(255,255,255,.3);border-radius:5px;padding:1px 5px}
+.gs-list{display:flex;flex-direction:column;gap:2px;max-height:60vh;overflow:auto}.gs-hit{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;text-align:left;width:100%;padding:10px 12px;border:0;border-radius:10px;background:none;cursor:pointer;font:inherit;color:var(--carbon)}
+.gs-hit:hover,.gs-hit:focus-visible{background:var(--blue05);outline:none}.gs-main{display:flex;flex-direction:column}.gs-amt{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--carbon);font-weight:600}
+.sub-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:6px 0 16px}.sub-head h2{margin:0;display:flex;align-items:center;gap:8px}.sub-head p{margin:6px 0 0;color:var(--muted);max-width:720px}
+.bk-card{padding:20px 22px;margin-bottom:6px}.bk-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.bk-acts{display:flex;gap:10px;align-items:center}
 .bk-bar{position:relative;height:14px;border-radius:999px;background:var(--mist);box-shadow:inset 0 0 0 1px var(--silver);margin:18px 0 10px;overflow:visible}
 .bk-used{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--blue)}.bk-used.bk-yellow{background:#FFC62E}.bk-used.bk-red{background:#D63C34}
 .bk-year{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);border-radius:2px}
@@ -530,7 +535,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.29';
+const APP_VERSION = '3.30';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -654,6 +659,35 @@ const spread = (parts, total) => { const s = parts.reduce((a, x) => a + x, 0); l
 const ATT = { dueSoon: 14, advGrace: 7, checkYellow: 90, checkRed: 150, depYellow: 1, depRed: 3, pettyYellow: 0.25, pettyRed: 0.10 };
 const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 const eom = ym => { const [y, m] = ym.split('-').map(Number); return iso(new Date(y, m, 0)); };
+/* ---------- Amounts typed with commas ----------
+   Every amount box shows its thousands as you type (100,000.50). It's a text box underneath, but its value reads back
+   without the commas, so every calculation sees a plain number, and a value set by the hub shows with commas too.
+   Whole-number boxes (months, pieces) stay as they are. */
+const NATIVE_VAL = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+const groupNum = s => {
+  s = String(s ?? '').replace(/,/g, '').trim(); if (s === '') return '';
+  const neg = s[0] === '-'; s = s.replace(/[^\d.]/g, '');
+  const dot = s.indexOf('.'), whole = (dot < 0 ? s : s.slice(0, dot)).replace(/^0+(?=\d)/, ''), frac = dot < 0 ? null : s.slice(dot + 1).replace(/\./g, '');
+  return (neg ? '-' : '') + whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (frac === null ? '' : '.' + frac);
+};
+function moneyInputs(root) {
+  root.querySelectorAll('input[type="number"]:not([data-money])').forEach(el => {
+    if (el.getAttribute('step') === '1' || el.hasAttribute('data-plain')) return;
+    const raw = NATIVE_VAL.get.call(el);
+    el.dataset.money = '1'; el.type = 'text'; el.setAttribute('inputmode', 'decimal'); el.autocomplete = 'off'; el.spellcheck = false;
+    Object.defineProperty(el, 'value', { configurable: true,
+      get() { return NATIVE_VAL.get.call(this).replace(/,/g, ''); },
+      set(v) { NATIVE_VAL.set.call(this, groupNum(v)); } });
+    el.value = raw;
+    el.addEventListener('input', () => {
+      const shown = NATIVE_VAL.get.call(el), at = el.selectionStart ?? shown.length, keep = shown.slice(0, at).replace(/[^\d.\-]/g, '').length, out = groupNum(shown);
+      if (out === shown) return;
+      NATIVE_VAL.set.call(el, out);
+      let i = 0, n = 0; while (i < out.length && n < keep) { if (/[\d.\-]/.test(out[i])) n++; i++; }
+      try { el.setSelectionRange(i, i); } catch (e) { }
+    });
+  });
+}
 const numIn = v => { const s = String(v ?? '').replace(/,/g, '').trim(); return s === '' ? NaN : Number(s); };
 const TIN_RE = /^\d{3}-\d{3}-\d{3}(-\d{3,5})?$/;
 function inWords(n) {
@@ -1675,7 +1709,7 @@ function markInvalid(msg) {
     const tr = rows[Number(ln[2]) - 1];
     if (tr) {
       tr.classList.add('invalid');
-      const pick = [[/department|charged/, 'select[class$="-dept"], select[class$="-tag"]'], [/shipment|employee/, 'select[class$="-tag"]'], [/account/, '.apick-box, select[class$="-acct"]'], [/amount|more than|zero/, 'input[class$="-amt"], input[type="number"]']];
+      const pick = [[/department|charged/, 'select[class$="-dept"], select[class$="-tag"]'], [/shipment|employee/, 'select[class$="-tag"]'], [/account/, '.apick-box, select[class$="-acct"]'], [/amount|more than|zero/, 'input[class$="-amt"], input[data-money], input[type="number"]']];
       for (const [re, sel] of pick) if (re.test(low)) { target = tr.querySelector(sel); if (target) break; }
       target = target || tr.querySelector('input:not([disabled]), select:not([disabled])');
     }
@@ -1710,10 +1744,13 @@ const NAV = [
   { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
   { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets', needAny: ['reports.view', 'budgets.edit'] }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
-  { group: 'Setup', items: [{ id: 'accounts', label: 'Chart of Accounts' }, { id: 'contacts', label: 'Contacts' }, { id: 'company', label: 'Company and Printing' }, { id: 'users', label: 'Users and Roles', need: 'users.manage' }] },
+  // one Setup item in the sidebar; its tabs are pages of their own (under: 'setup'), with their own permissions
+  { group: 'Setup', bare: true, items: [{ id: 'setup', label: 'Setup', kids: ['contacts', 'users', 'accounts', 'departments', 'company'] },
+    { id: 'contacts', label: 'Contacts', under: 'setup' }, { id: 'users', label: 'Users and Roles', need: 'users.manage', under: 'setup' }, { id: 'accounts', label: 'Chart of Accounts', under: 'setup' },
+    { id: 'departments', label: 'Departments', needAny: ['reports.view', 'budgets.edit'], under: 'setup' }, { id: 'company', label: 'Company and Printing', under: 'setup' }] },
   { group: 'Help and Checks', items: [{ id: 'help', label: 'How to Use the Hub' }, { id: 'health', label: 'Books Health' }, { id: 'log', label: 'Change Log' }] }
 ];
-const allowed = n => !n.soon && (!n.need || can(n.need)) && (!n.needAny || n.needAny.some(p => can(p)));
+const allowed = n => n.kids ? n.kids.some(k => allowed(NAV.flatMap(g => g.items).find(i => i.id === k))) : !n.soon && (!n.need || can(n.need)) && (!n.needAny || n.needAny.some(p => can(p)));
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
 const labelOf = id => NAV.flatMap(g => g.items).find(i => i.id === id).label;
 /* Screens before the books: sign-in, loading, setup, problems in the sheet. */
@@ -1758,7 +1795,8 @@ function render() {
     <div class="scrim" data-act="menu"></div>
     <aside class="side"><div class="brand">${logo('dark', 'side-logo')}<span class="brand-sub">${APP_NAME}</span></div>
       <label class="yr"><span>Year</span><select id="yr" aria-label="Year">${yearChoices().map(y => opt(y, y, YEAR)).join('')}</select></label>
-      <nav class="nav" aria-label="Main">${NAV.map(g => ({ ...g, items: g.items.filter(allowed) })).filter(g => g.items.length).map(g => `<div class="nav-group"><div class="nav-label">${g.group}</div>${g.items.map(n => {
+      <button type="button" class="side-search" data-act="search" aria-label="Search everything (⌘K)"><span>Search</span><kbd>⌘K</kbd></button>
+      <nav class="nav" aria-label="Main">${NAV.map(g => ({ ...g, items: g.items.filter(n => !n.under && allowed(n)) })).filter(g => g.items.length).map(g => `<div class="nav-group">${g.bare ? '' : `<div class="nav-label">${g.group}</div>`}${g.items.map(n => {
         const on = S.page === n.id;
         return `<a href="#" data-act="nav" data-id="${n.id}" class="${on ? 'on' : ''}" ${on ? 'aria-current="page"' : ''}>${n.label}${navBadge(n.id)}</a>`;
       }).join('')}</div>`).join('')}<span class="nav-ind" aria-hidden="true"></span></nav>
@@ -1803,7 +1841,9 @@ const refreshMain = () => { document.getElementById('main').innerHTML = (yearClo
    the browser, signing in again or losing the page, its filters or the scroll. */
 const REFRESH_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const refreshBtn = () => `<button type="button" class="btn ghost refresh" data-act="refresh" title="${LOADED_AT ? `Last refreshed ${new Date(LOADED_AT).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Refresh'}">${REFRESH_ICON}<span>Refresh</span></button>`;
-const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : ''; return head(groupOf(id), (n.title || n.label) + q, sub, (id === 'help' ? '' : refreshBtn()) + (actions || '')); };
+const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" data-id="${id}" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : '';
+  if (n.under && S.page === n.under) return `<header class="sub-head"><div><h2>${n.title || n.label}${q}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="head-acts">${actions || ''}</div></header>`;
+  return head(groupOf(id), (n.title || n.label) + q, sub, (id === 'help' ? '' : refreshBtn()) + (actions || '')); };
 let refreshing = false;
 async function refreshPage() {
   if (refreshing) return; refreshing = true;
@@ -2675,20 +2715,99 @@ function undoRecon(id) {
 
 const markCleared = (id, date) => save('clearCheck', () => { voucher(id).clearedOn = date; }, () => toast(`${voucher(id).checkNo} marked cleared on ${fdate(date)}`));
 
+/* ---------- A document in a list of entries ----------
+   A void posts its document's entry again, reversed, on the void date. In a list of entries that reversal shows a
+   Void pill and the plain document number, with what it reverses; the original says when it was voided. */
+const isVoidSrc = src => /Void$/.test(src);
+const DOC_INDEX = new WeakMap();
+function entryDoc(id) {
+  let m = DOC_INDEX.get(D);
+  if (!m) { m = new Map(); ['bills', 'vouchers', 'invoices', 'collections', 'deposits', 'pettyCash', 'liquidations', 'journals'].forEach(k => (D[k] || []).forEach(x => m.set(x.id, x))); DOC_INDEX.set(D, m); }
+  return m.get(id);
+}
+function entryRef(d, { link = false, label = true } = {}) {
+  const v = isVoidSrc(d.src), base = v ? String(d.ref).replace(/ void$/, '') : d.ref, doc = entryDoc(d.id), what = (SOURCES[d.src.replace(/Void$/, '')] || SOURCES[d.src]).label;
+  const ref = link && SRC_VIEW[d.src] ? `<button type="button" class="btn link att-go" data-act="${SRC_VIEW[d.src]}" data-id="${esc(d.id)}">${esc(base)}</button>` : `<b>${esc(base)}</b>`;
+  const orig = v ? journal().find(x => x.id === d.id && !isVoidSrc(x.src)) : null;
+  const sub = v ? `${what} voided${doc && doc.voidReason ? `: ${doc.voidReason}` : ''}${orig ? `. Reverses the entry of ${fdate(orig.date)}` : ''}`
+    : doc && doc.status === 'void' ? `${what} · voided ${fdate(doc.voidedOn)}` : label ? what : '';
+  return `${v ? pill('Void') + ' ' : ''}${ref}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}`;
+}
+
 /* ---------- Books: journal (every entry, view only) ---------- */
 function journalPage() {
-  const docs = journal();
+  return pageHead('journal', 'Every accounting entry the hub has written, oldest first. A voided document’s entry stays where it was, reversed on the day it was voided.')
+    + (journal().length ? `<div class="toolbar"><input id="q" type="search" placeholder="Search ref., name, particulars, account or amount" value="${esc(S.q)}" aria-label="Search entries"></div><div id="list">${journalList()}</div>`
+      : '<div class="empty"><b>No entries yet</b>An entry appears here as soon as a bill or voucher is saved.</div>');
+}
+/* An entry matches when every word typed is in it: its ref., name, particulars, line descriptions, accounts (code or
+   name), document type, or an amount (typed with or without commas). */
+const entryHay = d => [d.ref, d.contact, d.memo, (SOURCES[d.src] || {}).label, ...d.lines.flatMap(l => [l.memo, acctLabel(acct(l.acct)), l.tag ? tagName(l.tag) : ''])].join(' ').toLowerCase();
+const amtHit = (tok, amts) => { const t = tok.replace(/[₱,\s]/g, ''); return /^\d+(\.\d*)?$/.test(t) && amts.some(a => a && money(Math.abs(a)).replace(/,/g, '').includes(t)); };
+const matchAll = (q, hay, amts) => String(q || '').toLowerCase().split(/\s+/).filter(Boolean).every(tok => hay.includes(tok) || amtHit(tok, amts));
+function journalList() {
+  const all = journal(), q = S.q.trim(), docs = q ? all.filter(d => matchAll(q, entryHay(d), d.lines.flatMap(l => [l.dr, l.cr]).concat([sum(d.lines.map(l => l.dr || 0))]))) : all;
+  if (!docs.length) return `<div class="empty"><b>Nothing matches “${esc(q)}”</b>Try part of a ref. or name, an account code, or an amount.</div>`;
   const dr = sum(docs.flatMap(d => d.lines.map(l => l.dr))), cr = sum(docs.flatMap(d => d.lines.map(l => l.cr)));
   const body = chunked(docs.map((d, di) => [d, di]), ([d, di]) => d.lines.map((l, i) => `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
       <td>${i === 0 ? fdate(d.date) : ''}</td>
-      <td>${i === 0 ? `<b>${esc(d.ref)}</b>` : ''}</td>
+      <td>${i === 0 ? entryRef(d, { link: true, label: false }) : ''}</td>
       <td>${i === 0 ? `${esc(d.contact)}<span class="sub">${esc(d.memo)}</span>` : ''}</td>
       <td class="${l.cr ? 'cr' : ''}">${esc(acctName(l.acct))}${l.memo || l.tag ? `<span class="sub">${esc([l.tag ? tagName(l.tag) : '', l.memo].filter(Boolean).join(' · '))}</span>` : ''}</td>
       <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join(''), 6);
-  return pageHead('journal', 'Every accounting entry the hub has written, oldest first. A voided document’s entry stays where it was, reversed on the day it was voided.')
-    + (docs.length ? `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ref.</th><th>Payee and particulars</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${body}</tbody>
-    <tfoot><tr><td colspan="4">${docs.length} entr${docs.length === 1 ? 'y' : 'ies'}</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table></div>`
-      : '<div class="empty"><b>No entries yet</b>An entry appears here as soon as a bill or voucher is saved.</div>');
+  return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ref.</th><th>Payee and particulars</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${body}</tbody>
+    <tfoot><tr><td colspan="4">${q ? `${docs.length} of ${all.length} entries` : `${docs.length} entr${docs.length === 1 ? 'y' : 'ies'}`}</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table></div>`;
+}
+
+/* ---------- Search everything (⌘K) ----------
+   One box for the whole open year: every document (bills, memos, vouchers, transfers, invoices, collections,
+   deposits, petty cash, liquidations, journal entries, receipts, counts), contacts, accounts, shipments and fixed
+   assets. Each word typed must match: a number, a name, a description, an account, or an amount. Only what the
+   person's role can open is searched. */
+const SRC_PAGE = { bill: 'bills', dm: 'bills', cv: 'vouchers', pt: 'transfers', bt: 'transfers', je: 'gj', si: 'invoices', cm: 'invoices', col: 'collections', dep: 'collections', pcv: 'petty', lq: 'advances', rc: 'shipments', ct: 'counts' };
+const SEARCH_IX = new WeakMap();
+function searchIndex() {
+  let ix = SEARCH_IX.get(D); if (ix) return ix;
+  ix = [];
+  journal().forEach(d => {
+    if (isVoidSrc(d.src) || !SRC_PAGE[d.src] || !canSee(SRC_PAGE[d.src])) return;
+    const doc = entryDoc(d.id) || {}, total = sum(d.lines.map(l => l.dr || 0));
+    const amts = [total, doc.payable, doc.checkAmount, doc.receivable, doc.amount, ...d.lines.flatMap(l => [l.dr, l.cr]), ...(doc.lines || []).map(l => numIn(l.amount))];
+    ix.push({ kind: SOURCES[d.src].label, ref: d.ref, date: d.date, who: d.contact || '', what: d.memo || doc.particulars || '', amount: doc.payable ?? doc.checkAmount ?? doc.receivable ?? doc.amount ?? total, void: doc.status === 'void',
+      hay: [entryHay(d), doc.particulars, doc.checkNo, doc.refNo, doc.tin, doc.notes, doc.importEntry, ...(doc.lines || []).flatMap(l => [l.desc, l.barcode])].join(' ').toLowerCase(), amts, open: () => ACT[SRC_VIEW[d.src]](d.id) });
+  });
+  if (canSee('contacts')) D.contacts.forEach(c => ix.push({ kind: 'Contact', ref: c.name, date: '', who: (c.roles || []).map(r => r[0].toUpperCase() + r.slice(1)).join(', '), what: c.tin ? `TIN ${c.tin}` : '', hay: [c.name, c.tin, c.address, ...(c.roles || [])].join(' ').toLowerCase(), amts: [], open: () => { go('contacts'); S.q = c.name; refreshMain(); } }));
+  if (canSee('accounts')) D.accounts.forEach(a => ix.push({ kind: 'Account', ref: acctLabel(a), date: '', who: a.type, what: a.active ? '' : 'Hidden', hay: [a.code, a.name, a.type].join(' ').toLowerCase(), amts: [], open: () => { go('accounts'); if (can('accounts.add') && !yearClosed()) ACT['edit-account'](a.id); } }));
+  if (canSee('shipments')) (D.shipments || []).forEach(x => ix.push({ kind: 'Shipment', ref: x.no, date: '', who: '', what: x.desc || '', hay: [x.no, x.desc, x.notes].join(' ').toLowerCase(), amts: [], open: () => ACT['view-shipment'](x.id) }));
+  if (canSee('assets')) (D.assets || []).forEach(x => ix.push({ kind: 'Fixed asset', ref: x.no, date: x.acquired || '', who: x.desc || '', what: x.dept || '', hay: [x.no, x.desc, x.dept].join(' ').toLowerCase(), amts: [x.cost], amount: x.cost, open: () => { go('assets'); if (canBooks('journal.edit') && !yearClosed()) ACT['edit-asset'](x.id); } }));
+  SEARCH_IX.set(D, ix); return ix;
+}
+let GS_HITS = [];
+function searchHits(q) {
+  const t = q.trim().toLowerCase(); if (!t) return [];
+  const rank = h => { const r = String(h.ref || '').toLowerCase(); return r === t ? 0 : r.startsWith(t) ? 1 : r.includes(t) ? 2 : 3; };
+  return searchIndex().filter(h => matchAll(t, h.hay, h.amts)).map(h => ({ h, k: rank(h) })).sort((a, b) => a.k - b.k || String(b.h.date).localeCompare(String(a.h.date))).map(x => x.h);
+}
+function searchResults(q) {
+  const hits = searchHits(q); GS_HITS = hits.slice(0, 60);
+  if (!q.trim()) return `<p class="hint">Try an invoice or check no., a name, a description, an account code, or an amount like 125,000.</p>`;
+  if (!hits.length) return `<div class="empty"><b>Nothing in ${YEAR} matches “${esc(q)}”</b>Check the spelling, try fewer words, or switch the year in the sidebar.</div>`;
+  return `<div class="gs-list" role="listbox">${GS_HITS.map((h, i) => `<button type="button" class="gs-hit" role="option" data-act="gs-open" data-id="${i}">
+      <span class="gs-main"><b>${esc(h.ref)}</b>${h.void ? ' ' + pill('Void') : ''}<span class="sub">${esc([h.kind, h.date ? fdate(h.date) : '', h.who].filter(Boolean).join(' · '))}</span>${h.what ? `<span class="sub">${esc(h.what)}</span>` : ''}</span>
+      ${h.amount != null && h.amount !== '' ? `<span class="gs-amt">${money(h.amount)}</span>` : ''}</button>`).join('')}</div>
+    ${hits.length > GS_HITS.length ? `<p class="hint" style="margin-top:10px">Showing the first ${GS_HITS.length} of ${hits.length}. Add a word to narrow it.</p>` : ''}`;
+}
+function searchAll() {
+  if (S0.screen !== 'app') return;
+  openModal('Search', `<input id="gs-q" type="search" placeholder="Invoice no., name, description, account or amount" autocomplete="off" aria-label="Search everything" style="font-size:17px">
+    <div id="gs-res" style="margin-top:14px">${searchResults('')}</div>`, null, '', { size: 'mid', onOpen: () => {
+    const q = document.getElementById('gs-q'), res = document.getElementById('gs-res'); let t = 0;
+    q.focus();
+    q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => { res.innerHTML = searchResults(q.value); }, 120); });
+    q.addEventListener('keydown', e => { if (e.key === 'Enter') { res.innerHTML = searchResults(q.value); const f = res.querySelector('.gs-hit'); if (f) f.click(); } else if (e.key === 'ArrowDown') { const f = res.querySelector('.gs-hit'); if (f) { e.preventDefault(); f.focus(); } } });
+    res.addEventListener('keydown', e => { const h = [...res.querySelectorAll('.gs-hit')], i = h.indexOf(document.activeElement); if (i < 0) return;
+      if (e.key === 'ArrowDown' && h[i + 1]) { e.preventDefault(); h[i + 1].focus(); } else if (e.key === 'ArrowUp') { e.preventDefault(); (h[i - 1] || q).focus(); } });
+  } });
 }
 
 /* ---------- Encoding checks ----------
@@ -5773,7 +5892,8 @@ function journalForm(j0) {
   const blank = () => ({ acct: '', dept: '', tag: '', memo: '', dr: '', cr: '', usd: '' });
   const j = edit ? JSON.parse(JSON.stringify(j0)) : { no: suggestJe(defaultDate(), 'JE'), date: defaultDate(), name: '', memo: '', notes: '', entry: [blank(), blank()] };
   const lines = j.entry.map(l => ({ acct: l.acct, dept: l.dept || '', tag: l.tag || '', memo: l.memo || '', dr: l.dr || '', cr: l.cr || '', usd: l.usd || '' }));
-  const hasUsd = bankAccounts().some(a => bankCur(a.id) === 'USD'), depts = (D.departments || []).length > 0;
+  // the US$ column shows only while a line is on a dollar account, so the description has room
+  const usdLine = () => lines.some(l => bankCur(l.acct) === 'USD'), depts = (D.departments || []).length > 0;
   const body = `<div class="vform"><div class="section"><div class="fields">
       ${F('j-no', 'JE no.', inp('j-no', j.no, 'text', 'autocomplete="off"'))}${F('j-date', 'Date', inp('j-date', j.date, 'date'))}
       ${F('j-name', 'Name (optional)', inp('j-name', j.name, 'text', 'list="dl-jname" autocomplete="off" placeholder="Who it’s with, if anyone"') + nameList('dl-jname', D.contacts.map(p => p.name).concat((D.journals || []).map(x => x.name))), 'span2')}
@@ -5783,7 +5903,8 @@ function journalForm(j0) {
     ${edit ? '' : `<div class="section"><div class="fields">${F('j-rev', 'Reverse it on (optional)', inp('j-rev', '', 'date'))}<p class="hint span2" style="align-self:end">For accruals: the same entry, debits and credits swapped, is made on that date too.</p></div></div>`}
     <div class="section" style="margin-bottom:0">${F('j-notes', 'Notes (optional)', `<textarea id="j-notes">${esc(j.notes || '')}</textarea>`)}</div></div>`;
   const draw = () => {
-    document.getElementById('j-lines').innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:30%">Account</th><th style="width:15%">Charged to</th><th>Description</th><th class="num" style="width:130px">Debit (₱)</th><th class="num" style="width:130px">Credit (₱)</th>${hasUsd ? '<th class="num" style="width:110px">US$</th>' : ''}<th style="width:60px"></th></tr></thead><tbody>${lines.map((l, i) => `<tr data-i="${i}">
+    const hasUsd = usdLine();
+    document.getElementById('j-lines').innerHTML = `<div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:${hasUsd ? 21 : 23}%">Account</th><th style="width:${hasUsd ? 14 : 15}%">Charged to</th><th style="min-width:200px">Description</th><th class="num" style="width:118px">Debit (₱)</th><th class="num" style="width:118px">Credit (₱)</th>${hasUsd ? '<th class="num" style="width:100px">US$</th>' : ''}<th style="width:${lines.length > 2 ? 70 : 8}px"></th></tr></thead><tbody>${lines.map((l, i) => `<tr data-i="${i}">
       <td><select class="j-acct" aria-label="Line ${i + 1} account">${acctOptions(l.acct, jeAccounts(), 'Choose an account')}</select></td>
       ${chargeCell('j', l, i, l.acct)}
       <td><input class="j-memo" value="${esc(l.memo)}" aria-label="Line ${i + 1} description"></td>
@@ -5803,6 +5924,7 @@ function journalForm(j0) {
     const e = entry(), dr = sum(e.map(x => x.dr)), cr = sum(e.map(x => x.cr));
     document.getElementById('j-dr').textContent = money(dr); document.getElementById('j-cr').textContent = money(cr);
     const bal = document.getElementById('j-bal'); bal.className = 'balcheck ' + (dr === cr && dr > 0 ? 'ok' : 'bad'); bal.textContent = !dr && !cr ? '' : dr === cr ? 'Balanced. Debits equal credits.' : `Out of balance by ${peso(Math.abs(dr - cr))}.`;
+    if (usdLine() !== !!document.querySelector('#j-lines .j-usd')) { draw(); return update(); }
     document.querySelectorAll('#j-lines tbody tr').forEach(tr => { const u = tr.querySelector('.j-usd'); if (u) u.disabled = bankCur(tr.querySelector('.j-acct').value) !== 'USD'; });
     document.getElementById('j-warn').textContent = budgetWarnings(e, self).join(' ');
   };
@@ -6458,6 +6580,12 @@ const GUIDE = {
     steps: [['Codes by section', '1 what the company owns, 2 what it owes, 3 the owners’ share, 4 sales, 5 cost of sales, 6 and 7 expenses, 8 other income and expense.'], ['Add or edit', 'An account in use can be renamed, but its type and section can’t change.'], ['Download chart', 'An Excel copy for the accountant.']],
     book: null, shows: ['Every report is built from these accounts, in code order.'], watch: ['Ask before adding one; two accounts for the same thing split a total that should be one.']
   },
+  departments: { who: 'setup',
+    what: 'The departments that have budgets. A line drawn from a budget names one of them in Charged to.',
+    when: 'At the start of the year, or when the company adds a team.',
+    steps: [['Add a department', 'Type its name. Then give it a budget on the Budgets page.'], ['Hide one', 'One you no longer use. It keeps its history and budget, but can’t be picked for new lines. Show brings it back.']],
+    book: null, shows: ['Charged to on bills, vouchers, petty cash, liquidations and journal entries; the Budgets page.'], watch: ['Departments aren’t renamed: hide the old one and add the new name.']
+  },
   contacts: { who: 'setup',
     what: 'Everyone the company pays or bills, spelled once: suppliers, vendors, customers, employees.',
     when: 'New names are added as bills and vouchers are saved. Come here to fix spelling or add a TIN.',
@@ -6508,7 +6636,7 @@ const GUIDE_START = `
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
   '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
   '<b>Cards at the top of a page.</b> A page with more than one list (unpaid and paid bills, collections and deposits) shows a card for each with its total. Click a card to see that list; the outlined one is showing. A red or yellow line under the total means something there needs attention.',
-  '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup, and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
+  '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup (contacts, users and roles, the chart of accounts, departments and company details, one tab each), and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
   '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
   '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
   '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];
@@ -6523,6 +6651,7 @@ const HELP_CLOSE = [
   ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
 ];
 const HELP_FAQ = [
+  ['How do I find something?', 'Press ⌘K (Ctrl+K on Windows), or Search at the top of the sidebar, and type any part of it: an invoice or check no., a name, a TIN, a description, an account code, or an amount (with or without commas). Every word you type must match. It searches the year open in the sidebar. All Entries has its own search box too.'],
   ['Why does the hub open so fast? Is it showing old numbers?', 'The hub keeps the books you last saw on this computer, so it opens at once, then asks Google only for what changed since. While it’s checking, the Refresh button spins; it stops when you’re up to date. Refresh, saving and coming back to the tab fetch only what changed, too. On a shared or borrowed computer, sign out when you’re done: that clears the copy kept on it.'],
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
   ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],
@@ -6680,7 +6809,7 @@ function welcomeLine() {
    and depreciation never draws (equipment is the company's). Going over stops the save; an Admin can go over. A
    bucket can be topped up, or an amount moved between departments, each kept with its date and reason. What isn't
    used lapses at year end: next year starts with its own budgets. Admins and Approvers see this page. */
-const SRC_VIEW = { bill: 'view-bill', billVoid: 'view-bill', dm: 'view-bill', dmVoid: 'view-bill', cv: 'view-voucher', cvVoid: 'view-voucher', pt: 'view-voucher', ptVoid: 'view-voucher', je: 'view-je', jeVoid: 'view-je', pcv: 'view-pcv', pcvVoid: 'view-pcv', lq: 'view-liq', lqVoid: 'view-liq', si: 'view-invoice', siVoid: 'view-invoice', cm: 'view-invoice', cmVoid: 'view-invoice', col: 'view-collection', colVoid: 'view-collection' };
+const SRC_VIEW = { dep: 'view-deposit', depVoid: 'view-deposit', bt: 'view-je', btVoid: 'view-je', rc: 'view-receipt', rcVoid: 'view-receipt', ct: 'view-count', ctVoid: 'view-count', bill: 'view-bill', billVoid: 'view-bill', dm: 'view-bill', dmVoid: 'view-bill', cv: 'view-voucher', cvVoid: 'view-voucher', pt: 'view-voucher', ptVoid: 'view-voucher', je: 'view-je', jeVoid: 'view-je', pcv: 'view-pcv', pcvVoid: 'view-pcv', lq: 'view-liq', lqVoid: 'view-liq', si: 'view-invoice', siVoid: 'view-invoice', cm: 'view-invoice', cmVoid: 'view-invoice', col: 'view-collection', colVoid: 'view-collection' };
 /* How far into the year: for this year, today; a past year is over. */
 const yearGone = () => { if (YEAR < THIS_YEAR()) return 1; if (YEAR > THIS_YEAR()) return 0; const t = parseD(todayIso()), a = new Date(YEAR, 0, 1), b = new Date(YEAR + 1, 0, 1); return (t - a + 864e5) / (b - a); };
 /* One department's bucket: what it was given, what it has used, and how that compares with the share of the year gone. */
@@ -6696,10 +6825,10 @@ const buckets = () => (D.departments || []).map(d => bucketOf(d.name)).filter(Bo
 function budgetsPage() {
   const depts = D.departments || [], bs = buckets(), sel = bs.some(b => b.dept === S.bd) ? S.bd : (bs[0] || {}).dept || '';
   const ed = canBooks('budgets.edit') && D.hasDepartments && !yearClosed();
-  const acts = ed ? [btn('departments', 'Departments', 'ghost'), bs.some(b => b.total != null) && btn('move-budget', 'Move between departments', 'ghost'), depts.length && btn('edit-budget', 'Set a budget', '', '')].filter(Boolean).join('') : '';
+  const acts = ed ? [bs.some(b => b.total != null) && btn('move-budget', 'Move between departments', 'ghost'), depts.some(d => d.active && !hasBudget(d.name)) && btn('set-budget', 'Set a budget')].filter(Boolean).join('') : '';
   const head = pageHead('budgets', `Each department’s bucket for ${YEAR}. Only bills, vouchers and entries tagged with the department draw from it; overhead stays untagged. Going over stops the save unless an Admin saves it. What’s left lapses at year end.`, acts);
   if (!D.hasDepartments) return head + `<div class="empty"><b>Departments aren’t set up yet</b>${isAdmin() ? `Finish the update to add them. ${btn('finish-update', 'Finish the update', 'sm')}` : 'Ask an admin to open the hub and finish the update.'}</div>`;
-  if (!bs.length) return head + `<div class="empty"><b>No budgets for ${YEAR} yet</b>${ed ? `Give each department its bucket for the year. ${btn('edit-budget', 'Set a budget', 'sm', '')}` : 'An Admin sets each department’s budget for the year.'}</div>`;
+  if (!bs.length) return head + `<div class="empty"><b>No budgets for ${YEAR} yet</b>${ed ? `Give each department its bucket for the year. ${btn('set-budget', 'Set a budget', 'sm')}` : 'An Admin sets each department’s budget for the year.'}</div>`;
   const cards = viewTabs('bd', bs.map(b => ({ id: b.dept, label: b.dept, big: b.total == null ? peso(b.used) : peso(b.left),
     small: b.total == null ? 'spent; no budget set' : b.st && b.st.lvl === 'red' ? `${b.st.text} its ${peso(b.total)}` : `left of ${peso(b.total)} · ${Math.round(b.pct * 100)}% used`, lvl: b.st ? (b.st.lvl === 'blue' ? '' : b.st.lvl) : '' })), sel, 'Departments');
   return head + cards + `<div id="list">${budgetBody(sel)}</div>`;
@@ -6729,7 +6858,7 @@ function budgetBody(sel) {
   const q = S.q.toLowerCase().trim(), shown = lines.filter(x => !q || [x.d.ref, x.d.contact, x.l.memo, x.d.memo, acctName(x.l.acct)].some(t => String(t || '').toLowerCase().includes(q)));
   const spent = `<h2 class="mt">What drew from it</h2>${shown.length ? table([
     { h: 'Date', k: x => fdate(x.d.date) },
-    { h: 'Document', k: x => `${overIds.has(x.d.id) ? sPill({ lvl: 'red', text: 'Saved over budget' }) + ' ' : ''}${SRC_VIEW[x.d.src] ? `<button type="button" class="btn link att-go" data-act="${SRC_VIEW[x.d.src]}" data-id="${esc(x.d.id)}">${esc(x.d.ref)}</button>` : `<b>${esc(x.d.ref)}</b>`}<span class="sub">${esc(SOURCES[x.d.src].label)}</span>` },
+    { h: 'Document', k: x => `${overIds.has(x.d.id) && !isVoidSrc(x.d.src) ? sPill({ lvl: 'red', text: 'Saved over budget' }) + ' ' : ''}${entryRef(x.d, { link: true })}` },
     { h: 'For', k: x => `${esc(x.d.contact || '')}<span class="sub">${esc(x.l.memo || x.d.memo || '')}</span>` },
     { h: 'Account', k: x => esc(acctLabel(acct(x.l.acct) || { code: '', name: '' })) },
     { h: 'Amount', num: 1, k: x => x.n < 0 ? `(${money(-x.n)})` : money(x.n) }
@@ -6738,25 +6867,34 @@ function budgetBody(sel) {
   return summary + hist + spent;
 }
 /* Set a department's budget for the year (the starting amount). */
+/* Set a budget: for a department that has none yet, picked from those. Change the budget: for one that has, from its
+   own page, with the department fixed. Top-ups and moves stay on top of the starting amount either way. */
+const hasBudget = d => (D.budgets || []).some(b => b.dept === d && !b.acct && (b.type || 'Budget') === 'Budget') || (D.budgets || []).some(b => b.dept === d && b.acct);
 function budgetForm(dept) {
-  const depts = (D.departments || []).filter(d => d.active || d.name === dept);
-  if (!depts.length) { toast('Add a department first.', true); return; }
-  const cur0 = dept || (depts[0] || {}).name || '';
   const startOf = d => (D.budgets || []).find(b => b.dept === d && !b.acct && (b.type || 'Budget') === 'Budget');
-  openModal(`Set a ${YEAR} Budget`, `<p class="lead">The department’s bucket for ${YEAR}. Top-ups and moves come on top; change this only to correct the starting amount.</p>
-    <div class="fields">${F('b-dept', 'Department', `<select id="b-dept">${depts.map(d => opt(d.name, d.name, cur0)).join('')}</select>`)}
-    ${F('b-whole', `Budget for ${YEAR} (₱)`, inp('b-whole', startOf(cur0) ? String(startOf(cur0).amount) : '', 'number', 'step="0.01" min="0" inputmode="decimal" style="text-align:right"'))}</div>
+  const change = !!dept && hasBudget(dept), open = (D.departments || []).filter(d => d.active && !hasBudget(d.name));
+  if (!change && !open.length) { toast('Every department has a budget. Open one and choose Change the budget.', true); return; }
+  const cur0 = change ? dept : open.some(d => d.name === dept) ? dept : open[0].name;
+  const deptField = change ? `<input type="hidden" id="b-dept" value="${esc(dept)}">` : F('b-dept', 'Department', `<select id="b-dept">${open.map(d => opt(d.name, d.name, cur0)).join('')}</select>`);
+  openModal(change ? `Change ${esc(dept)}’s ${YEAR} Budget` : `Set a ${YEAR} Budget`, `<p class="lead">${change
+    ? `The amount ${esc(dept)} started ${YEAR} with. To add to it during the year, use Top up, so the reason stays on record; change it here only to correct the starting amount.`
+    : `A bucket for a department that has none yet. Departments with a budget are changed from their own card, with Change the budget.`}</p>
+    <div class="fields">${deptField}
+    ${F('b-whole', `${change ? 'Starting budget' : 'Budget'} for ${YEAR} (₱)`, inp('b-whole', startOf(cur0) ? String(startOf(cur0).amount) : '', 'number', 'step="0.01" min="0" inputmode="decimal" style="text-align:right"'))}</div>
     <p class="hint" id="b-note" style="margin-top:8px"></p>`, () => {
     const d = val('b-dept'), n = numIn(val('b-whole'));
     if (!d) return 'Choose the department.';
     if (val('b-whole') === '' || isNaN(n) || n < 0) return 'Enter the budget for the year, zero or more.';
-    const others = (D.budgets || []).filter(b => b.dept === d && !(b.acct === '' && (b.type || 'Budget') === 'Budget') && !b.acct), used = deptSpent(d, '*');
+    if (!change && hasBudget(d)) return `${d} already has a budget. Open its card and choose Change the budget.`;
+    const others = (D.budgets || []).filter(b => b.dept === d && !b.acct && (b.type || 'Budget') !== 'Budget'), used = deptSpent(d, '*');
     const total = round2(n + sum(others.map(b => b.amount)));
     if (total + 0.004 < used && !isAdmin()) return `${d} has already used ${peso(used)}, more than ${peso(total)}. Only an Admin can set it below what’s used.`;
     return save('saveBudget', () => { D.budgets = (D.budgets || []).filter(b => !(b.dept === d && (b.acct || (b.type || 'Budget') === 'Budget'))).concat([{ dept: d, acct: '', amount: round2(n), type: 'Budget', date: '', reason: '' }]); S.bd = d; }, () => toast(`${d}: ${peso(total)} for ${YEAR}`));
-  }, 'Save budget', { onOpen: () => {
-    const note = () => { const d = val('b-dept'), b = bucketOf(d); document.getElementById('b-note').textContent = b ? `${d} has used ${peso(b.used)} so far${b.rows.some(x => x.type && x.type !== 'Budget') ? `; top-ups and moves add ${peso(round2((b.total || 0) - (startOf(d) ? startOf(d).amount : 0)))}` : ''}.` : ''; };
-    document.getElementById('b-dept').addEventListener('change', () => { const s0 = startOf(val('b-dept')); document.getElementById('b-whole').value = s0 ? s0.amount : ''; note(); }); note();
+  }, change ? 'Save the change' : 'Save budget', { onOpen: () => {
+    const note = () => { const d = val('b-dept'), b = bucketOf(d), extra = b ? round2((b.total || 0) - (startOf(d) ? startOf(d).amount : 0)) : 0; document.getElementById('b-note').textContent = b ? `${d} has used ${peso(b.used)} so far${extra ? `; top-ups and moves add ${peso(extra)}` : ''}.` : ''; };
+    const sel = document.getElementById('b-dept');
+    if (sel.tagName === 'SELECT') sel.addEventListener('change', () => { const s0 = startOf(val('b-dept')); document.getElementById('b-whole').value = s0 ? s0.amount : ''; note(); });
+    note();
   } });
 }
 /* Add to a department's bucket during the year, with the reason. */
@@ -6791,16 +6929,40 @@ function moveBudgetForm() {
   }, 'Move');
 }
 /* Departments are added and hidden, never renamed or deleted, so every line charged to one keeps its name. */
-function departmentsForm() {
-  const list = (D.departments || []).map(d => ({ ...d }));
-  openModal('Departments', `<p class="lead">Expense lines are charged to one of these. A hidden department keeps its history and budget but can’t be chosen for new lines.</p>
-    <div class="tbl-wrap"><table class="compact"><tbody>${list.map((d, i) => `<tr><td><b>${esc(d.name)}</b></td><td style="width:160px"><label class="check"><input type="checkbox" class="d-on" data-i="${i}" ${d.active ? 'checked' : ''}> Shown in lists</label></td></tr>`).join('')}</tbody></table></div>
-    <div class="fields" style="margin-top:16px">${F('d-new', 'Add a department', inp('d-new', '', 'text', 'placeholder="e.g. Warehouse"'), 'span2')}</div>`, () => {
-    document.querySelectorAll('.d-on').forEach(c => { list[Number(c.dataset.i)].active = c.checked; });
+/* ---------- Setup: one page, a tab for each list the books are set up with ---------- */
+function setupPage() {
+  const kids = navItem('setup').kids.filter(k => allowed(navItem(k)));
+  const cur = S.st = kids.includes(S.st) ? S.st : kids[0], nUsers = (USERS || []).filter(u => u.active).length, depts = D.departments || [];
+  const fig = { contacts: [D.contacts.length, 'names on bills and invoices'], users: [USERS ? nUsers : '—', `active user${nUsers === 1 ? '' : 's'}, ${(ROLE_LIST || []).length} roles`],
+    accounts: [D.accounts.length, `accounts${D.accounts.some(a => !a.active) ? `, ${D.accounts.filter(a => !a.active).length} hidden` : ''}`], departments: [depts.filter(d => d.active).length, `in lists${depts.some(d => !d.active) ? `, ${depts.filter(d => !d.active).length} hidden` : ''}`],
+    company: [D.company.name ? 'Set' : 'Not set', D.company.name ? 'name, signers, backup' : 'company name and signers'] };
+  const tabs = viewTabs('st', kids.map(k => ({ id: k, label: navItem(k).label, big: String(fig[k][0]), small: fig[k][1], lvl: k === 'company' && !D.company.name ? 'yellow' : '' })), cur, 'Setup');
+  return head('', 'Setup', 'The lists the books are built on: who you deal with, who uses the hub, the accounts, the departments and the company’s details.', refreshBtn()) + tabs + `<div class="setup-body">${PAGES[cur]()}</div>`;
+}
+/* Departments: the budgets' buckets. A hidden one keeps its history and budget but can't be picked for new lines. */
+function departmentsPage() {
+  const depts = D.departments || [], ed = canBooks('budgets.edit') && D.hasDepartments && !yearClosed();
+  const head0 = pageHead('departments', 'A line drawn from a department’s budget names one of these in Charged to. Hide one you no longer use: it keeps its history and budget, but can’t be picked for new lines.', ed ? btn('add-department', 'Add a department') : '');
+  if (!D.hasDepartments) return head0 + `<div class="empty"><b>Departments aren’t set up yet</b>${isAdmin() ? `Finish the update to add them. ${btn('finish-update', 'Finish the update', 'sm')}` : 'Ask an admin to open the hub and finish the update.'}</div>`;
+  const rows = depts.map(d => ({ d, b: bucketOf(d.name) }));
+  return head0 + table([
+    { h: 'Department', k: ({ d }) => `<b>${esc(d.name)}</b>${d.active ? '' : `<span class="sub">${pill('Hidden')}</span>`}` },
+    { h: `Budget for ${YEAR}`, num: 1, k: ({ b }) => b && b.total != null ? money(b.total) : '<span style="color:var(--muted)">None set</span>' },
+    { h: 'Used', num: 1, k: ({ b }) => b ? money(b.used) : money(0) },
+    { h: '', k: ({ d }) => rowActs([[ 'view-budget', d.name, 'Budget'], ed && ['dept-toggle', d.name, d.active ? 'Hide' : 'Show']].filter(Boolean)) }
+  ], rows, 'No departments yet.');
+}
+function addDepartmentForm() {
+  openModal('Add a Department', `<div class="fields">${F('d-new', 'Department', inp('d-new', '', 'text', 'placeholder="e.g. Warehouse"'), 'span2')}</div>`, () => {
     const name = val('d-new');
-    if (name) { if (list.some(d => d.name.toLowerCase() === name.toLowerCase())) return `${name} is already on the list.`; list.push({ name, active: true }); }
-    return save('saveBudget', () => { D.departments = list; }, () => toast('Departments saved'));
-  }, 'Save');
+    if (!name) return 'Type the department’s name.';
+    if ((D.departments || []).some(d => d.name.toLowerCase() === name.toLowerCase())) return `${name} is already on the list.`;
+    return save('saveBudget', () => { D.departments = (D.departments || []).concat([{ name, active: true }]); }, () => toast(`${name} added`));
+  }, 'Add');
+}
+function toggleDepartment(name) {
+  const d = (D.departments || []).find(x => x.name === name); if (!d) return;
+  saveNow('saveBudget', () => { D.departments = D.departments.map(x => x.name === name ? { ...x, active: !x.active } : x); }, () => toast(`${name} ${d.active ? 'hidden from lists' : 'shown in lists again'}`));
 }
 
 /* ---------- Finishing an update ----------
@@ -6811,7 +6973,7 @@ function finishUpdate() {
   if (!isAdmin()) return;
   const adds = Object.entries(CONTROL_NEW).filter(([k]) => !D.control[k]).map(([k, [name, type]]) => ({ k, name, type, have: D.accounts.find(a => a.name === name) }));
   openModal('Finish the Update', `<p class="lead">This version needs a few things the books don’t have yet. Nothing else changes.</p><ul class="errlist" style="margin:0 0 8px">
-    ${D.hasDepartments ? '' : `<li>Departments: ${DEPARTMENTS_START.join(', ')}. Add or hide them later on the Budgets page.</li>`}
+    ${D.hasDepartments ? '' : `<li>Departments: ${DEPARTMENTS_START.join(', ')}. Add or hide them later under Setup, Departments.</li>`}
     ${adds.map(x => `<li>${x.have ? `Use ${esc(x.name)}` : `A new ${esc(x.type)} account, ${esc(x.name)},`} for ${esc(CONTROL_LABEL[x.k].toLowerCase())}.</li>`).join('')}</ul>`, () =>
     save('upgradeBooks', () => {
       adds.forEach(x => { let a = D.accounts.find(y => y.name === x.name); if (!a) { a = { id: nextId('a'), name: x.name, type: x.type, active: true }; D.accounts.push(a); } D.control[x.k] = a.id; });
@@ -7010,8 +7172,8 @@ async function historyOf(id) {
 }
 
 /* ---------- Wiring ---------- */
-const PAGES = { home: homePage, help: helpPage, recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
-const LISTS = { home: homeBody, help: helpBody, recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+const PAGES = { setup: setupPage, departments: departmentsPage, home: homePage, help: helpPage, recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
+const LISTS = { journal: journalList, home: homeBody, help: helpBody, recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
 /* The (i) beside a field: one box for all of them, opened on hover, focus or a tap, kept inside the window. */
 (() => {
   const box = document.createElement('div'); box.id = 'tipbox'; box.setAttribute('role', 'tooltip'); document.body.appendChild(box);
@@ -7031,6 +7193,7 @@ const LISTS = { home: homeBody, help: helpBody, recon: reconList, assets: assetL
   addEventListener('scroll', hide, true); addEventListener('resize', hide); window.hideTip = hide;
 })();
 const go = (page, fromHistory) => {
+  const sub = navItem(page).under; if (sub) { S.st = page; page = sub; if (S.page === sub) { S.q = ''; refreshMain(); if (!fromHistory) histPage(); return; } }
   if (S.guideOpen) closeGuide();
   window.hideTip && window.hideTip();
   document.body.classList.remove('nav-open');
@@ -7041,6 +7204,8 @@ const go = (page, fromHistory) => {
 };
 const ACT = {
   nav: id => go(id),
+  search: () => searchAll(),
+  'gs-open': id => { const h = GS_HITS[Number(id)]; if (!h) return; closeModal(true); setTimeout(() => h.open(), 0); },
   'view-budget': id => { S.bd = id; go('budgets'); },
   menu: () => document.body.classList.toggle('nav-open'),
   'close-modal': closeModal,
@@ -7072,7 +7237,7 @@ const ACT = {
   'new-liq': () => liqForm(),
   liquidate: id => liqForm(null, id),
   'refresh': () => refreshPage(),
-  'page-help': () => { S.guideOpen === S.page ? closeGuide() : openGuide(S.page); },
+  'page-help': id => { const k = id || S.page; S.guideOpen === k ? closeGuide() : openGuide(k); },
   'guide-close': () => closeGuide(),
   'guide-all': () => { closeGuide(); S.q = ''; go('help'); },
   'welcome-done': () => { try { localStorage.setItem(WELCOME_KEY(), '1'); } catch (e) { } const w = document.querySelector('.welcome'); if (w) w.remove(); },
@@ -7120,10 +7285,13 @@ const ACT = {
   'view-je': id => viewJournal(id),
   'edit-je': id => { const j = journalOf(id); if (isLocked(j.date)) { toast(lockedMsg(), true); return; } const rv = reversalOf(id); if (rv) { toast(`${rv.no} reverses this entry. Void ${rv.no} first.`, true); return; } journalForm(j); },
   'void-je': id => voidJournal(id),
-  'edit-budget': id => budgetForm(id === undefined ? S.bd : id),
+  'edit-budget': id => budgetForm(id || S.bd),
+  'set-budget': () => budgetForm(''),
   'top-up': id => topUpForm(id || S.bd),
   'move-budget': () => moveBudgetForm(),
-  departments: () => departmentsForm(),
+  departments: () => go('departments'),
+  'add-department': () => addDepartmentForm(),
+  'dept-toggle': id => toggleDepartment(id),
   'bank-details': id => bankForm(id),
   'finish-update': () => finishUpdate(),
   'view-voucher': id => viewVoucher(id),
@@ -7220,6 +7388,7 @@ document.addEventListener('keydown', e => {
   closeModal();
 });
 window.addEventListener('beforeunload', e => { const m = modalEl(); if (m && m.dataset.dirty) { e.preventDefault(); e.returnValue = ''; } });
+document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K') && S0.screen === 'app') { e.preventDefault(); if (!document.getElementById('gs-q')) searchAll(); } });
 document.addEventListener('input', e => {
   if (e.target.id !== 'q') return;
   S.q = e.target.value;
@@ -7361,7 +7530,7 @@ function namePickers(root) {
     list.addEventListener('mousedown', e => { e.preventDefault(); const el = e.target.closest('.apick-o'); if (el) pick(items[Number(el.dataset.i)]); });
   });
 }
-new MutationObserver(() => { acctPickers(document); namePickers(document); }).observe(document.body, { childList: true, subtree: true });
+new MutationObserver(() => { acctPickers(document); namePickers(document); moneyInputs(document); }).observe(document.body, { childList: true, subtree: true });
 let labelPending = false;
 new MutationObserver(() => { if (labelPending) return; labelPending = true; requestAnimationFrame(() => { labelPending = false; labelTables(document); }); }).observe(document.body, { childList: true, subtree: true });
 window.addEventListener('afterprint', () => { document.body.classList.remove('pv'); document.getElementById('print-area').innerHTML = ''; const pg = document.getElementById('pg-style'); if (pg) pg.remove(); });

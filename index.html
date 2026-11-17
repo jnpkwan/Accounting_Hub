@@ -171,6 +171,13 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .att-step.ok{border-color:var(--green05);background:var(--green05);color:var(--green7)}.att-step.todo{border-color:#FFC62E;background:#FFF6D9;color:#8A5A00}
 .att-mark{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:1.5px solid currentColor}
 .att-clear{padding:22px 24px;border-radius:14px;background:var(--green05);color:var(--green7);margin-top:28px}.att-clear b{display:block;font:800 18px var(--display);margin-bottom:4px}
+.av-tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:22px}
+.av-tab{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:16px 20px;border-radius:14px;border:1.5px solid var(--silver);background:#fff;cursor:pointer;font:inherit;color:var(--carbon);transition:border-color .2s,box-shadow .2s}
+.av-tab span{font:700 12px var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}.av-tab b{font:800 26px/1.2 var(--display);color:var(--ink);letter-spacing:-.02em}.av-tab small{font-size:13px;color:var(--muted)}
+.av-tab:hover{border-color:var(--blue3)}.av-tab.on{border-color:var(--blue);box-shadow:var(--lift)}.av-tab.on span{color:var(--blue)}
+.av-tab.av-red small{color:#A52A24;font-weight:600}
+table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{box-shadow:none}table.cards tr.att-red{box-shadow:inset 4px 0 0 #D63C34}table.cards tr.att-yellow{box-shadow:inset 4px 0 0 #FFC62E}
+@media (max-width:760px){.av-tabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.av-tab{padding:10px 10px;border-radius:12px}.av-tab span{font-size:9.5px;letter-spacing:.04em}.av-tab b{font-size:15px}.av-tab small{font-size:11px;line-height:1.3}}
 .att-go{padding:0;height:auto;text-align:left;font-weight:600;white-space:normal}
 .p-no-costs-yet{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
 .p-cleared,.p-deposited,.p-in-the-bank,.p-sent,.p-received,.p-counted{background:var(--green05);color:var(--green7)}
@@ -520,7 +527,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.24';
+const APP_VERSION = '3.25';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -1991,7 +1998,11 @@ function docForm(kind, v0, mode = 'new') {
     drawApplies();
     const p = contactByName(v.payeeName), note = document.getElementById('f-payee-note');
     if (!isBill) drawBills();
-    const open = isBill ? 0 : payeeBills().filter(b => !v.bills.some(x => x.billId === b.id)).length;
+    const openDocs = isBill ? [] : payeeBills().filter(b => !v.bills.some(x => x.billId === b.id)), open = openDocs.length;
+    // say what's listed: bills to pay, and debit memos (credits) that come off them
+    const nBills = openDocs.filter(b => !isMemo(b)).length, nMemos = open - nBills, doc = isPT ? 'transfer' : 'check';
+    const openNote = !p ? '' : nBills ? `${p.name} has ${plural(nBills, 'unpaid bill')}${nMemos ? ` and ${plural(nMemos, 'unused debit memo')} (credits)` : ''}. Tick what this ${doc} pays.`
+      : `${p.name} has no unpaid bills, only ${plural(nMemos, 'unused debit memo')}: credits they owe the company back. A debit memo isn’t a bill; it comes off a bill when one is paid.`;
     if (p) {
       if (!val('f-tin')) document.getElementById('f-tin').value = p.tin || '';
       const empty = v.lines.every(l => !l.accountId && !l.amount);
@@ -2004,7 +2015,7 @@ function docForm(kind, v0, mode = 'new') {
         }
       }
       const stale = p.accountId && purchaseNotFor(p.accountId, '');
-      note.textContent = open ? `${p.name} has ${open} unpaid bill${open === 1 ? '' : 's'}. Tick the ones this check pays.` : stale ? `${p.name}’s usual account, ${acctName(p.accountId)}, can’t be used here${isCogs(p.accountId) ? ': cost of sales comes from the stock count' : ''}. Pick the account; it becomes their usual one when you save.`
+      note.textContent = open ? openNote : stale ? `${p.name}’s usual account, ${acctName(p.accountId)}, can’t be used here${isCogs(p.accountId) ? ': cost of sales comes from the stock count' : ''}. Pick the account; it becomes their usual one when you save.`
         : p.accountId || p.atc ? `Filled in from ${p.name}’s usual account and withholding. Change them if this one is different.` : '';
     } else note.textContent = '';
     update();
@@ -4803,7 +4814,7 @@ function staffPage() {
   return pageHead(petty ? 'petty' : 'advances', petty ? 'Each custodian’s petty cash fund, and the vouchers paid out of it. A check from the bank, or an owner out of pocket, refills what was spent.'
     : 'Release cash to an employee, then liquidate it when they come back with receipts and the change. Until then it’s on their name as an advance.', acts)
     + `<div class="toolbar"><input id="q" type="search" placeholder="${petty ? 'Search PCV no., paid to, particulars' : 'Search employee, LQ no., particulars'}" value="${esc(S.q)}" aria-label="Search"></div>
-    ${petty ? fundStrip() + ownerStrip('refill') : ''}<div id="list">${staffList()}</div>${petty ? '' : `<div style="margin-top:32px">${ownerStrip('advance')}</div>`}`;
+    ${petty ? fundStrip() + ownerStrip('refill') : ''}<div id="list">${staffList()}</div>`;
 }
 function fundStrip() {
   const fs = funds();
@@ -4842,27 +4853,46 @@ function staffList() {
   Object.entries(D.tagsBefore || {}).forEach(([t, n]) => { if (contact(t)) add(t, n >= 0 ? 'given' : 'cleared', Math.abs(n), ''); });
   journal().forEach(d => d.lines.forEach(l => { if (l.acct !== D.control.advances || !l.tag) return; if (l.dr) add(l.tag, 'given', l.dr, d.date); if (l.cr) add(l.tag, 'cleared', l.cr, d.date); }));
   const dueBy = {}; if (!yearClosed()) advancesDue().forEach(x => { dueBy[x.id] = x; });
-  const emps = Object.keys(by).map(id => ({ id, name: (contact(id) || {}).name || id, ...by[id], out: round2(by[id].given - by[id].cleared), due: dueBy[id] })).filter(e => hasQ(e.name)).sort((a, b) => b.out - a.out || a.name.localeCompare(b.name));
-  const adv = emps.length ? table([
-    { h: 'Employee', k: e => `<b>${esc(e.name)}</b>${e.last ? `<span class="sub">Last advance ${fdate(e.last)}</span>` : ''}` },
-    { h: 'Advanced', num: 1, k: e => money(e.given) },
-    { h: 'Cleared', num: 1, k: e => money(e.cleared) },
-    { h: 'Outstanding', num: 1, k: e => `<b>${peso(e.out)}</b>${e.due && e.out > 0 ? `<span class="sub">${sPill(e.due.st)}</span>` : ''}` },
-    { h: '', k: e => rowActs([e.out > 0 && canBooks('staff.edit') && ['liquidate', e.id, 'Liquidate'], canRelease() && contact(e.id) && ['release-adv', e.id, 'Release more']]) }
-  ], emps, '', `<tfoot><tr><td>${emps.length} employee${emps.length === 1 ? '' : 's'}</td><td class="num">${money(sum(emps.map(e => e.given)))}</td><td class="num">${money(sum(emps.map(e => e.cleared)))}</td><td class="num">${peso(sum(emps.map(e => e.out)))}</td><td></td></tr></tfoot>`, e => e.due && e.out > 0 ? attRow(e.due.st) : '')
-    : `<div class="empty"><b>No cash advances in ${YEAR}</b>Release one by check, bank transfer or petty cash. It stays on the employee’s name until they liquidate it. ${canRelease() ? btn('new-adv', 'Release an advance', 'sm') : ''}</div>`;
+  const all = Object.keys(by).map(id => ({ id, name: (contact(id) || {}).name || id, ...by[id], out: round2(by[id].given - by[id].cleared), due: dueBy[id] })).filter(e => hasQ(e.name));
+  // open advances first, the most overdue on top; employees with nothing open only when asked for
+  const rank = e => !e.due ? 3 : { red: 0, yellow: 1, blue: 2 }[e.due.st.lvl];
+  const open = all.filter(e => e.out > 0.004).sort((a, b) => rank(a) - rank(b) || String(a.due ? a.due.due : '').localeCompare(String(b.due ? b.due.due : '')) || b.out - a.out);
+  const settled = all.filter(e => e.out <= 0.004).sort((a, b) => a.name.localeCompare(b.name));
+  const liqs = (D.liquidations || []).filter(x => hasQ(x.no, (contact(x.employee) || {}).name, x.particulars, x.notes)).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
+  const owners = ownerItems('advance'), owed = round2(sum(owners.map(x => Math.max(x.owed, 0)))), owedN = owners.filter(x => x.owed > 0.004).length;
+  const late = open.filter(e => e.due && e.due.st.lvl === 'red').length;
+  const view = ['open', 'liq', 'owners'].includes(S.av) ? S.av : 'open';
+  const tab = (id, label, big, small, lvl) => `<button type="button" role="tab" aria-selected="${view === id}" class="av-tab${view === id ? ' on' : ''}${lvl ? ' av-' + lvl : ''}" data-act="av-view" data-id="${id}"><span>${label}</span><b>${big}</b><small>${small}</small></button>`;
+  const tabs = `<div class="av-tabs" role="tablist" aria-label="Cash advances">
+    ${tab('open', 'With employees', peso(sum(open.map(e => e.out))), open.length ? `${plural(open.length, 'employee')}${late ? ` · ${late} late` : ''}` : 'nothing open', late ? 'red' : '')}
+    ${tab('liq', 'Liquidations', liqs.filter(live).length.toLocaleString('en-US'), `in ${YEAR}`)}
+    ${owners.length ? tab('owners', 'Owed to owners', peso(owed), owedN ? `${plural(owedN, 'advance')} to pay back` : 'all paid back') : ''}</div>`;
   const un = round2(sum(journal().flatMap(d => d.lines.filter(l => l.acct === D.control.advances && !l.tag).map(l => (l.dr || 0) - (l.cr || 0)))));
   const unNote = Math.abs(un) >= 0.005 ? `<p class="hint" style="margin-top:10px">${peso(un)} on ${esc(acctName(D.control.advances))} isn’t charged to an employee: posted before the hub kept advances by employee. A journal entry moves it to each employee.</p>` : '';
-  const liqs = (D.liquidations || []).filter(x => hasQ(x.no, (contact(x.employee) || {}).name, x.particulars, x.notes)).sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
-  return adv + unNote + (liqs.length ? `<h2 class="mt">Liquidations</h2>${table([
-    { h: 'LQ no.', k: x => `<b>${esc(x.no)}</b><span class="sub">${fdate(x.date)}</span>` },
-    { h: 'Employee', k: x => `${esc((contact(x.employee) || {}).name || '')}<span class="sub">${esc(x.particulars)}</span>` },
-    { h: 'Receipts', num: 1, k: x => money(vGross(x)) },
-    { h: 'Cash', num: 1, k: x => x.returned ? `${money(x.returned)}<span class="sub">returned</span>` : x.reimbursed ? `(${money(x.reimbursed)})<span class="sub">reimbursed</span>` : '' },
-    { h: 'Advance cleared', num: 1, k: x => peso(round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0))) },
-    { h: 'Status', k: x => x.status === 'void' ? pill('Void') + `<span class="sub">${esc(x.voidReason || '')}</span>` : '' },
-    { h: '', k: x => rowActs([['view-liq', x.id, 'View'], live(x) && !isLocked(x.date) && canBooks('staff.edit') && ['edit-liq', x.id, 'Edit']]) }
-  ], liqs, '', '', x => x.status === 'void' ? 'void' : '')}` : '');
+  if (!all.length && !liqs.length && !owners.length) return `<div class="empty"><b>No cash advances in ${YEAR}</b>Release one by check, bank transfer, petty cash or an owner’s own money. It stays on the employee’s name until they liquidate it. ${canRelease() ? btn('new-adv', 'Release an advance', 'sm') : ''}</div>`;
+  let body = '';
+  if (view === 'open') {
+    const shown = open.concat(S.avAll ? settled : []);
+    body = (shown.length ? table([
+      { h: 'Employee', k: e => `<b>${esc(e.name)}</b><span class="sub">${money(e.given)} advanced · ${money(e.cleared)} cleared${e.last ? ` · last ${fdate(e.last)}` : ''}</span>` },
+      { h: 'Liquidate by', k: e => e.out > 0.004 && e.due ? sPill(e.due.st) : e.out > 0.004 ? '' : '<span style="color:var(--muted)">Nothing open</span>' },
+      { h: 'Outstanding', num: 1, k: e => e.out > 0.004 ? `<b>${peso(e.out)}</b>` : `<span style="color:var(--muted)">${peso(0)}</span>` },
+      { h: '', k: e => rowActs([e.out > 0.004 && canBooks('staff.edit') && ['liquidate', e.id, 'Liquidate'], canRelease() && contact(e.id) && ['release-adv', e.id, 'Release more']]) }
+    ], shown, '', '', e => e.due && e.out > 0.004 ? attRow(e.due.st) : e.out <= 0.004 ? 'void' : '')
+      : `<div class="att-clear"><b>Nothing out with employees</b>Every advance is liquidated.</div>`)
+      + (settled.length ? `<p style="margin-top:12px"><button type="button" class="btn link sm" data-act="av-all">${S.avAll ? 'Hide' : 'Show'} employees with nothing open (${settled.length})</button></p>` : '') + unNote;
+  } else if (view === 'liq') {
+    body = liqs.length ? table([
+      { h: 'LQ no.', k: x => `<b>${esc(x.no)}</b><span class="sub">${fdate(x.date)}</span>` },
+      { h: 'Employee', k: x => `${esc((contact(x.employee) || {}).name || '')}<span class="sub">${esc(x.particulars)}</span>` },
+      { h: 'Receipts', num: 1, k: x => money(vGross(x)) },
+      { h: 'Cash', num: 1, k: x => x.returned ? `${money(x.returned)}<span class="sub">returned</span>` : x.reimbursed ? `(${money(x.reimbursed)})<span class="sub">reimbursed</span>` : '' },
+      { h: 'Advance cleared', num: 1, k: x => peso(round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0))) },
+      { h: 'Status', k: x => x.status === 'void' ? pill('Void') + `<span class="sub">${esc(x.voidReason || '')}</span>` : '' },
+      { h: '', k: x => rowActs([['view-liq', x.id, 'View'], live(x) && !isLocked(x.date) && canBooks('staff.edit') && ['edit-liq', x.id, 'Edit']]) }
+    ], liqs, '', '', x => x.status === 'void' ? 'void' : '') : `<div class="empty"><b>No liquidations ${S.q ? 'match' : `in ${YEAR}`}</b>When an employee comes back with resibos, Liquidate on their row.</div>`;
+  } else body = ownerStrip('advance', true);
+  return tabs + body;
 }
 function fundForm(id) {
   const f = id ? fundOf(id) : null, emps = employees().concat(f && contact(f.custodian) && !employees().some(p => p.id === f.custodian) ? [contact(f.custodian)] : []);
@@ -4949,11 +4979,11 @@ function payOwnerBack(jeId) {
 }
 /* What the company owes owners for paying out of their own pockets: petty cash refills on Petty Cash, cash advances
    on Cash Advances. */
-function ownerStrip(kind = 'refill') {
+function ownerStrip(kind = 'refill', bare) {
   const xs = ownerItems(kind), adv = kind === 'advance';
-  if (!xs.length) return '';
+  if (!xs.length) return bare ? '<div class="empty"><b>Nothing owed to owners</b>An advance an owner pays out of pocket is listed here until it’s paid back.</div>' : '';
   const owed = round2(sum(xs.map(x => Math.max(x.owed, 0))));
-  return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Owed to Owners <span class="hint" style="font-weight:400">${owed ? `${peso(owed)} still to pay back` : 'all paid back'}</span></h2>${table([
+  return `<section style="margin-bottom:28px">${bare ? '' : `<h2 class="mt" style="margin-top:0">Owed to Owners <span class="hint" style="font-weight:400">${owed ? `${peso(owed)} still to pay back` : 'all paid back'}</span></h2>`}${table([
     { h: adv ? 'Advance' : 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(adv ? x.emp : acctName(x.fund))}</span>` },
     { h: 'Owner', k: x => `${esc(x.owner)}<span class="sub">${esc(acctName(x.due))}</span>` },
     { h: adv ? 'Advanced' : 'Refilled', num: 1, k: x => money(x.amount) },
@@ -6110,6 +6140,7 @@ const GUIDE = {
     what: 'A cash advance is money given to an employee before they spend it, for a trip or a purchase. A liquidation is the employee coming back with the resibos and the sukli (change).',
     when: 'Release when the money goes out. Liquidate when the employee returns.',
     steps: [
+      ['The three tabs', 'The page opens on what’s still with employees, the most overdue first. Liquidations lists every liquidation; Owed to owners, advances an owner paid that the company still has to pay back.'],
       ['Release an advance', 'The employee, the amount, what it’s for, when the liquidation is due, and how it’s paid: by check, transfer, petty cash, or by an owner out of pocket. It opens the voucher filled in, to check and save.'],
       ['When it’s due', 'The liquidation due date starts 7 days after the release; change it to suit the trip. It prints on the voucher (“liquidate by…”). The employee’s row turns yellow 7 days before it and red once it’s passed.'],
       ['Liquidate', 'On the employee’s row. Enter each resibo with its account and department, then the change they hand back. If they spent more than they got, enter what you paid them on top instead.'],
@@ -6819,6 +6850,8 @@ const ACT = {
   'rp-retry': () => { REP.err = ''; rpLoad(true); refreshMain(); },
   'new-adv': () => releaseForm(),
   'release-adv': id => releaseForm(id),
+  'av-view': id => { S.av = id; refreshMain(); },
+  'av-all': () => { S.avAll = !S.avAll; refreshMain(); },
   'view-liq': id => viewLiq(id),
   'edit-liq': id => { const x = liqOf(id); if (!x || !live(x)) return; if (isLocked(x.date)) { toast(lockedMsg(), true); return; } liqForm(x); },
   'void-liq': id => voidLiq(id),

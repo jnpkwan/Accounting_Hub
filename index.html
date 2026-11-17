@@ -244,7 +244,8 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .vtab:hover{border-color:var(--blue3)}.vtab.on{border-color:var(--blue);box-shadow:var(--lift)}.vtab.on span{color:var(--blue)}
 .vtab.vt-red small{color:#A52A24;font-weight:600}.vtab.vt-red b{color:#A52A24}.vtab.vt-yellow small{color:#8A5A00;font-weight:600}.vtab.vt-green small{color:var(--green7);font-weight:600}
 .vtab.static{cursor:default}.vtab.static:hover{border-color:var(--silver)}
-table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{box-shadow:none}table.cards tr.att-red{box-shadow:inset 4px 0 0 #D63C34}table.cards tr.att-yellow{box-shadow:inset 4px 0 0 #FFC62E}
+/* phones: the row is a card, so the edge goes on the card (on desktop it stays on the first cell; v3.37 fix) */
+@media (max-width:760px){table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{box-shadow:none}table.cards tr.att-red{box-shadow:inset 5px 0 0 #A52A24}table.cards tr.att-yellow{box-shadow:inset 5px 0 0 #FFC62E}}
 @media (max-width:760px){.vtabs{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}.vtab{padding:10px 10px;border-radius:12px}.vtab span{font-size:9.5px;letter-spacing:.04em}.vtab b{font-size:15px}.vtab small{font-size:11px;line-height:1.3}}
 .over-note{align-items:center;gap:8px;color:var(--carbon)}.over-note+.stamp{margin-top:8px;border-top:0;padding-top:0}.side-search{display:flex;align-items:center;justify-content:space-between;width:calc(100% - 24px);margin:4px 12px 10px;padding:9px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:rgba(255,255,255,.82);font:600 13.5px var(--body);cursor:pointer}
 .side-search:hover,.side-search:focus-visible{background:rgba(255,255,255,.12);color:#fff}.side-search kbd{font:600 11px var(--body);opacity:.7;border:1px solid rgba(255,255,255,.3);border-radius:5px;padding:1px 5px}
@@ -268,6 +269,36 @@ table.cards tr.att-red>td:first-child,table.cards tr.att-yellow>td:first-child{b
 .p-paid,.p-applied{background:var(--green05);color:var(--green7)}
 .p-fully-depreciated{background:var(--blue05);color:var(--blue7)}.p-disposed{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
 .p-tie-off{background:#FCEBEA;color:#A52A24}.p-tie-todo{background:#FFF6D9;color:#8A5A00}
+/* ---- v3.37: every page cohesive with Home ----
+   Tags: Home's shape. Solid colour only where something needs doing (late, due, waiting for approval, doesn't tie);
+   settled states (paid, cleared, deposited) stay soft, so a list of 300 paid bills isn't a wall of green. */
+.pill{padding:4px 10px;border-radius:7px;font:800 12px/1.3 var(--display)}
+.s-red,.p-tie-off{background:#A52A24;color:#fff}.s-yellow,.p-tie-todo,.p-cost-difference,.p-changed{background:#FFC62E;color:var(--ink)}
+.p-for-approval{background:var(--blue);color:#fff}
+.p-partly-paid,.p-partly-applied{background:var(--blue1);color:var(--ink);box-shadow:none}
+.d8{color:var(--muted);font-size:13px;white-space:nowrap}
+tr.att-red>td:first-child{box-shadow:inset 5px 0 0 #A52A24}tr.att-yellow>td:first-child{box-shadow:inset 5px 0 0 #FFC62E}
+/* One line per row: the grey detail under a name or number sits beside it, not under it (amount columns keep theirs
+   stacked so figures line up). More rows on screen. */
+@media (min-width:761px){.tbl-wrap td:not(.num)>.sub{display:inline;margin:0 0 0 6px}td{padding-top:9px;padding-bottom:9px}}
+/* The page band */
+.pb{background:var(--depth);border-radius:18px;padding:20px 24px 18px;margin:0 0 16px;color:#fff;box-shadow:var(--shadow)}
+.pb-top{display:flex;justify-content:space-between;align-items:center;gap:14px 20px;flex-wrap:wrap}
+.pb-eye{margin:0 0 4px;font:700 11.5px var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--green3)}
+.pb-title{margin:0;font:800 30px/1.1 var(--display);letter-spacing:-.02em;color:#fff;display:flex;align-items:center;gap:12px}
+.pb-sub{margin:6px 0 0;font-size:14px;color:var(--blue1);max-width:70ch}
+.pb .qhelp{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+.pb-acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pb .btn{background:#fff;color:var(--blue);box-shadow:none}.pb .btn:hover{background:var(--blue05)}
+.pb .btn.ghost{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45)}.pb .btn.ghost:hover{background:rgba(255,255,255,.1)}
+.pb .btn.link{background:transparent;color:#fff}
+.pb .vtabs{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0;margin:16px 0 0;border-top:1px solid rgba(168,187,219,.35)}
+.pb .vtab{background:transparent;border:0;border-radius:0;padding:12px 18px 6px 0;margin-right:18px;color:#fff;box-shadow:none;border-bottom:4px solid transparent}
+.pb .vtab span{color:var(--blue1);font-size:11.5px;letter-spacing:.14em}.pb .vtab b{color:#fff;font-size:24px}.pb .vtab small{color:var(--blue3);font-size:13px}
+.pb .vtab:hover{border-color:transparent;border-bottom-color:rgba(255,255,255,.3)}.pb .vtab.on{border-bottom-color:var(--green);box-shadow:none}.pb .vtab.on span{color:#fff}
+.pb .vtab.static:hover{border-bottom-color:transparent}
+.pb .vtab.vt-red b,.pb .vtab.vt-red small{color:#F4908A}.pb .vtab.vt-yellow small{color:#FFC62E}.pb .vtab.vt-green small{color:var(--green3)}
+@media (max-width:760px){.pb{padding:16px 16px 12px;border-radius:14px}.pb-title{font-size:24px}.pb .vtabs{grid-template-columns:repeat(2,minmax(0,1fr))}.pb .vtab{padding:10px 10px 6px 0;margin-right:10px}.pb .vtab b{font-size:17px}.pb .vtab span{font-size:9.5px}}
 .card{border-radius:16px;padding:28px 32px;margin-bottom:24px;background:#fff;box-shadow:var(--rest)}
 .card h2{font-size:18px;margin-bottom:16px}
 tr.jfirst td{border-top:2px solid var(--blue1)}
@@ -608,7 +639,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.36';
+const APP_VERSION = '3.37';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -774,7 +805,7 @@ const dupMsg = (b, who) => `${isMemo(b) ? 'Debit memo' : 'Invoice'} ${b.ref} fro
 const needsApproval = v => !!v && live(v) && own(v) && !v.from && !v.foreign && !v.approvedBy;
 const mineLast = v => { const w = v.updatedBy || v.createdBy || ''; return !!w && (w === whoAmI() || w === ME().name); };
 const canApprove = v => needsApproval(v) && can('payments.approve') && (isAdmin() || !mineLast(v));
-const approvalPill = v => needsApproval(v) ? sPill({ lvl: 'yellow', text: 'For approval' }) : '';
+const approvalPill = v => needsApproval(v) ? pill('For approval') : '';
 function approveVoucher(id, then) {
   const v = voucher(id); if (!canApprove(v)) { toast(mineLast(v) ? 'Someone else approves a payment you entered or changed.' : 'Your role can’t approve payments.', true); return; }
   return saveNow('approveVoucher', () => { Object.assign(voucher(id), { approvedBy: whoAmI(), approvedOn: new Date().toISOString() }); }, () => { toast(`${v.cv} approved`); if (then) then(); });
@@ -1831,7 +1862,11 @@ const val = id => { const el = document.getElementById(id); return el ? el.value
 const pill = s => `<span class="pill p-${s.toLowerCase().replace(/\s+/g, '-')}">${esc(s)}</span>`;
 const btn = (a, label, cls = '', id = '') => `<button class="btn ${cls}" data-act="${a}" ${id ? `data-id="${esc(id)}"` : ''}>${label}</button>`;
 const rowActs = list => `<div class="acts">${list.filter(Boolean).map(([a, id, l]) => `<button class="btn link sm" data-act="${a}" data-id="${esc(id)}">${l}</button>`).join('')}</div>`;
-const head = (eyebrow, t, sub, actions = '') => `<header class="page-head"><div><div class="eyebrow">${eyebrow}</div><h1>${t}</h1>${sub ? `<p>${sub}</p>` : ''}</div><div class="head-acts">${actions}</div></header>`;
+/* Every page opens on a short Deep Ink band, as Home does: where it sits, its title, its buttons, and (moved in by
+   bandUp after drawing) the view cards that follow it, as the band's figures. The page's one-line description is
+   in its ? guide, so it isn't repeated here; a page without a guide keeps it, small, in the band. */
+const head = (eyebrow, t, sub, actions = '') => `<header class="pb"><div class="pb-top"><div>${eyebrow ? `<p class="pb-eye">${eyebrow}</p>` : ''}<h1 class="pb-title">${t}</h1>${sub ? `<p class="pb-sub">${sub}</p>` : ''}</div><div class="pb-acts head-acts">${actions}</div></div></header>`;
+function bandUp(root) { (root || document).querySelectorAll('.pb').forEach(pb => { const n = pb.nextElementSibling; if (n && n.classList.contains('vtabs')) pb.appendChild(n); }); }
 /* Account pickers list accounts by code, under their section. The search box laid over them (acctPickers) finds
    an account by any part of its code or name. */
 function acctOptions(cur, list = postableAccounts(), blank = 'Choose an account') {
@@ -1998,7 +2033,7 @@ const NAV = [
     { id: 'vouchers', label: 'Check Vouchers' },
     { id: 'transfers', label: 'Bank Transfers' }] },
   { group: 'Receivables', items: [{ id: 'invoices', label: 'Sales Invoices' }, { id: 'collections', label: 'Collections' }] },
-  { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'recon', label: 'Bank Reconciliation' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }] },
+  { group: 'Cash and Bank', items: [{ id: 'checks', label: 'Check Monitoring' }, { id: 'petty', label: 'Petty Cash' }, { id: 'advances', label: 'Cash Advances', title: 'Cash Advances and Liquidations' }, { id: 'recon', label: 'Bank Reconciliation' }] },
   { group: 'Inventory', items: [{ id: 'shipments', label: 'Shipments', title: 'Shipments and Landed Cost' }, { id: 'counts', label: 'Stock Count' }, { label: 'Deliveries', soon: true }] },
   { group: 'Books', items: [{ id: 'gj', label: 'General Journal' }, { id: 'journal', label: 'All Entries' }, { id: 'summary', label: 'Monthly Summary' }, { id: 'budgets', label: 'Budgets', needAny: ['reports.view', 'budgets.edit'] }, { id: 'assets', label: 'Fixed Assets' }, { id: 'reports', label: 'Financial Reports', need: 'reports.view' }] },
   { group: 'Help and Checks', items: [{ id: 'help', label: 'How to Use the Hub' }, { id: 'health', label: 'Books Health' }, { id: 'log', label: 'Change Log' }] },
@@ -2069,7 +2104,7 @@ function render() {
   // once the page is in, typing in a search box or filtering redraws it without replaying the entrance
   if (enter) { const mn = document.getElementById('main'); setTimeout(() => mn.classList.remove('enter'), 950); }
   renderedPage = loadingInApp ? null : S.page;
-  placeNav();
+  bandUp(); placeNav();
 }
 /* The highlight behind the current page in the sidebar: it slides from the page you were on to the one you
    picked. It starts where it last was, then moves. */
@@ -2096,14 +2131,14 @@ function placeNav() {
 addEventListener('resize', () => { navAt = null; placeNav(); });
 /* Years with books, this year, and next year from December on. */
 const yearChoices = () => { const t = THIS_YEAR(), ys = new Set([...(D.years || []), t, YEAR]); if (TODAY().getMonth() === 11) ys.add(t + 1); return [...ys].sort((a, b) => b - a); };
-const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + welcomeLine() + PAGES[S.page](); };
+const refreshMain = () => { document.getElementById('main').innerHTML = (yearClosed() ? `<div class="lockline"><span><b>The ${YEAR} books are closed.</b> You can look, but nothing in ${YEAR} can change.</span></div>` : '') + updateLine() + welcomeLine() + PAGES[S.page](); bandUp(); };
 /* Refresh: fetch the books again and redraw this page where it is (what others saved since), without reloading
    the browser, signing in again or losing the page, its filters or the scroll. */
 const REFRESH_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const refreshBtn = () => `<button type="button" class="btn ghost refresh" data-act="refresh" title="${LOADED_AT ? `Last refreshed ${new Date(LOADED_AT).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` : 'Refresh'}">${REFRESH_ICON}<span>Refresh</span></button>`;
 const pageHead = (id, sub, actions) => { const n = NAV.flatMap(g => g.items).find(i => i.id === id), q = GUIDE[id] ? ` <button type="button" class="qhelp" data-act="page-help" data-id="${id}" aria-label="How this page works" aria-expanded="${S.guideOpen === id}">?</button>` : '';
   if (n.under && S.page === n.under) return `<header class="sub-head"><div><h2>${n.title || n.label}${q}</h2>${sub ? `<p>${sub}</p>` : ''}</div><div class="head-acts">${actions || ''}</div></header>`;
-  return head(groupOf(id), (n.title || n.label) + q, sub, (id === 'help' ? '' : refreshBtn()) + (actions || '')); };
+  return head(id === 'help' ? groupOf(id) : `${groupOf(id)} · ${YEAR}`, (n.title || n.label) + q, GUIDE[id] ? '' : sub, (actions || '') + (id === 'help' ? '' : refreshBtn())); };
 let refreshing = false;
 async function refreshPage() {
   if (refreshing) return; refreshing = true;
@@ -2776,7 +2811,7 @@ function billList() {
     { h: 'Payee', k: ({ b }) => `${esc(b.payeeName)}<span class="sub">${esc(b.particulars)}</span>` },
     { h: 'Amount payable', num: 1, k: ({ b }) => `<span class="amt">${isMemo(b) ? `(${amt(b.payable, b.currency)})` : amt(b.payable, b.currency)}</span>${b.ewt ? `<span class="sub">${money(b.ewt)} withheld</span>` : ''}${isFx(b.currency) ? `<span class="sub">${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ b, st }) => st === 'Void' ? '' : amt(billBalance(b), b.currency) },
-    { h: 'Status', k: ({ b, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(b.voidReason || '')}</span>` : billDue(b) ? `<span class="sub">${sPill(billDue(b))}</span>` : '') },
+    { h: 'Status', k: ({ b, st }) => st === 'Void' ? stCell(st, null, esc(b.voidReason || '')) : stCell(st, billDue(b)) },
     { h: '', k: ({ b }) => rowActs([['view-bill', b.id, 'View'], own(b) && live(b) && !isLocked(b.date) && canBooks('bills.edit') && ['edit-bill', b.id, 'Edit']]) }
   ];
   const lv = rows.filter(r => live(r.b));
@@ -2859,7 +2894,7 @@ function checkList() {
     { h: 'Check', k: v => `<b>${esc(v.checkNo)}</b><span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Payee', k: v => `${esc(v.payeeName)}<span class="sub">${esc(v.cv)}, ${esc(v.particulars)}</span>${v.from ? `<span class="sub">${esc(fromNote(v))}</span>` : ''}` },
     { h: 'Amount', num: 1, k: v => peso(v.checkAmount) },
-    { h: 'Status', k: v => pill(vStatus(v)) + (v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : checkAge(v) ? `<span class="sub">${sPill(checkAge(v))}</span>` : '') },
+    { h: 'Status', k: v => stCell(vStatus(v), v.clearedOn ? null : checkAge(v), v.clearedOn ? fdate(v.clearedOn) : '') },
     { h: '', k: v => { const lr = lastRecon(vBank(v)), rec = v.clearedOn && lr && v.clearedOn <= lr.date; return rowActs([canBooks('checks.clear') && !rec && (v.clearedOn ? ['unclear', v.id, 'Undo cleared'] : ['clear-one', v.id, 'Cleared…']), ['view-voucher', v.id, 'Voucher']]) + (rec ? '<span class="sub" style="text-align:right">Reconciled</span>' : ''); } }
   ];
   return table(cols, rows, '', `<tfoot><tr><td>${rows.length} check${rows.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(rows.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => yearClosed() ? '' : attRow(checkAge(v)));
@@ -4862,7 +4897,7 @@ function invoiceList() {
     { h: 'Customer', k: ({ i }) => `${esc(i.customerName)}<span class="sub">${esc(i.particulars)}</span>` },
     { h: 'Amount', num: 1, k: ({ i }) => `<span class="amt">${isMemo(i) ? `(${peso(i.receivable)})` : peso(i.receivable)}</span>${i.vat ? `<span class="sub">${money(i.vat)} VAT</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ i, st }) => st === 'Void' ? '' : peso(invBalance(i)) },
-    { h: 'Status', k: ({ i, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(i.voidReason || '')}</span>` : invDue(i) ? `<span class="sub">${sPill(invDue(i))}</span>` : '') },
+    { h: 'Status', k: ({ i, st }) => st === 'Void' ? stCell(st, null, esc(i.voidReason || '')) : stCell(st, invDue(i)) },
     { h: '', k: ({ i }) => rowActs([['view-invoice', i.id, 'View'], own(i) && live(i) && !isLocked(i.date) && canBooks('sales.edit') && ['edit-invoice', i.id, 'Edit']]) }
   ];
   const lv = rows.filter(r => live(r.i));
@@ -7234,7 +7269,7 @@ function setupPage() {
     accounts: [D.accounts.length, `accounts${D.accounts.some(a => !a.active) ? `, ${D.accounts.filter(a => !a.active).length} hidden` : ''}`], departments: [depts.filter(d => d.active).length, `in lists${depts.some(d => !d.active) ? `, ${depts.filter(d => !d.active).length} hidden` : ''}`],
     company: [D.company.name ? 'Set' : 'Not set', D.company.name ? 'name, signers, backup' : 'company name and signers'] };
   const tabs = viewTabs('st', kids.map(k => ({ id: k, label: navItem(k).label, big: String(fig[k][0]), small: fig[k][1], lvl: k === 'company' && !D.company.name ? 'yellow' : '' })), cur, 'Setup');
-  return head('', 'Setup', 'The lists the books are built on: who you deal with, who uses the hub, the accounts, the departments and the company’s details.', refreshBtn()) + tabs + `<div class="setup-body">${PAGES[cur]()}</div>`;
+  return head('The lists the books are built on', 'Setup', '', refreshBtn()) + tabs + `<div class="setup-body">${PAGES[cur]()}</div>`;
 }
 /* Departments: the budgets' buckets. A hidden one keeps its history and budget but can't be picked for new lines. */
 function departmentsPage() {
@@ -7302,6 +7337,9 @@ const invDue = i => live(i) && !isMemo(i) && i.dueDate && !yearClosed() && invBa
 const viewTabs = (key, tabs, cur, label) => `<div class="vtabs" role="tablist" aria-label="${esc(label || 'Show')}">${tabs.filter(Boolean).map(t => `<button type="button" role="tab" aria-selected="${cur === t.id}" class="vtab${cur === t.id ? ' on' : ''}${t.lvl ? ' vt-' + t.lvl : ''}" data-act="vtab" data-id="${key}:${t.id}"><span>${esc(t.label)}</span><b>${t.big}</b><small>${esc(t.small || '')}</small></button>`).join('')}</div>`;
 const statCards = cards => `<div class="vtabs">${cards.filter(Boolean).map(t => `<div class="vtab static${t.lvl ? ' vt-' + t.lvl : ''}"><span>${esc(t.label)}</span><b>${t.big}</b><small>${esc(t.small || '')}</small></div>`).join('')}</div>`;
 const sPill = st => st ? `<span class="pill s-${st.lvl}">${esc(st.text)}</span>` : '';
+/* A list row's status as one tag: what needs doing (late, due, old) when there's something, otherwise the status;
+   a partly paid one says so beside it, in grey. Keeps every row to one line. */
+const stCell = (st, due, note) => (due ? sPill(due) + (/^Partly/.test(st) ? ` <span class="d8">${esc(st.toLowerCase())}</span>` : '') : pill(st)) + (note ? ` <span class="d8">${note}</span>` : '');
 const attRow = st => st && st.lvl !== 'blue' ? 'att-' + st.lvl : '';
 /* An outstanding check's age: a check is stale six months after its date. */
 function checkAge(v) {

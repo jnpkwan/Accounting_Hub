@@ -666,7 +666,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.38';
+const APP_VERSION = '3.39';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -1797,11 +1797,6 @@ function printChecksForm() {
     closeModal(true); setTimeout(() => printVouchers(ids), 0);
   }, 'Print');
 }
-function approveAllShown() {
-  const vs = D.vouchers.filter(v => (S.page === 'transfers' ? isTransfer(v) : isCheck(v)) && canApprove(v));
-  if (!vs.length) { toast('Nothing here you can approve.'); return; }
-  saveNow('approveVoucher', () => { vs.forEach(v => Object.assign(voucher(v.id), { approvedBy: whoAmI(), approvedOn: new Date().toISOString() })); }, () => toast(`${plural(vs.length, 'payment')} approved`));
-}
 
 /* ---------- Payroll ----------
    QuickBooks has no Philippine payroll; companies memorize a journal entry. This is that, guided: the totals from
@@ -2179,7 +2174,7 @@ async function refreshPage() {
 /* ---------- Payables: check vouchers ---------- */
 function vouchersPage() {
   const months = [...new Set(voucherMonths())].sort().reverse();
-  return pageHead('vouchers', 'One voucher per check. Tick the bills it pays, or type what the invoice says; the hub works out VAT, withholding, the check amount and the accounting entry.', (S.vf === 'approve' && D.vouchers.some(v => isCheck(v) && canApprove(v)) ? btn('approve-all', 'Approve all', 'ghost') : '') + (D.vouchers.some(v => own(v) && isCheck(v) && live(v)) ? btn('print-checks', 'Print checks', 'ghost') : '') + (canBooks('vouchers.edit') ? btn('new-voucher', 'New voucher') : ''))
+  return pageHead('vouchers', 'One voucher per check. Tick the bills it pays, or type what the invoice says; the hub works out VAT, withholding, the check amount and the accounting entry.', (D.vouchers.some(v => own(v) && isCheck(v) && live(v)) ? btn('print-checks', 'Print checks', 'ghost') : '') + (canBooks('vouchers.edit') ? btn('new-voucher', 'New voucher') : ''))
     + (D.vouchers.some(v => own(v) && isCheck(v)) ? voucherTabs() : '') + `<div class="toolbar"><input id="q" type="search" placeholder="Search CV no., payee, particulars, check no." value="${esc(S.q)}" aria-label="Search">
       <select id="vm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.vm)).join('')}</select></div>
     <div id="list">${voucherList()}</div>`;
@@ -2208,7 +2203,7 @@ function voucherList() {
     { h: 'Check', k: v => `${esc(v.checkNo)}<span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Check amount', num: 1, k: v => `<span class="amt">${peso(v.checkAmount)}</span>${v.ewt ? `<span class="sub">${money(v.ewt)} withheld</span>` : ''}` },
     { h: 'Status', k: v => (needsApproval(v) ? approvalPill(v) : pill(vStatus(v))) + (v.status === 'void' ? `<span class="sub">${esc(v.voidReason || '')}</span>` : v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
-    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], canApprove(v) && ['approve-voucher', v.id, 'Approve'], live(v) && !needsApproval(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
+    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], live(v) && !needsApproval(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
   ];
   const lv = rows.filter(live);
   return table(cols, rows, 'No vouchers match.', `<tfoot><tr><td>${lv.length} voucher${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => v.status === 'void' ? 'void' : '');
@@ -6087,7 +6082,7 @@ function stockSummary(ym) {
 function transfersPage() {
   const months = [...new Set(D.vouchers.filter(v => own(v) && isTransfer(v)).map(v => entryDate(v).slice(0, 7)).concat((D.journals || []).filter(j => j.kind === 'Transfer').map(j => j.date.slice(0, 7))))].sort().reverse();
   return pageHead('transfers', 'Payments sent from the bank, telegraphic transfers included, and money moved between the company’s own accounts.',
-    (S.tk === 'approve' && D.vouchers.some(v => isTransfer(v) && canApprove(v)) ? btn('approve-all', 'Approve all', 'ghost') : '') + (canBooks('transfers.edit') ? `${btn('new-move', 'Move between accounts', 'ghost')}${btn('new-transfer', 'New payment')}` : ''))
+    (canBooks('transfers.edit') ? `${btn('new-move', 'Move between accounts', 'ghost')}${btn('new-transfer', 'New payment')}` : ''))
     + transferTabs() + bankStrip() + `<div class="toolbar"><input id="q" type="search" placeholder="Search PV or BT no., payee, reference, particulars" value="${esc(S.q)}" aria-label="Search">
       <select id="tm" aria-label="Month"><option value="">All months</option>${months.map(m => opt(m, monthLabel(m), S.tm)).join('')}</select></div>
     <div id="list">${transferList()}</div>`;
@@ -6127,7 +6122,7 @@ function transferList() {
     { h: 'Reference', k: x => `${esc(x.ref || '')}<span class="sub">${x.kind === 'pay' ? 'Payment' : 'Between accounts'}</span>` },
     { h: 'Amount', num: 1, k: x => `<span class="amt">${amt(x.amount, x.cur)}</span>${x.cur === 'USD' ? `<span class="sub">${peso(x.php)}</span>` : ''}` },
     { h: 'Status', k: x => (x.kind === 'pay' && needsApproval(voucher(x.id)) ? approvalPill(voucher(x.id)) : x.void ? pill('Void') : x.kind === 'pay' ? pill('Approved') : pill('Done')) + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
-    { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], canApprove(voucher(x.id)) && ['approve-voucher', x.id, 'Approve'], !x.void && !needsApproval(voucher(x.id)) && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
+    { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], !x.void && !needsApproval(voucher(x.id)) && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
   ];
   const lv = rows.filter(x => !x.void);
   return table(cols, rows, 'No transfers match.', `<tfoot><tr><td>${lv.length} transfer${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(x => x.php)))}</td><td></td><td></td></tr></tfoot>`, x => x.void ? 'void' : '');
@@ -7316,6 +7311,7 @@ function addDepartmentForm() {
 }
 function toggleDepartment(name) {
   const d = (D.departments || []).find(x => x.name === name); if (!d) return;
+  if (d.active) return openModal(`Hide ${esc(name)}?`, `<p class="lead">It leaves the Charged to lists for new lines. Its budget and history stay, and Show brings it back.</p>`, () => save('saveBudget', () => { D.departments = D.departments.map(x => x.name === name ? { ...x, active: false } : x); }, () => toast(`${name} hidden from lists`)), 'Hide');
   saveNow('saveBudget', () => { D.departments = D.departments.map(x => x.name === name ? { ...x, active: !x.active } : x); }, () => toast(`${name} ${d.active ? 'hidden from lists' : 'shown in lists again'}`));
 }
 
@@ -7828,7 +7824,6 @@ const ACT = {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
   'approve-voucher': id => approveVoucher(id),
-  'approve-all': () => approveAllShown(),
   'pay-bills': () => payBillsForm(),
   'print-checks': () => printChecksForm(),
   'repeat-bill': id => repeatBill(id),
@@ -7836,18 +7831,18 @@ const ACT = {
   files: id => openFiles(id),
   'void-voucher': id => voidVoucher(id),
   'clear-one': id => { const v = voucher(id), lr = lastRecon(vBank(v)); openModal(`Mark ${esc(v.checkNo)} Cleared`, F('m-cd', 'Cleared on (date on the bank statement)', inp('m-cd', todayIso(), 'date')), () => { const d = val('m-cd'); if (!d) return 'Enter the date.'; if (d < v.checkDate) return 'A check can’t clear before its date.'; if (lr && d <= lr.date) return `${acctName(vBank(v))} is reconciled through ${fdate(lr.date)}. A check that cleared by then belongs on that reconciliation: undo it and reconcile again.`; return markCleared(id, d); }, 'Mark cleared'); },
-  unclear: id => { const v = voucher(id), lr = lastRecon(vBank(v)); if (lr && v.clearedOn <= lr.date) { toast(`Check ${v.checkNo} is on the ${fdate(lr.date)} bank reconciliation. Undo that reconciliation first.`, true); return; } saveNow('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')); },
+  unclear: id => { const v = voucher(id), lr = lastRecon(vBank(v)); if (lr && v.clearedOn <= lr.date) { toast(`Check ${v.checkNo} is on the ${fdate(lr.date)} bank reconciliation. Undo that reconciliation first.`, true); return; } openModal(`Undo cleared on check ${esc(v.checkNo)}?`, `<p class="lead">It goes back to outstanding, as if it hadn’t reached the bank on ${fdate(v.clearedOn)}.</p>`, () => save('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')), 'Undo cleared'); },
   'new-account': () => accountForm(),
   'edit-account': id => accountEditForm(id),
   'download-chart': () => downloadChart(),
   'new-contact': () => contactForm(),
   'edit-contact': id => contactForm(id),
-  'delete-contact': id => { const p = contact(id); saveNow('deleteContact', () => { D.contacts = D.contacts.filter(x => x.id !== id); }, () => toast(`${p.name} deleted`)); },
+  'delete-contact': id => { const p = contact(id); openModal(`Delete ${esc(p.name)}?`, `<p class="lead">They’re on no bill, voucher, invoice or collection, so nothing else changes. To get them back, add them again.</p>`, () => save('deleteContact', () => { D.contacts = D.contacts.filter(x => x.id !== id); }, () => toast(`${p.name} deleted`)), 'Delete contact', { danger: true }); },
   'save-settings': saveSettings,
   'new-user': () => userForm(),
   'new-role': () => roleForm(),
   'edit-role': id => roleForm(id),
-  'delete-role': id => { modalSave = () => usersCall('saveRole', { role: { name: id, delete: true } }, `${id} deleted`); saveModal(); },
+  'delete-role': id => openModal(`Delete the ${esc(id)} role?`, `<p class="lead">Nobody has this role, so nothing else changes. It can’t be undone; you’d add it again by hand.</p>`, () => usersCall('saveRole', { role: { name: id, delete: true } }, `${id} deleted`), 'Delete role', { danger: true }),
   'close-year': () => closeYearForm(),
   'log-search': () => { LOG.q = val('lq'); LOG.user = val('lu'); LOG.days = Number(val('ld')) || 0; loadLog(); },
   'log-person': id => { LOG.user = id; LOG.q = ''; loadLog(); scrollTo(0, 0); },

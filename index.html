@@ -155,9 +155,23 @@ table.compact input,table.compact select{height:38px;padding:0 10px;font-size:14
 .l-goods{display:flex;gap:6px;margin-top:6px}.l-goods[hidden]{display:none}table.compact .l-goods input{height:32px;font-size:13px}.l-goods .l-pcs{width:92px;flex:none}
 .empty{border:1.5px dashed var(--blue3);border-radius:12px;padding:56px 24px;text-align:center;color:var(--muted);background:#fff}
 .empty b{display:block;font:700 17px var(--display);color:var(--ink);margin-bottom:6px}
+.stamp{margin:22px 0 0;padding-top:14px;border-top:1px solid var(--silver);font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}.stamp b{color:var(--carbon);font-weight:600}
+.logwho{margin-bottom:22px;padding:18px 20px}.logwho-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:12px}.logwho-h h3{font-size:16px}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font:700 11.5px/1.4 var(--display);white-space:nowrap}
 .p-outstanding,.p-undeposited,.p-in-transit{background:var(--blue05);color:var(--blue7)}
-.p-cost-difference,.p-changed{background:#FFF4E5;color:#8A4B00;box-shadow:inset 0 0 0 1px #F2C98A}
+.p-cost-difference,.p-changed{background:#FFF6D9;color:#8A5A00}
+.s-red{background:#FCEBEA;color:#A52A24}.s-yellow{background:#FFF6D9;color:#8A5A00}.s-blue{background:var(--blue05);color:var(--blue7)}
+tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:first-child{box-shadow:inset 3px 0 0 #FFC62E}
+.nbadge{margin-left:auto;min-width:22px;height:20px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font:700 11px var(--display)}.nb-red{background:#D63C34;color:#fff}.nb-yellow{background:#FFC62E;color:#10213B}
+.att-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:8px}
+.att-tile{background:#fff;border-radius:14px;box-shadow:var(--lift);padding:18px 20px;border-top:4px solid var(--blue1);display:flex;flex-direction:column;gap:2px}
+.att-tile b{font:800 30px/1.15 var(--display);color:var(--ink);letter-spacing:-.02em}.att-tile span{font:700 14px var(--display);color:var(--carbon)}.att-tile small{color:var(--muted);font-size:13px}
+.at-red{border-top-color:#D63C34}.at-red b{color:#A52A24}.at-yellow{border-top-color:#FFC62E}.at-green{border-top-color:var(--green)}.at-green b{color:var(--green7)}.at-blue{border-top-color:var(--blue)}
+.att-steps{display:flex;flex-wrap:wrap;gap:10px}.att-step{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--silver);background:#fff;font:600 14px var(--body);color:var(--carbon);cursor:pointer}
+.att-step.ok{border-color:var(--green05);background:var(--green05);color:var(--green7)}.att-step.todo{border-color:#FFC62E;background:#FFF6D9;color:#8A5A00}
+.att-mark{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;border:1.5px solid currentColor}
+.att-clear{padding:22px 24px;border-radius:14px;background:var(--green05);color:var(--green7);margin-top:28px}.att-clear b{display:block;font:800 18px var(--display);margin-bottom:4px}
+.att-go{padding:0;height:auto;text-align:left;font-weight:600;white-space:normal}
 .p-no-costs-yet{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
 .p-cleared,.p-deposited,.p-in-the-bank,.p-sent,.p-received,.p-counted{background:var(--green05);color:var(--green7)}
 .p-void,.p-hidden{background:#fff;color:var(--muted);box-shadow:inset 0 0 0 1px var(--silver)}
@@ -506,11 +520,11 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.22';
+const APP_VERSION = '3.24';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
-const API_NEEDED = 14;
+const API_NEEDED = 15;
 const IDLE_MS = 3 * 60 * 60 * 1000;
 const SESSION_KEY = 'accounting-hub-session';
 const COMPANY = 'Acacia Home Builders Corporation';
@@ -625,6 +639,9 @@ const pesoOf = (x, n) => round2(n * rateOf(x));
 const fmtRate = r => Number(r).toLocaleString('en-US', { maximumFractionDigits: 4 });
 /* Shares a total out over parts in proportion, each rounded, the last taking what's left, so they add up exactly. */
 const spread = (parts, total) => { const s = parts.reduce((a, x) => a + x, 0); let left = round2(total); return parts.map((p, i) => { if (i === parts.length - 1) return round2(left); const n = s ? round2(total * p / s) : 0; left = round2(left - n); return n; }); };
+/* When things turn yellow and red (see What needs attention): days before a due date, days a check is out, working days
+   a receipt waits for the bank, the share of a petty cash fund left. */
+const ATT = { dueSoon: 14, advGrace: 7, checkYellow: 90, checkRed: 150, depYellow: 1, depRed: 3, pettyYellow: 0.25, pettyRed: 0.10 };
 const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }); };
 const eom = ym => { const [y, m] = ym.split('-').map(Number); return iso(new Date(y, m, 0)); };
 const numIn = v => { const s = String(v ?? '').replace(/,/g, '').trim(); return s === '' ? NaN : Number(s); };
@@ -1489,10 +1506,17 @@ function probeLogo(kind, i = 0) {
 
 /* ---------- Modal ---------- */
 let modalSave = null;
+/* Who entered a document and who last changed it, at the foot of its view. History lists every change. */
+function docStamp(d) {
+  if (!d || d.from || !(d.createdBy || d.updatedBy)) return '';
+  const when = t => t ? ` on ${esc(atStamp(t))}` : '';
+  const edited = d.updatedAt && d.updatedAt !== d.createdAt && d.updatedBy;
+  return `<p class="stamp"><span>Entered by <b>${esc(d.createdBy || '—')}</b>${when(d.createdAt)}.</span>${edited ? ` <span>Last changed by <b>${esc(d.updatedBy)}</b>${when(d.updatedAt)}.</span>` : ''}</p>`;
+}
 function openModal(title, body, onSave, saveLabel = 'Save', opts = {}) {
   document.getElementById('modal-root').innerHTML = `<div class="overlay"><div class="modal ${opts.size || ''}" role="dialog" aria-modal="true" aria-labelledby="m-title">
     <div class="modal-head"><h2 id="m-title">${title}</h2><button class="btn link" data-act="close-modal" aria-label="Close">✕</button></div>
-    <div class="modal-body">${body}</div>
+    <div class="modal-body">${body}${opts.doc ? docStamp(opts.doc) : ''}</div>
     <div class="modal-foot"><p class="form-err" id="m-err" role="alert"></p>${opts.extra || ''}<button class="btn ghost" data-act="close-modal">${onSave ? 'Cancel' : 'Close'}</button>${onSave ? `<button class="btn ${opts.danger ? 'dark' : ''}" data-act="save-modal">${saveLabel}</button>` : ''}</div>
   </div></div>`;
   modalSave = onSave;
@@ -1562,11 +1586,12 @@ function markInvalid(msg) {
 }
 
 /* ---------- Navigation: groups that hold today's pages and the ones coming later ---------- */
-const S = { page: 'vouchers', q: '', vf: 'all', vm: '', bf: 'unpaid', cf: 'outstanding', sm: todayIso().slice(0, 7), cr: '', tm: '', gm: '', bd: '', if: 'unpaid', kf: 'all', sf: 'open' };
+const S = { page: 'home', q: '', vf: 'all', vm: '', bf: 'unpaid', cf: 'outstanding', sm: todayIso().slice(0, 7), cr: '', tm: '', gm: '', bd: '', if: 'unpaid', kf: 'all', sf: 'open' };
 /* Items marked soon are planned sections: kept here so the structure is on record, not shown until built. */
 /* Grouped the way the work runs: money owed and paid, money billed and received, cash on hand, stock,
    then the books and month end, and setup last. */
 const NAV = [
+  { group: 'Overview', items: [{ id: 'home', label: 'Home', title: 'Needs Attention' }] },
   { group: 'Payables', items: [
     { id: 'bills', label: 'Supplier Bills' },
     { id: 'vouchers', label: 'Check Vouchers' },
@@ -1611,7 +1636,7 @@ function render() {
     const f = document.getElementById('l-user'); if (f) f.focus();
     return;
   }
-  if (!PAGES[S.page] || !NAV.flatMap(g => g.items).some(n => n.id === S.page && allowed(n))) S.page = 'vouchers';
+  if (!PAGES[S.page] || !NAV.flatMap(g => g.items).some(n => n.id === S.page && allowed(n))) S.page = 'home';
   const cur = NAV.flatMap(g => g.items).find(n => n.id === S.page);
   // the sidebar is drawn again with the page: keep where it was scrolled to, and on the same page, where the page was
   const side0 = app.querySelector('.side'), sideTop = side0 ? side0.scrollTop : null, samePage = renderedPage === S.page && !loadingInApp, y0 = scrollY;
@@ -1624,7 +1649,7 @@ function render() {
       <label class="yr"><span>Year</span><select id="yr" aria-label="Year">${yearChoices().map(y => opt(y, y, YEAR)).join('')}</select></label>
       <nav class="nav" aria-label="Main">${NAV.map(g => ({ ...g, items: g.items.filter(allowed) })).filter(g => g.items.length).map(g => `<div class="nav-group"><div class="nav-label">${g.group}</div>${g.items.map(n => {
         const on = S.page === n.id;
-        return `<a href="#" data-act="nav" data-id="${n.id}" class="${on ? 'on' : ''}" ${on ? 'aria-current="page"' : ''}>${n.label}</a>`;
+        return `<a href="#" data-act="nav" data-id="${n.id}" class="${on ? 'on' : ''}" ${on ? 'aria-current="page"' : ''}>${n.label}${navBadge(n.id)}</a>`;
       }).join('')}</div>`).join('')}<span class="nav-ind" aria-hidden="true"></span></nav>
       <div class="side-foot"><span class="who">${esc(ME().name)}</span><span class="role">${esc(ME().role)}</span>
         <button class="lnk" data-act="change-password">Change password</button><button class="lnk" data-act="sign-out">Sign out</button>
@@ -1673,7 +1698,7 @@ async function refreshPage() {
   if (refreshing) return; refreshing = true;
   const b = document.querySelector('[data-act="refresh"]'); if (b) { b.disabled = true; b.classList.add('busy'); }
   const y = scrollY, before = LOADED_AT;
-  try { await loadBooks(true); } finally { refreshing = false; }
+  try { await loadBooks(true); if (S.page === 'log') await loadLog(); } finally { refreshing = false; }
   scrollTo(0, y);
   if (LOADED_AT !== before) toast(`Up to date as of ${new Date(LOADED_AT).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`);
 }
@@ -2234,7 +2259,7 @@ function viewVoucher(id) {
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, live(v) && `<button class="btn" data-act="print-voucher" data-id="${id}">Print</button>`].filter(Boolean).join('');
-  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
 }
 /* Void date: in this year's books, on or after the day the document was booked, in an open month. */
 const nextDay = d => { const x = parseD(d); x.setDate(x.getDate() + 1); return iso(x); };
@@ -2275,17 +2300,17 @@ function billList() {
       && (S.bf === 'all' || (S.bf === 'memos' ? isMemo(b) && st !== 'Void' : S.bf === 'unpaid' ? st === 'Pending' || st === 'Partly paid' : st === S.bf)))
     .sort((x, y) => y.b.date.localeCompare(x.b.date) || x.b.ref.localeCompare(y.b.ref));
   const cols = [
-    { h: 'Invoice', k: ({ b }) => `<b>${isMemo(b) ? 'Debit memo ' : ''}${esc(b.ref)}</b><span class="sub">${fdate(b.date)}</span>${b.appliesTo ? `<span class="sub">On invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}</span>` : ''}${b.dueDate ? `<span class="sub">Due ${fdate(b.dueDate)}</span>` : ''}${b.from ? `<span class="sub">${esc(fromNote(b))}</span>` : ''}` },
+    { h: 'Invoice', k: ({ b }) => `<b>${isMemo(b) ? 'Debit memo ' : ''}${esc(b.ref)}</b><span class="sub">${fdate(b.date)}</span>${b.appliesTo ? `<span class="sub">On invoice ${esc((billOf(b.appliesTo) || {}).ref || '')}</span>` : ''}${b.dueDate && !billDue(b) ? `<span class="sub">Due ${fdate(b.dueDate)}</span>` : ''}${b.from ? `<span class="sub">${esc(fromNote(b))}</span>` : ''}` },
     { h: 'Payee', k: ({ b }) => `${esc(b.payeeName)}<span class="sub">${esc(b.particulars)}</span>` },
     { h: 'Amount payable', num: 1, k: ({ b }) => `<span class="amt">${isMemo(b) ? `(${amt(b.payable, b.currency)})` : amt(b.payable, b.currency)}</span>${b.ewt ? `<span class="sub">${money(b.ewt)} withheld</span>` : ''}${isFx(b.currency) ? `<span class="sub">${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ b, st }) => st === 'Void' ? '' : amt(billBalance(b), b.currency) },
-    { h: 'Status', k: ({ b, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(b.voidReason || '')}</span>` : '') },
+    { h: 'Status', k: ({ b, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(b.voidReason || '')}</span>` : billDue(b) ? `<span class="sub">${sPill(billDue(b))}</span>` : '') },
     { h: '', k: ({ b }) => rowActs([['view-bill', b.id, 'View'], own(b) && live(b) && !isLocked(b.date) && canBooks('bills.edit') && ['edit-bill', b.id, 'Edit']]) }
   ];
   const lv = rows.filter(r => live(r.b));
   const usdNote = lv.some(r => isFx(r.b.currency)) ? '<span class="sub">In pesos; dollar and yuan bills at their own rate</span>' : '';
   const sg = b => isMemo(b) ? -1 : 1;
-  return table(cols, rows, 'No bills match.', `<tfoot><tr><td>${lv.length} bill${lv.length === 1 ? '' : 's'}${usdNote}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, r.b.payable))))}</td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, billBalance(r.b)))))}</td><td></td><td></td></tr></tfoot>`, r => r.b.status === 'void' ? 'void' : '');
+  return table(cols, rows, 'No bills match.', `<tfoot><tr><td>${lv.length} bill${lv.length === 1 ? '' : 's'}${usdNote}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, r.b.payable))))}</td><td class="num">${peso(sum(lv.map(r => sg(r.b) * pesoOf(r.b, billBalance(r.b)))))}</td><td></td><td></td></tr></tfoot>`, r => r.b.status === 'void' ? 'void' : attRow(billDue(r.b)));
 }
 function viewBill(id) {
   const b = billOf(id), st = bStatus(b), paid = billPaid(id), payers = billPayers(id), memo = isMemo(b);
@@ -2310,7 +2335,7 @@ function viewBill(id) {
       ${payers.length ? `<p class="dv-sect" style="margin-top:22px">${memo ? 'Used by' : 'Paid by'}</p><table><thead><tr><th>Document</th><th>Check or reference</th><th class="num">Amount</th></tr></thead><tbody>${payers.map(v => v.cv ? `<tr><td>${esc(v.cv)}<span class="sub">${fdate(v.date)}</span></td><td>${esc(v.checkNo || (isTransfer(v) ? 'Transfer' : ''))}<span class="sub">${vStatus(v)}</span></td><td class="num">${money(sum(v.bills.filter(p => p.billId === id).map(p => p.amount)))}</td></tr>`
         : `<tr><td>${esc(settlerRef(v))}<span class="sub">${fdate(v.date)}</span></td><td><span class="sub">Applied to this bill</span></td><td class="num">${money(v.payable)}</td></tr>`).join('')}</tbody></table>` : ''}
     </div></div>${b.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(b.notes)}</p>` : ''}`;
-  openModal(`${memo ? 'Debit Memo' : 'Invoice'} ${esc(b.ref)}`, body, null, '', { size: 'mid', extra });
+  openModal(`${memo ? 'Debit Memo' : 'Invoice'} ${esc(b.ref)}`, body, null, '', { size: 'mid', extra, doc: b });
 }
 /* The due date only says when a bill should be paid: it isn't in the books, so it can change any time, even in a
    locked month or after part is paid (a TT often goes out on a day other than the one first planned). */
@@ -2355,10 +2380,10 @@ function checkList() {
     { h: 'Check', k: v => `<b>${esc(v.checkNo)}</b><span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Payee', k: v => `${esc(v.payeeName)}<span class="sub">${esc(v.cv)}, ${esc(v.particulars)}</span>${v.from ? `<span class="sub">${esc(fromNote(v))}</span>` : ''}` },
     { h: 'Amount', num: 1, k: v => peso(v.checkAmount) },
-    { h: 'Status', k: v => pill(vStatus(v)) + (v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
+    { h: 'Status', k: v => pill(vStatus(v)) + (v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : checkAge(v) ? `<span class="sub">${sPill(checkAge(v))}</span>` : '') },
     { h: '', k: v => { const lr = lastRecon(vBank(v)), rec = v.clearedOn && lr && v.clearedOn <= lr.date; return rowActs([canBooks('checks.clear') && !rec && (v.clearedOn ? ['unclear', v.id, 'Undo cleared'] : ['clear-one', v.id, 'Cleared…']), ['view-voucher', v.id, 'Voucher']]) + (rec ? '<span class="sub" style="text-align:right">Reconciled</span>' : ''); } }
   ];
-  return table(cols, rows, '', `<tfoot><tr><td>${rows.length} check${rows.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(rows.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`);
+  return table(cols, rows, '', `<tfoot><tr><td>${rows.length} check${rows.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(rows.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => yearClosed() ? '' : attRow(checkAge(v)));
 }
 /* ---------- Cash and bank: bank reconciliation ----------
    Each month, each bank statement against the books: the statement's ending balance, less the checks written but not
@@ -4257,11 +4282,11 @@ function invoiceList() {
     { h: 'Customer', k: ({ i }) => `${esc(i.customerName)}<span class="sub">${esc(i.particulars)}</span>` },
     { h: 'Amount', num: 1, k: ({ i }) => `<span class="amt">${isMemo(i) ? `(${peso(i.receivable)})` : peso(i.receivable)}</span>${i.vat ? `<span class="sub">${money(i.vat)} VAT</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ i, st }) => st === 'Void' ? '' : peso(invBalance(i)) },
-    { h: 'Status', k: ({ i, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(i.voidReason || '')}</span>` : '') },
+    { h: 'Status', k: ({ i, st }) => pill(st) + (st === 'Void' ? `<span class="sub">${esc(i.voidReason || '')}</span>` : invDue(i) ? `<span class="sub">${sPill(invDue(i))}</span>` : '') },
     { h: '', k: ({ i }) => rowActs([['view-invoice', i.id, 'View'], own(i) && live(i) && !isLocked(i.date) && canBooks('sales.edit') && ['edit-invoice', i.id, 'Edit']]) }
   ];
   const lv = rows.filter(r => live(r.i));
-  return table(cols, rows, 'No invoices match.', `<tfoot><tr><td>${lv.length} document${lv.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.i) * r.i.receivable)))}</td><td class="num">${peso(sum(lv.map(r => sg(r.i) * invBalance(r.i))))}</td><td></td><td></td></tr></tfoot>`, r => r.i.status === 'void' ? 'void' : '');
+  return table(cols, rows, 'No invoices match.', `<tfoot><tr><td>${lv.length} document${lv.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.i) * r.i.receivable)))}</td><td class="num">${peso(sum(lv.map(r => sg(r.i) * invBalance(r.i))))}</td><td></td><td></td></tr></tfoot>`, r => r.i.status === 'void' ? 'void' : attRow(invDue(r.i)));
 }
 function salesForm(i0, asMemo) {
   const edit = !!i0, memo = edit ? isMemo(i0) : !!asMemo, self = edit ? i0.id : null, name = memo ? 'credit memo' : 'invoice';
@@ -4438,7 +4463,7 @@ function viewInvoice(id) {
       <dl class="dv-amt"><dt>${memo ? 'Credit' : 'Receivable'}</dt><dd class="big">${peso(i.receivable)}</dd>${!memo && (i.cwt || invLess(i).length) ? `<dt>Invoice total</dt><dd>${peso(vGross(i))}</dd><dt>Taken off</dt><dd>${peso(round2(vGross(i) - i.receivable))}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd>${live(i) ? `<dt>Balance</dt><dd>${peso(invBalance(i))}</dd>` : ''}</dl>
       ${i.from ? '' : `<p class="dv-sect">Accounting entry</p>${entryTable(i.entry || [], { noBal: true })}`}
       ${by.length ? `<p class="dv-sect" style="margin-top:22px">${memo ? 'Used by' : 'Collected by'}</p><table><thead><tr><th>Document</th><th class="num">Amount</th></tr></thead><tbody>${by.map(c => `<tr><td>${esc(c.cr || `Credit memo ${c.ref}`)}<span class="sub">${fdate(c.date)}</span></td><td class="num">${money(c.cr ? sum(c.invoices.filter(p => p.invoiceId === id).map(p => p.amount)) : c.receivable)}</td></tr>`).join('')}</tbody></table>` : ''}
-    </div></div>${i.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(i.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${i.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(i.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: i });
 }
 function voidInvoice(id) {
   const i = invoiceOf(id);
@@ -4468,12 +4493,12 @@ function collectionList() {
     { h: 'Customer', k: c => `${esc(c.customerName)}<span class="sub">${esc(c.particulars)}</span>` },
     { h: 'How', k: c => `${esc(c.method)}${c.refNo ? ` ${esc(c.refNo)}` : ''}${c.custBank ? `<span class="sub">${esc(c.custBank)}</span>` : ''}` },
     { h: 'Received', num: 1, k: c => `<span class="amt">${peso(c.amount)}</span>${c.cwt ? `<span class="sub">${money(c.cwt)} withheld</span>` : ''}` },
-    { h: 'Status', k: c => { const st = cStatus(c), d = st === 'Deposited' ? depositFor(c) : null; return pill(st) + (d ? `<span class="sub">${esc(d.no)}, ${fdate(d.date)}</span>` : st === 'In the bank' ? `<span class="sub">${esc(acctName(c.into))}</span>` : st === 'Void' ? `<span class="sub">${esc(c.voidReason || '')}</span>` : ''); } },
+    { h: 'Status', k: c => { const st = cStatus(c), d = st === 'Deposited' ? depositFor(c) : null, ag = yearClosed() ? null : depositAge(c); return pill(st) + (ag ? `<span class="sub">${sPill(ag)}</span>` : '') + (d ? `<span class="sub">${esc(d.no)}, ${fdate(d.date)}</span>` : st === 'In the bank' ? `<span class="sub">${esc(acctName(c.into))}</span>` : st === 'Void' ? `<span class="sub">${esc(c.voidReason || '')}</span>` : ''); } },
     { h: '', k: c => rowActs([['view-collection', c.id, 'View'], open(c) && ['edit-collection', c.id, 'Edit']]) }
   ];
   const lv = rows.filter(live);
   const list = !all.length ? `<div class="empty"><b>No collections in ${YEAR}</b>${canBooks('collections.edit') ? `Record each payment as it comes in. ${btn('new-collection', 'New collection', 'sm')}` : ''}</div>`
-    : table(cols, rows, 'No collections match.', `<tfoot><tr><td>${lv.length} collection${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(c => c.amount)))}</td><td></td><td></td></tr></tfoot>`, c => c.status === 'void' ? 'void' : '');
+    : table(cols, rows, 'No collections match.', `<tfoot><tr><td>${lv.length} collection${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(c => c.amount)))}</td><td></td><td></td></tr></tfoot>`, c => c.status === 'void' ? 'void' : yearClosed() ? '' : attRow(depositAge(c)));
   const deps = (D.deposits || []).slice().sort((a, b) => b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
   return list + (deps.length ? `<h2 class="mt">Deposits</h2>${table([
     { h: 'Deposit', k: d => `<b>${esc(d.no)}</b><span class="sub">${fdate(d.date)}</span>` },
@@ -4624,7 +4649,7 @@ function viewCollection(id) {
       <dl class="dv-amt"><dt>Received</dt><dd class="big">${peso(c.amount)}</dd>${c.cwt ? `<dt>Withheld</dt><dd>${peso(c.cwt)}</dd>` : ''}<dt>Status</dt><dd>${pill(st)}</dd></dl>
       ${c.from ? '' : `<p class="dv-sect">Invoices</p><table><tbody>${(c.invoices || []).map(p => { const i = invoiceOf(p.invoiceId) || {}; return `<tr><td>${isMemo(i) ? 'Credit memo ' : 'Invoice '}${esc(i.ref || p.invoiceId)}<span class="sub">${fdate(i.date)}</span></td><td class="num">${isMemo(i) ? `(${money(p.amount)})` : money(p.amount)}</td></tr>`; }).join('')}</tbody></table>
       <p class="dv-sect" style="margin-top:22px">Accounting entry</p>${entryTable(c.entry || [], { noBal: true })}`}
-    </div></div>${c.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(c.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${c.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(c.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: c });
 }
 function voidCollection(id) {
   const c = collectionOf(id);
@@ -4690,7 +4715,7 @@ function viewDeposit(id) {
       <dl class="dv-amt"><dt>Deposited</dt><dd class="big">${peso(d.amount)}</dd></dl>
       <p class="dv-sect">Checks and cash</p><table><tbody>${(d.items || []).map(p => { const c = collectionOf(p.collectionId) || {}; return `<tr><td>${esc(c.cr || p.collectionId)}<span class="sub">${esc(c.customerName || '')}${c.refNo ? ` · ${esc(c.method)} ${esc(c.refNo)}` : ''}</span></td><td class="num">${money(p.amount)}</td></tr>`; }).join('')}</tbody></table>
       <p class="dv-sect" style="margin-top:22px">Accounting entry</p>${entryTable(d.entry || [], { noBal: true })}
-    </div></div>${d.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(d.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${d.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(d.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: d });
 }
 function voidDeposit(id) {
   const d = depositOf(id);
@@ -4786,10 +4811,10 @@ function fundStrip() {
   return `<section style="margin-bottom:28px"><h2 class="mt" style="margin-top:0">Petty Cash Funds <span class="hint" style="font-weight:400">on hand per the books</span></h2>${table([
     { h: 'Fund', k: a => `<b>${esc(acctLabel(a))}</b><span class="sub">${esc((contact(fundOf(a.id).custodian) || {}).name || '')}</span>` },
     { h: 'Fund amount', num: 1, k: a => money(fundOf(a.id).amount) },
-    { h: 'On hand', num: 1, k: a => peso(bankBalance(a.id).php) },
+    { h: 'On hand', num: 1, k: a => `${peso(bankBalance(a.id).php)}${fundState(a) ? `<span class="sub">${sPill(fundState(a))}</span>` : ''}` },
     { h: 'To replenish', num: 1, k: a => { const gap = round2(fundOf(a.id).amount - bankBalance(a.id).php); return gap > 0 ? `<b>${money(gap)}</b>` : gap < 0 ? `(${money(-gap)})<span class="sub">over the fund</span>` : ''; } },
     { h: '', k: a => rowActs([round2(fundOf(a.id).amount - bankBalance(a.id).php) > 0 && (canBooks('vouchers.edit') || canBooks('journal.edit')) && ['replenish', a.id, 'Replenish'], canBooks('accounts.add') && ['edit-fund', a.id, 'Edit']]) }
-  ], fs)}${canBooks('accounts.add') ? `<p style="margin-top:10px">${btn('new-fund', 'Set up another fund', 'link sm')}</p>` : ''}</section>`;
+  ], fs, '', '', a => attRow(fundState(a)))}${canBooks('accounts.add') ? `<p style="margin-top:10px">${btn('new-fund', 'Set up another fund', 'link sm')}</p>` : ''}</section>`;
 }
 function staffList() {
   const q = S.q.toLowerCase().trim(), hasQ = (...xs) => !q || xs.some(x => String(x || '').toLowerCase().includes(q));
@@ -4816,14 +4841,15 @@ function staffList() {
   const by = {}, add = (t, k, n, date) => { const x = by[t] = by[t] || { given: 0, cleared: 0, last: '' }; x[k] = round2(x[k] + n); if (k === 'given' && date > x.last) x.last = date; };
   Object.entries(D.tagsBefore || {}).forEach(([t, n]) => { if (contact(t)) add(t, n >= 0 ? 'given' : 'cleared', Math.abs(n), ''); });
   journal().forEach(d => d.lines.forEach(l => { if (l.acct !== D.control.advances || !l.tag) return; if (l.dr) add(l.tag, 'given', l.dr, d.date); if (l.cr) add(l.tag, 'cleared', l.cr, d.date); }));
-  const emps = Object.keys(by).map(id => ({ id, name: (contact(id) || {}).name || id, ...by[id], out: round2(by[id].given - by[id].cleared) })).filter(e => hasQ(e.name)).sort((a, b) => b.out - a.out || a.name.localeCompare(b.name));
+  const dueBy = {}; if (!yearClosed()) advancesDue().forEach(x => { dueBy[x.id] = x; });
+  const emps = Object.keys(by).map(id => ({ id, name: (contact(id) || {}).name || id, ...by[id], out: round2(by[id].given - by[id].cleared), due: dueBy[id] })).filter(e => hasQ(e.name)).sort((a, b) => b.out - a.out || a.name.localeCompare(b.name));
   const adv = emps.length ? table([
     { h: 'Employee', k: e => `<b>${esc(e.name)}</b>${e.last ? `<span class="sub">Last advance ${fdate(e.last)}</span>` : ''}` },
     { h: 'Advanced', num: 1, k: e => money(e.given) },
     { h: 'Cleared', num: 1, k: e => money(e.cleared) },
-    { h: 'Outstanding', num: 1, k: e => `<b>${peso(e.out)}</b>` },
+    { h: 'Outstanding', num: 1, k: e => `<b>${peso(e.out)}</b>${e.due && e.out > 0 ? `<span class="sub">${sPill(e.due.st)}</span>` : ''}` },
     { h: '', k: e => rowActs([e.out > 0 && canBooks('staff.edit') && ['liquidate', e.id, 'Liquidate'], canRelease() && contact(e.id) && ['release-adv', e.id, 'Release more']]) }
-  ], emps, '', `<tfoot><tr><td>${emps.length} employee${emps.length === 1 ? '' : 's'}</td><td class="num">${money(sum(emps.map(e => e.given)))}</td><td class="num">${money(sum(emps.map(e => e.cleared)))}</td><td class="num">${peso(sum(emps.map(e => e.out)))}</td><td></td></tr></tfoot>`)
+  ], emps, '', `<tfoot><tr><td>${emps.length} employee${emps.length === 1 ? '' : 's'}</td><td class="num">${money(sum(emps.map(e => e.given)))}</td><td class="num">${money(sum(emps.map(e => e.cleared)))}</td><td class="num">${peso(sum(emps.map(e => e.out)))}</td><td></td></tr></tfoot>`, e => e.due && e.out > 0 ? attRow(e.due.st) : '')
     : `<div class="empty"><b>No cash advances in ${YEAR}</b>Release one by check, bank transfer or petty cash. It stays on the employee’s name until they liquidate it. ${canRelease() ? btn('new-adv', 'Release an advance', 'sm') : ''}</div>`;
   const un = round2(sum(journal().flatMap(d => d.lines.filter(l => l.acct === D.control.advances && !l.tag).map(l => (l.dr || 0) - (l.cr || 0)))));
   const unNote = Math.abs(un) >= 0.005 ? `<p class="hint" style="margin-top:10px">${peso(un)} on ${esc(acctName(D.control.advances))} isn’t charged to an employee: posted before the hub kept advances by employee. A journal entry moves it to each employee.</p>` : '';
@@ -5000,7 +5026,7 @@ function viewPcv(id) {
       <dl class="dv-grid"><dt>Paid to</dt><dd class="payee">${esc(x.paidTo || '')}</dd><dt>PCV no.</dt><dd>${esc(x.no)}</dd><dt>From</dt><dd>${esc(acctName(x.fund))}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd><dt>Particulars</dt><dd>${esc(x.particulars)}</dd></dl>
       <dl class="dv-amt"><dt>Paid out</dt><dd class="big">${peso(vGross(x))}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(x.entry || [], { noBal: true })}
-    </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: x });
 }
 function voidPcv(id) {
   const x = pcvOf(id); if (!x || !live(x)) return;
@@ -5020,6 +5046,7 @@ function releaseForm(empId) {
     <div class="fields">${F('r-emp', 'Employee', `<select id="r-emp">${emps.map(p => opt(p.id, p.name, empId || '')).join('')}</select>`, 'span2')}
       ${F('r-date', 'Date released', inp('r-date', defaultDate(), 'date'))}${F('r-amt', 'Amount (₱)', inp('r-amt', '', 'number', 'step="0.01" min="0" inputmode="decimal"'))}
       ${F('r-part', 'What it’s for', inp('r-part', '', 'text', 'placeholder="e.g. Sales trip to Cebu, Nov 18 to 21"'), 'full')}
+      ${F('r-end', 'Liquidation due', inp('r-end', iso(new Date(parseD(defaultDate()).getTime() + ATT.advGrace * 864e5)), 'date'))}
       ${F('r-how', 'Released by', `<select id="r-how">${ways.map(w => opt(w[0], w[1], '')).join('')}</select>`, 'span2')}</div>
     <div class="fields" id="r-own" style="margin-top:16px" hidden>${F('r-owner', 'Owner', inp('r-owner', '', 'text', 'list="r-names" autocomplete="off" placeholder="Who paid it"') + `<datalist id="r-names">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>`, 'span2')}
       ${F('r-acct', 'Owed to them on', `<select id="r-acct">${acctOptions(ownerAcctDefault(), ownerAccts(), 'Choose an account')}</select>`, 'span2')}</div>`;
@@ -5031,7 +5058,12 @@ function releaseForm(empId) {
     if (isLocked(date)) return lockedMsg();
     if (!(n > 0)) return 'Enter the amount released, more than zero.';
     if (!part) return 'Enter what it’s for.';
-    const line = { accountId: D.control.advances, desc: 'Cash advance', amount: round2(n).toFixed(2), dept: '', tag: p.id }, particulars = `Cash advance: ${part}`;
+    const liqBy = val('r-end');
+    if (!liqBy) return 'Enter the date the liquidation is due.';
+    if (liqBy < date) return 'The liquidation can’t be due before the advance is released.';
+    // the due date rides on the advance's own line, so it prints on the voucher the employee signs
+    const lineDesc = `Cash advance, liquidate by ${fdate(liqBy)}`;
+    const line = { accountId: D.control.advances, desc: lineDesc, amount: round2(n).toFixed(2), dept: '', tag: p.id }, particulars = `Cash advance: ${part}`;
     if (how === 'owner') {
       const owner = val('r-owner'), due = val('r-acct'), amt = round2(n);
       if (!owner) return 'Enter the owner who paid it.';
@@ -5039,7 +5071,7 @@ function releaseForm(empId) {
       const no = suggestJe(date, 'JE');
       return save('saveJournal', () => {
         D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: owner, memo: ADV_MEMO(p.name, owner, part), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '',
-          entry: [{ acct: D.control.advances, memo: 'Cash advance', dr: amt, cr: 0, dept: '', tag: p.id }, { acct: due, memo: `Owed to ${owner}`, dr: 0, cr: amt, dept: '' }],
+          entry: [{ acct: D.control.advances, memo: lineDesc, dr: amt, cr: 0, dept: '', tag: p.id }, { acct: due, memo: `Owed to ${owner}`, dr: 0, cr: amt, dept: '' }],
           reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
       }, () => toast(`${no} saved. ${p.name} has the advance; ${owner} is owed ${peso(amt)}.`));
     }
@@ -5051,6 +5083,9 @@ function releaseForm(empId) {
   }, 'Continue', { onOpen: () => {
     const show = () => { const own = val('r-how') === 'owner'; document.getElementById('r-own').hidden = !own; document.querySelector('#modal-root [data-act="save-modal"]').textContent = own ? 'Save' : 'Continue'; };
     document.getElementById('r-how').addEventListener('change', show); show();
+    // a new release date moves the due date with it until the due date is typed
+    let dueTyped = false; document.getElementById('r-end').addEventListener('change', () => { dueTyped = true; });
+    document.getElementById('r-date').addEventListener('change', () => { const d = val('r-date'); if (d && !dueTyped) document.getElementById('r-end').value = iso(new Date(parseD(d).getTime() + ATT.advGrace * 864e5)); });
     document.getElementById(empId ? 'r-amt' : 'r-emp').focus();
   } });
 }
@@ -5132,7 +5167,7 @@ function viewLiq(id) {
         ${x.returned || x.reimbursed ? `<dt>${x.returned ? 'Returned' : 'Reimbursed'}</dt><dd>${peso(x.returned || x.reimbursed)}, ${esc(acctName(x.cashAcct))}</dd>` : ''}</dl>
       <dl class="dv-amt"><dt>Receipts</dt><dd>${peso(vGross(x))}</dd><dt>Advance cleared</dt><dd class="big">${peso(cleared)}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(x.entry || [], { noBal: true })}
-    </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${x.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(x.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: x });
 }
 function voidLiq(id) {
   const x = liqOf(id); if (!x || !live(x)) return;
@@ -5254,7 +5289,7 @@ function viewReceipt(id) {
       <dl class="dv-grid"><dt>Shipment</dt><dd class="payee">${esc(s.no || '')}</dd><dt>Receipt no.</dt><dd>${esc(j.no)}</dd><dt>Memo</dt><dd>${esc(j.memo)}</dd><dt>Date</dt><dd>${fdate(j.date)}</dd></dl>
       <dl class="dv-amt"><dt>${j.amount < 0 ? 'Back to transit' : 'Into inventory'}</dt><dd class="big">${peso(Math.abs(j.amount))}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}
-    </div></div>`, null, '', { size: 'mid', extra });
+    </div></div>`, null, '', { size: 'mid', extra, doc: j });
 }
 
 /* ---------- Inventory: stock count and cost of goods sold ----------
@@ -5334,7 +5369,7 @@ function viewCount(id) {
       <dl class="dv-grid"><dt>Month</dt><dd class="payee">${monthLabel(j.date.slice(0, 7))}</dd><dt>Count no.</dt><dd>${esc(j.no)}</dd><dt>Dated</dt><dd>${fdate(j.date)}</dd></dl>
       <dl class="dv-amt"><dt>Count</dt><dd class="big">${peso(j.amount)}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}
-    </div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+    </div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: j });
 }
 function voidJe(id, kind, what) {
   const j = journalOf(id); if (!j || !live(j)) return;
@@ -5582,7 +5617,7 @@ function viewJournal(id) {
     : `${j.name ? `<dt>Name</dt><dd>${esc(j.name)}</dd>` : ''}${j.reverses ? `<dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd>` : ''}`;
   openModal(`${t ? 'Transfer' : 'Journal Entry'} ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : rv ? `<p class="lead">${esc(rv.no)} reverses it on ${fdate(rv.date)}. To change or void this entry, void ${esc(rv.no)} first.</p>` : live(j) && isLocked(j.date) ? '<p class="lead">In a locked month. It can be voided on an open date, but not changed.</p>' : ''}
     <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}<dl class="dv-grid"><dt>Date</dt><dd>${fdate(j.date)}</dd><dt>Memo</dt><dd>${esc(j.memo)}</dd>${facts}</dl>
-      <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}</div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra });
+      <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}</div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: j });
 }
 function voidJournal(id) {
   const j = journalOf(id);
@@ -5941,6 +5976,18 @@ const GUIDE_GROUPS = [
   ['setup', 'Setup', 'Lists the other pages depend on. Set once, changed now and then.']
 ];
 const GUIDE = {
+  home: { who: 'everyday',
+    what: 'The first page you see: everything that needs someone, most urgent first, from every page you can open. Nothing here is entered; it’s worked out from the books each time.',
+    when: 'Start each day here. Clear the red first, then the yellow.',
+    steps: [
+      ['The colors', 'Red: late, or the books don’t tie. Yellow: coming due, or a task is waiting. Blue: open but not due. Green: done. The words always say why, like “12 days past due”.'],
+      ['What turns yellow and red', `Bills and invoices: yellow ${ATT.dueSoon} days before the due date, red once it’s passed. Cash advances: yellow ${ATT.advGrace} days before the liquidation due date, red once it’s passed. Checks and cash not deposited: yellow after ${ATT.depYellow} working day, red after ${ATT.depRed}. Outstanding checks: yellow after ${ATT.checkYellow} days, red after ${ATT.checkRed} (a check goes stale at six months). Petty cash: yellow below ${Math.round(ATT.pettyYellow * 100)}% of the fund, red below ${Math.round(ATT.pettyRed * 100)}%.`],
+      ['The numbers in the sidebar', 'How many items on that page are red or yellow. The badge is red if any of them is.'],
+      ['Bills due', `What’s owed in the next ${ATT.dueSoon} days, against what the peso bank accounts hold. Red when it’s more.`],
+      ['Closing the month', 'For Approvers and Admins: what last month’s close still needs. Click a step to go to it.']
+    ],
+    book: null, shows: ['Nothing in the books.'], watch: ['A bill or invoice without a due date never turns yellow or red. Enter the due date from its terms.']
+  },
   bills: { who: 'everyday',
     what: 'A bill is a supplier’s invoice: what the company owes for something it bought. Entering it is how the books learn about an utang before it’s paid.',
     when: 'The moment a supplier’s invoice arrives, even if you’ll pay it next month. Goods from a supplier (stock to sell) and services from a vendor (rent, trucking, repairs) both start here.',
@@ -6063,7 +6110,8 @@ const GUIDE = {
     what: 'A cash advance is money given to an employee before they spend it, for a trip or a purchase. A liquidation is the employee coming back with the resibos and the sukli (change).',
     when: 'Release when the money goes out. Liquidate when the employee returns.',
     steps: [
-      ['Release an advance', 'The employee, the amount, what it’s for, and how it’s paid: by check, transfer, petty cash, or by an owner out of pocket. It opens the voucher filled in, to check and save.'],
+      ['Release an advance', 'The employee, the amount, what it’s for, when the liquidation is due, and how it’s paid: by check, transfer, petty cash, or by an owner out of pocket. It opens the voucher filled in, to check and save.'],
+      ['When it’s due', 'The liquidation due date starts 7 days after the release; change it to suit the trip. It prints on the voucher (“liquidate by…”). The employee’s row turns yellow 7 days before it and red once it’s passed.'],
       ['Liquidate', 'On the employee’s row. Enter each resibo with its account and department, then the change they hand back. If they spent more than they got, enter what you paid them on top instead.'],
       ['Where the change goes', 'Into Cash on Hand, unless it went straight back into the fund or the bank.']
     ],
@@ -6188,9 +6236,10 @@ const GUIDE = {
     book: null, shows: ['Every save in the Change Log carries the user’s name.'], watch: ['Never share a sign-in; the Change Log is only useful if names are true.']
   },
   log: { who: 'setup',
-    what: 'Every save: who, when, and what changed.',
-    when: 'To find out who changed something, and when.',
-    steps: [['Search', 'By name, CV no., invoice or check no.']], book: null, shows: ['Nothing in the books.'], watch: ['Nothing in the books disappears without a line here.']
+    what: 'Every save: who, when, and what changed. Each is signed with the person’s name and username, like “Maria Santos (maria)”.',
+    when: 'To find out who changed something, and when; or to see what one person has been entering.',
+    steps: [['Who’s been saving', 'Each person’s saves in the last 7 and 30 days, and their last one. Click a name to see only their changes.'], ['Person and period', 'Narrow the list to one person, or to the last day, week or month.'], ['Search', 'By CV no., invoice, check no. or amount.'], ['One document', 'Open any bill, voucher, invoice or entry: the bottom says who entered it and who last changed it. History lists every change to it.']],
+    book: null, shows: ['Nothing in the books.'], watch: ['Nothing in the books disappears without a line here.', 'Everyone signs in with their own username. A shared login makes this page useless.']
   }
 };
 /* The first page of the guide: how books work, in a few minutes. */
@@ -6217,7 +6266,7 @@ const GUIDE_START = `
   <p>The hub is where you work. Every save goes straight to the company’s Google Sheet, which holds the complete books and the reports for the accounting firm. A copy of the Sheet is made every night.</p>`;
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
   '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
-  '<b>Find your pages.</b> The sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup, and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
+  '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Setup, and Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what). You see only the pages your role uses.',
   '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
   '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
   '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];
@@ -6297,6 +6346,7 @@ const FIELD_TIPS = {
   'Payee': 'Start typing and pick from the list. A new name is added to Contacts when you save.',
   'Payee TIN': 'From the invoice. It prints on the voucher and on the tax lists.',
   'Input VAT (₱)': 'The VAT in the invoice, worked out from the lines ticked VAT. Change it only if the invoice shows a different amount.',
+  'Liquidation due': 'When the employee must bring back the resibos and any change. It starts 7 days after the release; set it to the trip’s end plus 7 days. It prints on the voucher.',
   'Import entry no.': 'The number on the import entry Customs issued for this shipment. The BIR asks for it when the VAT on the import is claimed.',
   'CWT withheld (₱)': 'Only when the customer’s own statement already took its withholding off. Then don’t enter it again on the collection.',
   'EWT withheld (₱)': 'Worked out from the ATC on the lines ticked EWT: the tax held back and paid to the BIR instead.',
@@ -6505,10 +6555,136 @@ function finishUpdate() {
 }
 const updateLine = () => needsUpdate() && isAdmin() && !yearClosed() ? `<div class="lockline"><span><b>One step left in this update.</b> Departments and accounts for exchange differences and bank charges need adding.</span>${btn('finish-update', 'Finish the update', 'sm')}</div>` : '';
 
+/* ---------- What needs attention ----------
+   One status scale for the whole hub, always in words as well as color:
+     red    past due, or the books don't tie: act now
+     yellow due within 14 days, or a task is waiting
+     blue   open, not due yet
+   Every list colors its rows from these rules, the sidebar counts them per page, and Home lists them all. */
+const dayDiff = (from, to) => Math.round((parseD(to) - parseD(from)) / 864e5);
+const plural = (n, w) => `${n.toLocaleString('en-US')} ${w}${n === 1 ? '' : 's'}`;
+// working days (Monday to Friday) after a date, up to today
+const workdaysSince = from => { let n = 0; const d = parseD(from), end = parseD(todayIso()); d.setDate(d.getDate() + 1); for (; d <= end; d.setDate(d.getDate() + 1)) if (d.getDay() % 6) n++; return n; };
+/* A due date's state: past due, due soon, or open. */
+function dueState(due) {
+  if (!due) return null;
+  const d = dayDiff(todayIso(), due);
+  return d < 0 ? { lvl: 'red', text: `${plural(-d, 'day')} past due` } : d <= ATT.dueSoon ? { lvl: 'yellow', text: d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : `Due in ${d} days` } : { lvl: 'blue', text: `Due ${fdate(due)}` };
+}
+const billDue = b => live(b) && !isMemo(b) && !b.refOnly && b.dueDate && !yearClosed() && billBalance(b) > 0.004 ? dueState(b.dueDate) : null;
+const invDue = i => live(i) && !isMemo(i) && i.dueDate && !yearClosed() && invBalance(i) > 0.004 ? dueState(i.dueDate) : null;
+const sPill = st => st ? `<span class="pill s-${st.lvl}">${esc(st.text)}</span>` : '';
+const attRow = st => st && st.lvl !== 'blue' ? 'att-' + st.lvl : '';
+/* An outstanding check's age: a check is stale six months after its date. */
+function checkAge(v) {
+  if (!live(v) || !isCheck(v) || v.clearedOn || !v.checkDate) return null;
+  const d = dayDiff(v.checkDate, todayIso());
+  return d >= ATT.checkRed ? { lvl: 'red', text: `Out ${d} days: stale at 180` } : d >= ATT.checkYellow ? { lvl: 'yellow', text: `Out ${d} days` } : null;
+}
+/* A check or cash received and not yet deposited, by working days. */
+function depositAge(c) {
+  if (!live(c) || !toDeposit(c) || colDeposited(c) || c.from) return null;
+  const n = workdaysSince(c.date);
+  return n >= ATT.depRed ? { lvl: 'red', text: `Not deposited: ${plural(n, 'working day')}` } : n >= ATT.depYellow ? { lvl: 'yellow', text: `Not deposited: ${plural(n, 'working day')}` } : null;
+}
+/* Cash advances: each release is due on its liquidation due date ("liquidate by" on its line, set when it's released),
+   or 7 days after it was released if no date was given. Yellow in the 7 days before; red after. Liquidations clear
+   the oldest releases first. */
+const LIQ_BY = /liquidate by ([A-Z][a-z]{2} \d{1,2}, \d{4})/;
+const liqByOf = (memo, date) => { const m = LIQ_BY.exec(memo || ''), d = m && new Date(m[1]); return d && !isNaN(d) ? iso(d) : iso(new Date(parseD(date).getTime() + ATT.advGrace * 864e5)); };
+function advancesDue() {
+  const by = {};
+  Object.entries(D.tagsBefore || {}).forEach(([t, n]) => { if (!contact(t)) return; const e = by[t] = by[t] || { out: [], cleared: 0 }; if (n > 0) e.out.push({ date: `${YEAR}-01-01`, amt: n, due: `${YEAR}-01-01`, carried: true }); else e.cleared += -n; });
+  journal().forEach(d => d.lines.forEach(l => { if (l.acct !== D.control.advances || !l.tag) return; const e = by[l.tag] = by[l.tag] || { out: [], cleared: 0 };
+    if (l.dr) e.out.push({ date: d.date, amt: l.dr, due: liqByOf(l.memo, d.date) }); if (l.cr) e.cleared += l.cr; }));
+  return Object.keys(by).map(id => {
+    const e = by[id]; let left = e.cleared; const open = [];
+    e.out.sort((a, b) => a.date.localeCompare(b.date)).forEach(x => { const take = Math.min(left, x.amt); left = round2(left - take); const rest = round2(x.amt - take); if (rest > 0.004) open.push({ ...x, amt: rest }); });
+    if (!open.length) return null;
+    const first = open.slice().sort((a, b) => a.due.localeCompare(b.due))[0], d = dayDiff(todayIso(), first.due);
+    const st = d < 0 ? { lvl: 'red', text: `Liquidation ${plural(-d, 'day')} late` } : d <= ATT.advGrace ? { lvl: 'yellow', text: d === 0 ? 'Liquidate today' : `Liquidate by ${fdate(first.due)}` } : { lvl: 'blue', text: `Liquidate by ${fdate(first.due)}` };
+    return { id, name: (contact(id) || {}).name || id, out: round2(sum(open.map(x => x.amt))), due: first.due, st };
+  }).filter(Boolean);
+}
+/* A petty cash fund running low. */
+function fundState(a) {
+  const f = fundOf(a.id); if (!f || !(f.amount > 0)) return null;
+  const n = bankBalance(a.id).php, r = n / f.amount;
+  return n < -0.004 ? { lvl: 'red', text: 'Overdrawn' } : r < ATT.pettyRed ? { lvl: 'red', text: `${Math.round(r * 100)}% left: replenish` } : r < ATT.pettyYellow ? { lvl: 'yellow', text: `${Math.round(r * 100)}% left` } : null;
+}
+/* Everything that needs someone, for the pages this person can open. Worked out once per version of the books and day. */
+const ATT_CACHE = new WeakMap();
+const canSee = id => NAV.some(g => g.items.some(n => n.id === id && allowed(n)));
+function attention() {
+  if (!D || yearClosed()) return [];
+  const key = todayIso() + '|' + (SESSION ? SESSION.username : ''), hit = ATT_CACHE.get(D);
+  if (hit && hit.key === key) return hit.items;
+  const out = [], push = (page, st, o) => { if (st && st.lvl !== 'blue' && canSee(page)) out.push({ page, lvl: st.lvl, st, ...o }); };
+  D.bills.filter(b => live(b) && !isMemo(b) && !b.refOnly && b.dueDate).forEach(b => { const bal = billBalance(b); if (bal > 0.004) push('bills', dueState(b.dueDate), { what: `${b.payeeName}: invoice ${b.ref}`, amount: pesoOf(b, bal), due: b.dueDate, act: 'view-bill', id: b.id }); });
+  (D.invoices || []).filter(i => live(i) && !isMemo(i) && i.dueDate).forEach(i => { const bal = invBalance(i); if (bal > 0.004) push('invoices', dueState(i.dueDate), { what: `${i.customerName}: invoice ${i.ref}`, amount: bal, due: i.dueDate, act: 'view-invoice', id: i.id }); });
+  D.vouchers.forEach(v => push('checks', checkAge(v), { what: `Check ${v.checkNo || v.cv} to ${v.payeeName}`, amount: v.checkAmount, due: v.checkDate, act: 'view-voucher', id: v.id }));
+  (D.collections || []).forEach(c => push('collections', depositAge(c), { what: `${c.cr}: ${c.customerName}`, amount: c.amount, due: c.date, act: 'view-collection', id: c.id }));
+  advancesDue().forEach(e => push('advances', e.st, { what: `Cash advance: ${e.name}`, amount: e.out, due: e.due, act: 'nav', id: 'advances' }));
+  funds().forEach(a => push('petty', fundState(a), { what: acctName(a.id), amount: bankBalance(a.id).php, act: 'nav', id: 'petty' }));
+  (D.shipments || []).forEach(s => { const r = shipmentRow(s); if (r.st === 'Cost difference') push('shipments', { lvl: 'yellow', text: 'Cost difference to clear' }, { what: `Shipment ${s.no}`, amount: null, act: 'view-shipment', id: s.id }); });
+  if (seesClosing()) healthChecks(todayIso()).filter(c => c.state !== 'ok' && !['dep', 'lock'].includes(c.key) && !/^rec-/.test(c.key) && !/^pc-/.test(c.key))
+    .forEach(c => push('health', { lvl: c.state === 'off' ? 'red' : 'yellow', text: c.state === 'off' ? 'Doesn’t tie' : 'To do' }, { what: c.title, amount: null, act: 'nav', id: 'health' }));
+  const rank = { red: 0, yellow: 1 };
+  out.sort((a, b) => rank[a.lvl] - rank[b.lvl] || String(a.due || '9').localeCompare(String(b.due || '9')));
+  ATT_CACHE.set(D, { key, items: out });
+  return out;
+}
+/* The sidebar count for a page: how many items are red or yellow, colored by the worst. */
+function navBadge(id) {
+  if (id === 'home') { const a = attention(), r = a.filter(x => x.lvl === 'red').length; return a.length ? `<span class="nbadge nb-${r ? 'red' : 'yellow'}" aria-label="${a.length} need attention">${a.length}</span>` : ''; }
+  const a = attention().filter(x => x.page === id); if (!a.length) return '';
+  const red = a.some(x => x.lvl === 'red');
+  return `<span class="nbadge nb-${red ? 'red' : 'yellow'}" aria-label="${a.length} need attention">${a.length}</span>`;
+}
+/* The month just ended: what closing it still needs. */
+function closeTracker() {
+  const t = parseD(todayIso()), end = iso(new Date(t.getFullYear(), t.getMonth(), 0)), ym = end.slice(0, 7);
+  if (end.slice(0, 4) !== String(YEAR)) return null; // in January, last year's December closes in last year's books
+  const hc = healthChecks(end), get = k => hc.filter(c => c.key === k || c.key.startsWith(k));
+  const steps = [];
+  const dep = get('dep')[0]; if (dep) steps.push({ t: 'Depreciation booked', ok: dep.state === 'ok', page: 'assets' });
+  const recs = get('rec-'); if (recs.length) steps.push({ t: `Banks reconciled (${recs.filter(c => c.state === 'ok').length} of ${recs.length})`, ok: recs.every(c => c.state === 'ok'), page: 'recon' });
+  if (canSee('counts')) steps.push({ t: 'Stock counted', ok: !!countOf(ym), page: 'counts' });
+  const ties = hc.filter(c => c.state === 'off'); steps.push({ t: ties.length ? `Books tie (${ties.length} off)` : 'Books tie', ok: !ties.length, page: 'health' });
+  steps.push({ t: 'Month locked', ok: (D.lockedThrough || '') >= end, page: 'summary' });
+  return { month: monthLabel(ym), steps };
+}
+function homePage() {
+  return pageHead('home', 'What needs someone, most urgent first. Red is late or doesn’t tie; yellow is coming due. Click any line to open it.') + `<div id="list">${homeBody()}</div>`;
+}
+function homeBody() {
+  if (yearClosed()) return `<div class="empty"><b>${YEAR} is closed</b>Nothing in a closed year comes due. Switch to the current year to see what needs attention.</div>`;
+  const a = attention(), red = a.filter(x => x.lvl === 'red'), yel = a.filter(x => x.lvl === 'yellow');
+  const money0 = xs => peso(sum(xs.filter(x => x.amount != null && ['bills', 'invoices'].includes(x.page)).map(x => x.amount)));
+  // the next 14 days of bills against what the peso banks hold
+  const soon = D.bills.filter(b => live(b) && !isMemo(b) && !b.refOnly && b.dueDate && dayDiff(todayIso(), b.dueDate) <= ATT.dueSoon).map(b => ({ b, bal: pesoOf(b, billBalance(b)) })).filter(x => x.bal > 0.004);
+  const cash = round2(sum(recBanks().filter(x => bankCur(x.id) === 'PHP').map(x => bankBalance(x.id).php)));
+  const owe = round2(sum(soon.map(x => x.bal)));
+  const tiles = [
+    { lvl: red.length ? 'red' : 'green', n: red.length, label: red.length ? 'Late or not tying' : 'Nothing late', sub: red.length ? `${money0(red)} in bills and invoices` : 'All on time' },
+    { lvl: yel.length ? 'yellow' : 'green', n: yel.length, label: 'Coming due', sub: yel.length ? `within ${ATT.dueSoon} days, or waiting` : 'Nothing waiting' },
+    ...(canSee('bills') ? [{ lvl: owe > cash ? 'red' : 'blue', n: peso(owe), label: `Bills due by ${fdate(iso(new Date(parseD(todayIso()).getTime() + ATT.dueSoon * 864e5)))}`, sub: `Peso banks hold ${peso(cash)}${owe > cash ? ': short' : ''}` }] : [])
+  ];
+  const tileHtml = `<div class="att-tiles">${tiles.map(t => `<div class="att-tile at-${t.lvl}"><b>${typeof t.n === 'number' ? t.n.toLocaleString('en-US') : t.n}</b><span>${esc(t.label)}</span><small>${esc(t.sub)}</small></div>`).join('')}</div>`;
+  const list = a.length ? `<h2 class="mt">Needs attention</h2><div class="att-list">` + table([
+    { h: 'Status', k: x => sPill(x.st) },
+    { h: 'What', k: x => `<button type="button" class="btn link att-go" data-act="${x.act}" data-id="${esc(x.id)}">${esc(x.what)}</button><span class="sub">${esc(labelOf(x.page))}${x.due && ['bills', 'invoices'].includes(x.page) ? ` · due ${fdate(x.due)}` : ''}</span>` },
+    { h: 'Amount', num: 1, k: x => x.amount == null ? '' : peso(x.amount) }
+  ], a, '', '', x => 'att-' + x.lvl) + '</div>' : `<div class="att-clear"><b>Nothing needs attention</b>No bill or invoice is late, every check and collection is on track, and the books tie.</div>`;
+  const ct = seesClosing() ? closeTracker() : null;
+  const close = ct ? `<h2 class="mt">Closing ${esc(ct.month)}</h2><div class="att-steps">${ct.steps.map(s => `<button type="button" class="att-step ${s.ok ? 'ok' : 'todo'}" data-act="nav" data-id="${s.page}"><span class="att-mark" aria-hidden="true">${s.ok ? '✓' : ''}</span>${esc(s.t)}</button>`).join('')}</div>` : '';
+  return tileHtml + close + list;
+}
+
 /* ---------- Change log ----------
    Code.gs adds a row to the Change log tab of the users file for every record a save changes. The hub only reads it:
    the newest 200 changes, a search through the latest 3,000, or every change to one bill or voucher. */
-const LOG = { q: '', rows: null, err: '', busy: false, total: 0, scanned: 0, n: 0 };
+const LOG = { q: '', user: '', days: 0, rows: null, people: [], err: '', busy: false, total: 0, scanned: 0, n: 0 };
 /* Rows written by one save to one record read as one entry, its tabs listed under it. */
 function logEntries(rows) {
   const out = [];
@@ -6531,15 +6707,25 @@ function logTable(rows) {
 async function loadLog() {
   const n = ++LOG.n;
   LOG.busy = true; LOG.err = ''; if (S.page === 'log') refreshMain();
-  try { const r = await api('history', LOG.q ? { q: LOG.q } : {}); if (n !== LOG.n) return; Object.assign(LOG, { rows: r.rows, total: r.total, scanned: r.scanned || 0 }); }
+  try { const r = await api('history', { q: LOG.q, user: LOG.user, days: LOG.days, people: 1 }); if (n !== LOG.n) return; Object.assign(LOG, { rows: r.rows, total: r.total, scanned: r.scanned || 0, people: r.people || [] }); }
   catch (e) { if (e.code === 'auth') return signedOut(e.message); if (n === LOG.n) LOG.err = e.message; }
   finally { if (n === LOG.n) { LOG.busy = false; if (S.page === 'log') refreshMain(); } }
 }
 function logPage() {
   if (!LOG.rows && !LOG.busy && !LOG.err) setTimeout(loadLog, 0);
-  const note = LOG.busy ? 'Loading…' : LOG.err ? '' : LOG.q ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
-  return pageHead('log', 'Every save, who made it and what changed, newest first. It’s kept in the hub’s users file in Google Drive, apart from the books, and the hub can only add to it.')
-    + `<div class="toolbar"><input id="lq" type="search" placeholder="Search name, CV no., invoice, check no." value="${esc(LOG.q)}" aria-label="Search the change log">${btn('log-search', 'Search', 'ghost')}${btn('log-refresh', 'Refresh', 'link')}<span class="grow"></span><span class="hint">${note}</span></div>`
+  const filtered = LOG.q || LOG.user || LOG.days;
+  const note = LOG.busy ? 'Loading…' : LOG.err ? '' : filtered ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
+  // everyone who saved in the last 30 days, and anyone in the rows shown, for the Person list
+  const people = [...new Set(LOG.people.map(p => p.user).concat((LOG.rows || []).map(r => r.user), LOG.user ? [LOG.user] : []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const periods = [[0, 'Any time'], [1, 'Last 24 hours'], [7, 'Last 7 days'], [30, 'Last 30 days']];
+  const who = LOG.people.length ? `<div class="card logwho"><div class="logwho-h"><h3>Who’s been saving</h3><span class="hint">Saves in the last 7 and 30 days. Click a name to see their changes.</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Person</th><th class="num">Last 7 days</th><th class="num">Last 30 days</th><th>Last save</th></tr></thead><tbody>${LOG.people.map(p => `<tr><td><button type="button" class="btn link" data-act="log-person" data-id="${esc(p.user)}">${esc(p.user)}</button></td><td class="num">${p.d7 ? p.d7.toLocaleString('en-US') : '—'}</td><td class="num">${p.d30.toLocaleString('en-US')}</td><td>${fstamp(p.last)}</td></tr>`).join('')}</tbody></table></div></div>` : '';
+  return pageHead('log', 'Every save, who made it and what changed, newest first. Each is signed with the person’s name and username. It’s kept in the hub’s users file in Google Drive, apart from the books, and the hub can only add to it.')
+    + who
+    + `<div class="toolbar"><input id="lq" type="search" placeholder="Search CV no., invoice, check no., amount" value="${esc(LOG.q)}" aria-label="Search the change log">
+      <select id="lu" aria-label="Person"><option value="">Everyone</option>${people.map(u => opt(u, u, LOG.user)).join('')}</select>
+      <select id="ld" aria-label="Period">${periods.map(([d, l]) => opt(String(d), l, String(LOG.days))).join('')}</select>
+      ${btn('log-search', 'Search', 'ghost')}${filtered ? btn('log-clear', 'Clear', 'link') : ''}<span class="grow"></span><span class="hint">${note}</span></div>`
     + (LOG.err ? `<div class="empty"><b>Couldn’t load the change log</b>${esc(LOG.err)}</div>` : LOG.rows ? logTable(LOG.rows) : '');
 }
 async function historyOf(id) {
@@ -6554,8 +6740,8 @@ async function historyOf(id) {
 }
 
 /* ---------- Wiring ---------- */
-const PAGES = { help: helpPage, recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
-const LISTS = { help: helpBody, recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
+const PAGES = { home: homePage, help: helpPage, recon: reconPage, assets: assetsPage, health: healthPage, reports: reportsPage, bills: billsPage, vouchers: vouchersPage, checks: checksPage, transfers: transfersPage, journal: journalPage, gj: gjPage, budgets: budgetsPage, summary: summaryPage, invoices: invoicesPage, collections: collectionsPage, petty: staffPage, advances: staffPage, shipments: shipmentsPage, counts: countsPage, contacts: contactsPage, accounts: accountsPage, company: companyPage, users: usersPage, log: logPage };
+const LISTS = { home: homeBody, help: helpBody, recon: reconList, assets: assetList, health: () => healthBody(), reports: reportBody, bills: billList, vouchers: voucherList, checks: checkList, transfers: transferList, gj: jeList, summary: summaryBody, invoices: invoiceList, collections: collectionList, petty: staffList, advances: staffList, shipments: shipmentList, counts: countList };
 /* The (i) beside a field: one box for all of them, opened on hover, focus or a tap, kept inside the window. */
 (() => {
   const box = document.createElement('div'); box.id = 'tipbox'; box.setAttribute('role', 'tooltip'); document.body.appendChild(box);
@@ -6687,7 +6873,9 @@ const ACT = {
   'edit-role': id => roleForm(id),
   'delete-role': id => { modalSave = () => usersCall('saveRole', { role: { name: id, delete: true } }, `${id} deleted`); saveModal(); },
   'close-year': () => closeYearForm(),
-  'log-search': () => { LOG.q = val('lq'); loadLog(); },
+  'log-search': () => { LOG.q = val('lq'); LOG.user = val('lu'); LOG.days = Number(val('ld')) || 0; loadLog(); },
+  'log-person': id => { LOG.user = id; LOG.q = ''; loadLog(); scrollTo(0, 0); },
+  'log-clear': () => { Object.assign(LOG, { q: '', user: '', days: 0 }); loadLog(); },
   'log-refresh': () => loadLog(),
   history: id => historyOf(id),
   'edit-user': id => userForm(id),
@@ -6786,6 +6974,7 @@ document.addEventListener('change', e => {
   else if (/^rp-(per|cmp|m|q|from|to)$/.test(t.id)) { const r = rpState(), k = t.id.slice(3); r[k] = k === 'per' || k === 'cmp' ? t.value : Number(t.value); refreshMain(); }
   else if (t.id === 'yr') switchYear(t.value);
   else if (t.id === 'cr') { S.cr = t.value; refreshMain(); }
+  else if (t.id === 'lu' || t.id === 'ld') { LOG.q = val('lq'); LOG.user = val('lu'); LOG.days = Number(val('ld')) || 0; loadLog(); }
   else if (t.id === 'tm') { S.tm = t.value; relist(); }
   else if (t.id === 'gm') { S.gm = t.value; relist(); }
   else if (t.id === 'bd') { S.bd = t.value; refreshMain(); }
@@ -6794,7 +6983,7 @@ document.addEventListener('change', e => {
 function labelTables(root) {
   root.querySelectorAll('table:not(.rp)').forEach(t => {
     const hs = []; t.querySelectorAll('thead th').forEach(th => { const n = Number(th.getAttribute('colspan')) || 1; for (let i = 0; i < n; i++) hs.push(i ? '' : th.textContent.trim()); });
-    if (hs.length < 4) return;
+    if (hs.length < 4 && !t.closest('.att-list')) return;
     t.classList.add('cards');
     t.querySelectorAll('tbody tr, tfoot tr').forEach(tr => { let i = 0; [...tr.children].forEach(td => { if (!td.hasAttribute('data-label')) td.setAttribute('data-label', hs[i] || ''); i += Number(td.getAttribute('colspan')) || 1; }); });
   });

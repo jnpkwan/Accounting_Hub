@@ -504,7 +504,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.20';
+const APP_VERSION = '3.21';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-17';
 /* The oldest Code.gs this hub works with. */
@@ -4478,7 +4478,7 @@ function collectionForm(c0) {
       ${F('c-cust', 'Customer', inp('c-cust', x.customerName, 'text', 'list="dl-ccust" autocomplete="off" placeholder="Start typing a name"') + `<datalist id="dl-ccust">${customers.map(p => `<option value="${esc(p.name)}">`).join('')}</datalist>`, 'span2')}
       ${F('c-method', 'Paid by', `<select id="c-method">${['Check', 'Cash', 'Transfer'].map(m => opt(m, m === 'Transfer' ? 'Bank transfer' : m, x.method)).join('')}</select>`)}
       ${F('c-ref', '<span id="c-ref-l">Check no.</span>', inp('c-ref', x.refNo, 'text', 'autocomplete="off"'))}
-      <div class="field" id="c-bank-wrap">${`<label for="c-cbank">Customer’s bank</label>`}${inp('c-cbank', x.custBank, 'text', 'placeholder="e.g. BDO"')}</div>
+      <div class="field" id="c-bank-wrap">${`<label for="c-cbank">Customer’s bank</label>`}${inp('c-cbank', x.custBank, 'text', 'list="dl-cbank" autocomplete="off" placeholder="e.g. BDO"')}${nameList('dl-cbank', (D.collections || []).map(c => c.custBank))}</div>
       ${F('c-into', 'Received into ' + tip('Checks and cash: Undeposited Funds, until a deposit slip takes them to the bank. A transfer: the bank account it landed in.'), `<select id="c-into">${intoOptions()}</select>`)}
       ${F('c-part', 'Particulars', inp('c-part', x.particulars, 'text', 'placeholder="e.g. Payment of invoices 1043, 1051"'), 'full')}
     </div><p class="hint" id="c-note" style="margin-top:8px"></p></div>
@@ -4928,7 +4928,7 @@ function pcvForm(x0, pre) {
   const body = `<div class="vform"><div class="section"><h3>Petty cash voucher</h3><div class="fields">
       ${F('k-no', 'PCV no.', inp('k-no', x.no, 'text', 'autocomplete="off"'))}${F('k-date', 'Date', inp('k-date', x.date, 'date'))}
       ${F('k-fund', 'Paid from', `<select id="k-fund">${(edit && !fs.some(a => a.id === x.fund) ? [acct(x.fund)] : fs).map(a => opt(a.id, acctLabel(a), x.fund)).join('')}</select>`, 'span2')}
-      ${F('k-to', 'Paid to (as on the receipt)', inp('k-to', x.paidTo, 'text', 'placeholder="e.g. Mercury Drug, Grab"'), 'span2')}
+      ${F('k-to', 'Paid to (as on the receipt)', inp('k-to', x.paidTo, 'text', 'list="dl-paidto" autocomplete="off" placeholder="e.g. Mercury Drug, Grab"') + nameList('dl-paidto', (D.pettyCash || []).map(k => k.paidTo).concat(D.contacts.filter(isPayee).map(p => p.name))), 'span2')}
       ${F('k-part', 'Particulars', inp('k-part', x.particulars, 'text', 'placeholder="e.g. Office supplies, courier to Davao"'), 'span2')}
     </div><p class="hint" id="k-note" style="margin-top:8px"></p></div>
     <div class="section"><h3>What it paid for</h3><div id="k-lines"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="k-add">Add a line</button></p></div>
@@ -5484,7 +5484,7 @@ function journalForm(j0) {
   const hasUsd = bankAccounts().some(a => bankCur(a.id) === 'USD'), depts = (D.departments || []).length > 0;
   const body = `<div class="vform"><div class="section"><div class="fields">
       ${F('j-no', 'JE no.', inp('j-no', j.no, 'text', 'autocomplete="off"'))}${F('j-date', 'Date', inp('j-date', j.date, 'date'))}
-      ${F('j-name', 'Name (optional)', inp('j-name', j.name, 'text', 'placeholder="Who it’s with, if anyone"'), 'span2')}
+      ${F('j-name', 'Name (optional)', inp('j-name', j.name, 'text', 'list="dl-jname" autocomplete="off" placeholder="Who it’s with, if anyone"') + nameList('dl-jname', D.contacts.map(p => p.name).concat((D.journals || []).map(x => x.name))), 'span2')}
       ${F('j-memo', 'Memo', inp('j-memo', j.memo, 'text', 'placeholder="e.g. Depreciation for October 2026"'), 'full')}
     </div></div>
     <div class="section"><h3>Lines</h3><div id="j-lines"></div><p style="margin:12px 0 0"><button type="button" class="btn ghost sm" id="j-add">Add a line</button></p><p class="warnline" id="j-warn"></p></div>
@@ -6837,6 +6837,8 @@ function acctPickers(root) {
 /* Name fields (payee, customer, owner): the hub's own suggestion list, not the browser's. Safari's list only matches
    the start of a name and doesn't always open, so "shandong" missed "Weifang Shandong Tools". Any part of the name
    finds it; arrow keys and Enter, or a click, pick it. A name not on the list can still be typed: it's a new contact. */
+/* A list of names for a name field: each once, A to Z, blanks left out. */
+const nameList = (id, names) => `<datalist id="${id}">${[...new Set(names.map(n => String(n || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)).map(n => `<option value="${esc(n)}">`).join('')}</datalist>`;
 function namePickers(root) {
   root.querySelectorAll('input[list]:not([data-pick])').forEach(box => {
     const dl = document.getElementById(box.getAttribute('list')); if (!dl) return;
@@ -6848,7 +6850,7 @@ function namePickers(root) {
       const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
       items = opts().filter(o => words.every(w => o.name.toLowerCase().includes(w))).sort((a, b) => a.name.localeCompare(b.name));
       list.innerHTML = items.length ? items.map((o, i) => `<div class="apick-o" role="option" data-i="${i}">${esc(o.name)}${o.note ? ` <span class="apick-note">${esc(o.note)}</span>` : ''}</div>`).join('')
-        : `<div class="apick-none">${words.length ? 'No contact matches. Keep typing to add a new one.' : 'No contacts yet. Type a name to add one.'}</div>`;
+        : `<div class="apick-none">${words.length ? 'Nothing matches. Keep typing to add it as new.' : 'Nothing to pick from yet. Type a name.'}</div>`;
       hi = words.length && items.length ? 0 : -1; mark();
     };
     const mark = () => list.querySelectorAll('.apick-o').forEach((el, i) => { el.classList.toggle('hi', i === hi); if (i === hi) el.scrollIntoView({ block: 'nearest' }); });
@@ -6866,6 +6868,8 @@ function namePickers(root) {
     // a name typed in full, in any case, becomes the contact's own spelling
     const exact = () => opts().find(o => o.name.trim().toLowerCase() === box.value.trim().toLowerCase());
     box.addEventListener('focus', () => open(box.value));
+    // a form that puts the cursor in the field as it opens does so before this list exists: a click opens it
+    box.addEventListener('mousedown', () => { if (list.hidden) setTimeout(() => open(box.value), 0); });
     box.addEventListener('input', e => { if (e.isTrusted !== false) open(box.value); });
     box.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== box) { close(); const x = exact(); if (x && x.name !== box.value) { box.value = x.name; box.dispatchEvent(new Event('change', { bubbles: true })); } } }, 120));
     box.addEventListener('keydown', e => {

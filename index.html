@@ -981,6 +981,13 @@ async function save(kind, mutate, done) {
 const saveNow = (kind, mutate, done) => save(kind, mutate, done).then(err => { if (err) toast(err, true); });
 
 /* ---------- Lookups ---------- */
+/* A TIN field follows the name picked: the contact's TIN goes in when the field is empty or still holds the TIN put
+   there for an earlier name. One typed by hand stays. */
+function fillTin(fid, p) {
+  const t = document.getElementById(fid); if (!t) return;
+  if (t.value && t.value !== t.dataset.auto) return;
+  t.value = p ? p.tin || '' : ''; t.dataset.auto = t.value;
+}
 const acct = id => D.accounts.find(a => a.id === id);
 /* An account is shown by its code and name together, "120-010 · Accounts Receivable - Trade", everywhere on screen.
    The sheet keeps them in two columns, so its derived Account columns take the name alone (acctPlain). */
@@ -2130,8 +2137,8 @@ function docForm(kind, v0, mode = 'new') {
     const nBills = openDocs.filter(b => !isMemo(b)).length, nMemos = open - nBills, doc = isPT ? 'transfer' : 'check';
     const openNote = !p ? '' : nBills ? `${p.name} has ${plural(nBills, 'unpaid bill')}${nMemos ? ` and ${plural(nMemos, 'unused debit memo')} (credits)` : ''}. Tick what this ${doc} pays.`
       : `${p.name} has no unpaid bills, only ${plural(nMemos, 'unused debit memo')}: credits they owe the company back. A debit memo isn’t a bill; it comes off a bill when one is paid.`;
+    fillTin('f-tin', p);
     if (p) {
-      if (!val('f-tin')) document.getElementById('f-tin').value = p.tin || '';
       const empty = v.lines.every(l => !l.accountId && !l.amount);
       if (!edit && empty) {
         if (open && !v.bills.length) { v.lines = []; drawLines(); }
@@ -4538,7 +4545,8 @@ function salesForm(i0, asMemo) {
   const onCust = () => {
     read();
     const p = contactByName(x.customerName);
-    if (p) { if (!val('s-tin')) document.getElementById('s-tin').value = p.tin || ''; if (!edit && x.lines.every(l => !l.accountId && !l.amount) && p.accountId) { x.lines = [{ accountId: p.accountId, desc: '', amount: '', dept: '' }]; drawLines(); } if (p.vatable === false && !edit) document.getElementById('s-vatable').checked = false;
+    fillTin('s-tin', p);
+    if (p) { if (!edit && x.lines.every(l => !l.accountId && !l.amount) && p.accountId) { x.lines = [{ accountId: p.accountId, desc: '', amount: '', dept: '' }]; drawLines(); } if (p.vatable === false && !edit) document.getElementById('s-vatable').checked = false;
       // the charges this customer took off last time, ready for this month's amounts
       if (!edit && !memo && x.less.every(l => !l.accountId && !l.amount)) { const last = (D.invoices || []).filter(i => i.customerId === p.id && live(i) && !isMemo(i) && (i.less || []).length).sort((a, b) => b.date.localeCompare(a.date))[0];
         if (last) { x.less = last.less.map(l => ({ accountId: l.accountId, desc: l.desc || '', amount: '', dept: l.dept || '' })); drawLess(); document.getElementById('s-note').textContent = `The charges ${p.name} took off invoice ${last.ref} are listed below. Type this statement’s amounts; remove any that don’t apply.`; } } }

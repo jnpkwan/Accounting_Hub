@@ -208,7 +208,9 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .tj-body h3{margin:0;font:800 19px/1.2 var(--display);color:var(--ink);letter-spacing:-.01em}.tj-body header p{margin:3px 0 0;font:400 15px/1.4 var(--body);color:var(--carbon)}
 .tj-body header .btn{flex:none;height:38px;padding:0 16px;font-size:14.5px;border-radius:10px}
 .tj-body ul{list-style:none;margin:8px 0 0;padding:0}
-.tj-item{display:grid;grid-template-columns:158px minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:8px 0;border-top:1.5px solid var(--mist)}
+/* the rows of one job share their columns (subgrid), so a long tag widens the tag column for every row and the lines stay aligned */
+.tj-body ul{display:grid;grid-template-columns:minmax(158px,max-content) minmax(0,1fr) auto auto}
+.tj-item{grid-column:1/-1;display:grid;grid-template-columns:subgrid;align-items:center;gap:14px;padding:8px 0;border-top:1.5px solid var(--mist)}
 .tj-what{all:unset;cursor:pointer;font:600 16px/1.3 var(--body);color:var(--blue)}.tj-what:hover,.tj-what:focus-visible{color:var(--green7);text-decoration:underline;text-underline-offset:4px}
 .tj-what small{display:block;margin-top:1px;font:400 14px var(--body);color:var(--carbon)}
 .tj-amt{font:700 16px var(--body);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}.tj-more{margin:4px 0 4px;font-size:14.5px}
@@ -234,10 +236,10 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .bv-top{margin-top:26px}.bv-row{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(0,2fr) 150px 120px;gap:16px;align-items:center;padding:11px 0;border-top:1.5px solid var(--mist);font:400 16.5px var(--body);color:var(--ink)}
 .bv-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.bv-bar{height:14px;background:var(--blue05);border-radius:999px;overflow:hidden}.bv-bar i{display:block;height:100%;background:var(--blue);border-radius:999px}
 .bv-n{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}.bv-p{color:var(--carbon);font-size:15px;text-align:right}
-@media (max-width:1100px){.bv-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tj-item{grid-template-columns:150px minmax(0,1fr) auto}.tj-item .tj-do{grid-column:2/-1;justify-self:start}}
+@media (max-width:1100px){.bv-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.tj-body ul{grid-template-columns:minmax(150px,max-content) minmax(0,1fr) auto}.tj-item .tj-do{grid-column:2/-1;justify-self:start}}
 @media (max-width:760px){.hb{padding:24px 20px;border-radius:18px}.hb-title{font-size:32px}.hb-say{font-size:19px}.hb-top{flex-wrap:wrap}.hb-nums{grid-template-columns:1fr}.hb-num,.hb-num:nth-child(n){border:0;padding:18px 0 16px;border-bottom:1px solid rgba(168,187,219,.35)}.hb-num:last-child{border-bottom:0}.hb-num b{font-size:30px}
   .tj{grid-template-columns:1fr}.tj-block{flex-direction:row;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px 12px;padding:16px 20px}.tj-block span,.tj-block em,.tj-block small{white-space:nowrap}.tj-block b{font-size:36px}.tj-block em{margin:0;align-self:center}.tj-block span{font-size:15px}.tj-block small{margin:0 0 0 auto;font-size:15px}.tj-body{padding:14px 16px 8px}.tj-body header{flex-direction:column}.tj-body header .btn{width:100%}
-  .tj-item{grid-template-columns:1fr auto;gap:8px 12px}.tj-item .tg{grid-column:1/-1}.td-title,.bv-head h2{font-size:28px}.bv{padding:22px 18px}.bv-row{grid-template-columns:1fr auto}.bv-bar,.bv-p{display:none}}
+  .tj-body ul{grid-template-columns:minmax(0,1fr) auto}.tj-item{gap:8px 12px}.tj-item .tg{grid-column:1/-1}.td-title,.bv-head h2{font-size:28px}.bv{padding:22px 18px}.bv-row{grid-template-columns:1fr auto}.bv-bar,.bv-p{display:none}}
 .att-clear{padding:22px 24px;border-radius:14px;background:var(--green05);color:var(--green7);margin-top:28px}.att-clear b{display:block;font:800 18px var(--display);margin-bottom:4px}
 /* View cards: the views of a page, each with its figure; the one picked is the list shown. Static on Home. */
 .vtabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
@@ -685,7 +687,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.43';
+const APP_VERSION = '3.44';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -7540,7 +7542,7 @@ function attention() {
   (D.collections || []).forEach(c => push('collections', depositAge(c), { what: `${c.cr}: ${c.customerName}`, amount: c.amount, due: c.date, act: 'view-collection', id: c.id }));
   advancesDue().forEach(e => push('advances', e.st, { what: `Cash advance: ${e.name}`, amount: e.out, due: e.due, act: 'nav', id: 'advances' }));
   funds().forEach(a => push('petty', fundState(a), { what: acctName(a.id), amount: bankBalance(a.id).php, act: 'nav', id: 'petty' }));
-  (D.shipments || []).forEach(s => { const r = shipmentRow(s); if (r.st === 'Cost difference') push('shipments', { lvl: 'yellow', text: 'Cost difference to clear' }, { what: `Shipment ${s.no}`, amount: null, act: 'view-shipment', id: s.id }); });
+  (D.shipments || []).forEach(s => { const r = shipmentRow(s); if (r.st === 'Cost difference') push('shipments', { lvl: 'yellow', text: 'Cost difference' }, { what: `Shipment ${s.no}`, amount: Math.abs(r.left), act: 'view-shipment', id: s.id }); });
   if (D.hasDepartments) buckets().forEach(b => b.total != null && push('budgets', b.st, { what: `${b.dept} budget`, amount: b.left, act: 'view-budget', id: b.dept }));
   if (seesClosing()) healthChecks(todayIso()).filter(c => c.state !== 'ok' && !['dep', 'lock'].includes(c.key) && !/^rec-/.test(c.key) && !/^pc-/.test(c.key))
     .forEach(c => push('health', { lvl: c.state === 'off' ? 'red' : 'yellow', text: c.state === 'off' ? 'Doesn’t tie' : 'To do' }, { what: c.title, amount: null, act: 'nav', id: 'health' }));

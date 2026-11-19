@@ -635,6 +635,13 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
 .preview-wrap>.vc{zoom:1.4}.preview-wrap:has(>.vc){padding:24px 26px}
+.hh{display:grid;grid-template-columns:1fr auto;gap:4px 24px;align-items:center;padding:18px 22px;border-radius:14px;margin:0 0 18px;box-shadow:var(--rest);background:#fff;border-left:10px solid var(--green)}
+.hh b{font:800 24px/1.2 var(--display);color:var(--ink)}.hh>span:not(.hh-n){grid-column:1;font-size:16px;color:var(--carbon)}
+.hh-n{grid-column:2;grid-row:1 / span 2;display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;font:700 13px var(--display);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.hh-n i{font:800 22px var(--display);font-style:normal;min-width:44px;text-align:center;padding:6px 10px;border-radius:10px;color:#fff}
+.hh-r{background:#A52A24}.hh-y{background:#FFC62E;color:var(--ink)!important}.hh-g{background:var(--green7)}
+.hh-off{border-left-color:#A52A24;background:#FBEDEC}.hh-todo{border-left-color:#FFC62E;background:#FFF8E5}
+@media (max-width:760px){.hh{grid-template-columns:1fr}.hh-n{grid-column:1;grid-row:auto}}
 .rp-wait{display:flex;gap:18px;align-items:center;background:var(--blue05);border-left:6px solid var(--blue);border-radius:12px;padding:20px 24px;margin:0 0 16px}
 .rp-wait b{display:block;font:800 22px/1.2 var(--display);color:var(--ink)}.rp-wait p{margin:6px 0 0;font-size:16px;line-height:1.45;color:var(--carbon)}
 .rp-spin{flex:none;width:34px;height:34px;border-radius:50%;border:4px solid var(--blue1,#C9D6EE);border-top-color:var(--blue);animation:spin .9s linear infinite}
@@ -761,7 +768,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.51';
+const APP_VERSION = '3.52';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -7116,7 +7123,7 @@ function healthChecks(asOf) {
       text: 'Each asset account against the cost of the assets on the register, and each accumulated depreciation account against what’s been booked for them (in brackets).' });
     const due = depDue().filter(d => d.m < asOf.slice(0, 7) || (d.m === asOf.slice(0, 7) && asOf === eom(d.m)));
     out.push({ key: 'dep', title: 'Depreciation is booked', state: due.length ? 'todo' : 'ok', page: 'assets',
-      text: due.length ? `${due.map(d => monthLabel(d.m)).join(', ')} ${due.length === 1 ? 'isn’t' : 'aren’t'} booked yet: ${peso(sum(due.map(d => d.total)))}.` : 'Every month that has ended is booked.' });
+      text: due.length ? `${due.map(d => monthLabel(d.m)).join(', ')} ${due.length === 1 ? 'isn’t' : 'aren’t'} booked yet: ${peso(sum(due.map(d => d.total)))}. Until a month is booked its depreciation isn’t in the books: on Fixed Assets, press Book for each month, oldest first.` : 'Every month that has ended is booked.' });
   }
   // the bank: reconciled, still tying, not overdrawn
   const lastEnded = (() => { const d = parseD(asOf); return iso(new Date(d.getFullYear(), d.getMonth(), 0)); })();
@@ -7124,11 +7131,15 @@ function healthChecks(asOf) {
     const r = lastRecon(a.id), stale = (D.recons || []).filter(x => x.bank === a.id && !near(bookBal(a.id, x.date), x.book)), used = journal().some(d => d.date <= asOf && d.lines.some(l => l.acct === a.id));
     if (!used && !r) return;
     const st = stale.length ? 'off' : (!r || r.date < lastEnded) && lastEnded >= `${YEAR}-01-01` ? 'todo' : 'ok';
-    out.push({ key: 'rec-' + a.id, title: `${acctName(a.id)} is reconciled`, state: st, page: 'recon',
-      text: stale.length ? `The books changed for a statement already reconciled: ${stale.map(x => fdate(x.date)).join(', ')}. Something dated on or before it was added, edited or voided. Undo and reconcile again, or find the change.`
-        : r ? `Reconciled through ${fdate(r.date)}.${st === 'todo' ? ` The ${fdate(lastEnded)} statement is next.` : ''}` : 'Not reconciled yet. Start with the first statement of the year.' });
-    if (B(a.id) < -0.004) out.push({ key: 'neg-' + a.id, title: `${acctName(a.id)} isn’t overdrawn`, state: 'off', page: 'recon', text: `The books show ${peso(B(a.id))} on ${fdate(asOf)}. A check or transfer is likely dated before the money came in, or an entry went to the wrong account.` });
+    out.push({ key: 'rec-' + a.id, title: `${acctName(a.id)} is reconciled`, state: st, page: 'recon', go: ['view-bank', a.id, 'Open its register'],
+      text: stale.length ? `The books changed for a statement already reconciled: ${stale.map(x => fdate(x.date)).join(', ')}. Something dated on or before it was added, edited or voided. Open the register for that month to find the change; Undo and Reconcile are there too.`
+        : r ? `Reconciled through ${fdate(r.date)}.${st === 'todo' ? ` The ${fdate(lastEnded)} statement is next: open the register, record any interest or bank charge on the passbook, then Reconcile.` : ''}` : 'Not reconciled yet. Start with the first statement of the year: open the register, record any interest or bank charge on the passbook, then Reconcile.' });
+    if (B(a.id) < -0.004) out.push({ key: 'neg-' + a.id, title: `${acctName(a.id)} isn’t overdrawn`, state: 'off', page: 'recon', go: ['view-bank', a.id, 'Open its register'], text: `The books show ${peso(B(a.id))} on ${fdate(asOf)}. A check or transfer is likely dated before the money came in, or an entry went to the wrong account. In the register, Show Money out and look for the line that took the balance below zero.` });
   });
+  // checks out too long: a check goes stale at six months, and the bank won't pay it
+  const old = (D.vouchers || []).filter(v => isCheck(v) && v.checkDate && v.checkDate <= asOf && liveAt(v, asOf) && !(v.clearedOn && v.clearedOn <= asOf) && dayDiff(v.checkDate, asOf) >= ATT.checkRed);
+  if ((D.vouchers || []).some(isCheck)) out.push({ key: 'stale', title: 'No check is going stale', state: old.length ? 'todo' : 'ok', page: 'checks',
+    text: old.length ? `${old.length} check${old.length === 1 ? ' has' : 's have'} been out ${ATT.checkRed} days or more: ${old.slice(0, 5).map(v => `${v.checkNo} to ${v.payeeName}`).join(', ')}${old.length > 5 ? ', …' : ''}. A check goes stale at 180 days. Ask the payee to deposit it, or void it and issue a new one.` : `Every check still out is under ${ATT.checkRed} days old.` });
   // petty cash: between nothing and the fund amount
   funds().forEach(a => {
     const f = fundOf(a.id), n = B(a.id);
@@ -7162,13 +7173,15 @@ function healthPage() {
 function healthBody(asOf) {
   asOf = asOf || S.ha || defaultDate();
   const cs = healthChecks(asOf), off = cs.filter(c => c.state === 'off').length, todo = cs.filter(c => c.state === 'todo').length;
-  const head = off ? `<p class="balcheck bad">${off} check${off === 1 ? '' : 's'} ${off === 1 ? 'doesn’t' : 'don’t'} tie${todo ? `, and ${todo} thing${todo === 1 ? '' : 's'} to do` : ''}.</p>`
-    : todo ? `<p class="warnline">Everything ties. ${todo} thing${todo === 1 ? '' : 's'} to do.</p>` : '<p class="balcheck ok">Everything ties, and nothing is due.</p>';
+  const ok = cs.length - off - todo;
+  const head = `<div class="hh hh-${off ? 'off' : todo ? 'todo' : 'ok'}" role="status"><b>${off ? `${off} check${off === 1 ? '' : 's'} ${off === 1 ? 'doesn’t' : 'don’t'} tie` : todo ? 'Everything ties' : 'Everything ties, and nothing is due'}</b>
+    <span>${off ? 'Fix these first: the reports aren’t right until they tie.' : todo ? `${todo} thing${todo === 1 ? '' : 's'} to do before the month is closed.` : 'The reports can be trusted as of this date.'}</span>
+    <span class="hh-n"><i class="hh-r">${off}</i> don’t tie <i class="hh-y">${todo}</i> to do <i class="hh-g">${ok}</i> OK</span></div>`;
   const lbl = id => id === '__transit' ? 'Goods in transit accounts' : acctName(id);
   const card = c => `<section class="card hc hc-${c.state}"><div class="hc-top"><h3>${esc(c.title)}</h3><span class="pill ${HEALTH_PILL[c.state][1]}">${c.state === 'ok' && !(c.rows && c.rows.length) ? 'OK' : HEALTH_PILL[c.state][0]}</span></div>
     <p class="hint" style="margin:6px 0 ${c.rows && c.rows.length ? 12 : 0}px">${esc(c.text)}</p>
     ${c.rows && c.rows.length ? `<div class="tbl-wrap"><table class="compact"><thead><tr><th>Account</th><th class="num">Detail</th><th class="num">Books</th><th class="num">Difference</th></tr></thead><tbody>${c.rows.map(([id, a, b]) => `<tr><td>${esc(lbl(id))}</td><td class="num">${money(a)}</td><td class="num">${money(b)}</td><td class="num">${Math.abs(round2(a - b)) < 0.005 ? '–' : `<b>${money(round2(a - b))}</b>`}</td></tr>`).join('')}</tbody></table></div>` : ''}
-    ${c.state !== 'ok' && c.page && allowedPage(c.page) ? `<p style="margin-top:12px">${btn('nav', `Go to ${labelOf(c.page)}`, 'link sm', c.page)}</p>` : ''}</section>`;
+    ${c.state !== 'ok' && c.page && allowedPage(c.page) ? `<p style="margin-top:12px">${c.go ? btn(c.go[0], c.go[2], 'link sm', c.go[1]) : btn('nav', `Go to ${labelOf(c.page)}`, 'link sm', c.page)}</p>` : ''}</section>`;
   const order = { off: 0, todo: 1, ok: 2 };
   return head + `<div class="hc-grid">${cs.slice().sort((a, b) => order[a.state] - order[b.state]).map(card).join('')}</div>`;
 }
@@ -7241,7 +7254,7 @@ const GUIDE = {
       rows: [['210-020 · Accounts Payable - Others', 53500, 0], ['111-010 · Cash in Bank - Metrobank', 0, 53500]],
       note: 'The utang to Prime Realty goes down, and so does the money in the bank. The rent was already counted as a cost when the bill was entered, so paying it doesn’t count it again.' },
     shows: ['Cash in Bank: on the Balance Sheet, and on the Statement of Cash Flows.', 'The check: on Check Monitoring until the bank pays it, then on the bank reconciliation.', 'The voucher: on the cash disbursements book in the Google Sheet.'],
-    watch: ['A check is written on the voucher date, but leaves the bank only when it clears. That’s why the bank statement and the books differ for a while. Bank Reconciliation sorts that out.', 'Spoiled or cancelled check: void the voucher with the date and reason. Don’t delete it; the check number must stay accounted for.']
+    watch: ['Everything you do to a voucher (Approve, Print, Edit, Void, Mark cleared) is inside it: View it from the list.', 'A check is written on the voucher date, but leaves the bank only when it clears. That’s why the bank statement and the books differ for a while. Bank Reconciliation sorts that out.', 'Spoiled or cancelled check: void the voucher with the date and reason. Don’t delete it; the check number must stay accounted for.']
   },
   transfers: { who: 'everyday',
     what: 'Payments that leave the bank without a check: online banking, a bank transfer, an auto-debit. It also moves money between the company’s own accounts.',
@@ -7293,7 +7306,7 @@ const GUIDE = {
   checks: { who: 'everyday',
     what: 'Every check the company wrote, and whether the bank has paid it yet (cleared).',
     when: 'To see which checks are still out, and to mark one cleared once it’s on the bank statement.',
-    steps: [['Mark cleared', 'View the check, then Mark cleared…, and enter the date the check shows on the bank statement. Undo cleared is there too.'], ['Or let Bank Reconciliation do it', 'Ticking a check there marks it cleared for you.']],
+    steps: [['Mark cleared', 'View the check, then Mark cleared…, and enter the date the check shows on the bank statement. Undo cleared is there too. A check shows Mark cleared only once it’s approved, since it can’t be printed before that.'], ['Or let Bank Reconciliation do it', 'Ticking a check there marks it cleared for you.'], ['Out too long', `A check turns yellow after ${ATT.checkYellow} days and red after ${ATT.checkRed}; it goes stale at 180, when the bank won’t pay it. Books Health lists them too.`]],
     book: null,
     shows: ['Nothing new in the books; the check was booked when it was written. This is about timing: what the bank has paid so far.'],
     watch: ['A check on a reconciled statement stays cleared. If it was a mistake, undo that reconciliation first.']
@@ -7302,19 +7315,18 @@ const GUIDE = {
     what: 'Once a month, the bank’s statement is compared with the books, item by item, until they agree. It’s how you know nothing is missing or entered twice.',
     when: 'When each month’s bank statement comes, for each bank account.',
     steps: [
-      ['Record what’s missing first', 'If the statement shows a bank charge, interest, or a transfer the books don’t have, enter it first (Bank Transfers or General Journal).'],
-      ['View the account', 'View opens its register: the month’s entries in date order, a running balance, and whether each has reached the bank. The strip on top is what the bank should show at month end; compare it with the passbook.'],
-      ['When it doesn’t tie', 'Go down the register against the passbook, line by line. A line on one and not the other is the difference. Click a document to open it and fix it. Admins and Approvers can print it or download it to Excel for the file.'],
-      ['Find a line', 'Search by payee, particulars, document, check no. or amount, and use Show for money out, money in, what isn’t at the bank yet, what cleared, checks or deposit slips. The balance stays the running balance of the whole month.'],
-      ['Interest or bank charge', 'When the passbook shows interest (and the tax the bank withheld from it) or a charge the hub doesn’t have yet, press Interest or bank charge in the register. Type it as the passbook shows it; the tax fills in at 20%. It books a journal entry on that date, which counts as at the bank that day.'],
-      ['Reconcile', 'From the register. Enter the statement date and its ending balance.'],
-      ['Tick', 'Tick each check and each deposit that appears on the statement.'],
+      ['View the account', 'Each bank account has one button: View. It opens the account’s register, on the month after the last reconciliation: the entries in date order, a running balance, and whether each has reached the bank (Cleared with its date, Not cleared, Not in yet, Same day).'],
+      ['The strip on top', 'The books, plus checks not cleared, less deposits not in yet, equals what the bank should show at month end. Compare it with the passbook.'],
+      ['Record what the bank did on its own', 'Interest or bank charge, in the register: type the interest as the passbook shows it (the 20% tax withheld fills in) or the charge. It books a journal entry on that date to Interest Income - Bank, Income Tax Expense or Bank Service Charges, which counts as at the bank that day. A transfer the books don’t have goes on Bank Transfers.'],
+      ['When it doesn’t tie', 'Go down the register against the passbook, line by line. A line on one and not the other is the difference. Search by payee, particulars, document, check no. or amount, and use Show for money out, money in, not at the bank yet, cleared, checks or deposit slips; each line keeps the running balance of the whole month. Click a document to open it and fix it.'],
+      ['Reconcile', 'From the register. Enter the statement date and its ending balance, then tick each check and deposit that appears on the statement.'],
       ['Read the bottom', 'Statement balance, less checks not on it yet, plus deposits not on it yet, must equal the books. If it’s off, look for a missed tick or a wrong amount.'],
-      ['Save', 'It only saves when it agrees. What you ticked is marked cleared.']
+      ['Save', 'It only saves when it agrees. What you ticked is marked cleared. Undo the latest reconciliation, if it was wrong, from the register too.'],
+      ['For the file', 'Admins and Approvers can Print the register or Download Excel.']
     ],
     book: null,
     shows: ['No entry. Books Health shows each account as reconciled, and flags one if the books later change for a month already reconciled.'],
-    watch: ['Checks you wrote that the bank hasn’t paid yet, and deposits made on the last day, are normal differences. They show up on next month’s statement.', 'Only the latest reconciliation can be undone.']
+    watch: ['Checks you wrote that the bank hasn’t paid yet, and deposits made on the last day, are normal differences. They show up on next month’s statement.', 'Only the latest reconciliation can be undone.', 'Book bank interest from the register, not as a general journal entry, so it’s named the same way every month (“Interest from Metrobank, November 2026”).']
   },
   petty: { who: 'everyday',
     what: 'Petty cash is a small fixed amount of cash kept by one person, the custodian, for small expenses. Each payment out of it needs a petty cash voucher (PCV) with its resibo.',
@@ -7368,7 +7380,7 @@ const GUIDE = {
       rows: [['510-010 · Cost of Goods Sold', 100000, 0], ['130-010 · Inventories', 0, 100000]],
       note: 'The ₱100,000 that’s no longer on the shelf was sold (or lost), so it becomes a cost against this month’s sales.' },
     shows: ['Cost of Goods Sold on the Income Statement, right under sales; sales less this is the gross profit.', 'Inventories on the Balance Sheet.'],
-    watch: ['If a bill or receipt for the month comes in after the count, the page says Changed. Save the count again.']
+    watch: ['If a bill or receipt for the month comes in after the count, the list says so. View the count and choose Save again.']
   },
   gj: { who: 'everyday',
     what: 'For anything no other page covers: an expense used but not billed yet (an accrual), a correction, moving an amount from one account to another.',
@@ -7408,7 +7420,8 @@ const GUIDE = {
     when: 'Add an asset when it’s bought (after the bill or voucher for it). Record depreciation once a month: the part of each asset’s cost used up that month becomes an expense. Dispose when it’s sold or scrapped.',
     steps: [
       ['Add asset', 'Description, account, date acquired, cost, and useful life in months (60 for five years; 0 for land). The depreciation accounts fill in.'],
-      ['Record [month] depreciation', 'Shows the entry first, then posts it when you press Record it: each asset’s monthly depreciation as one journal entry dated the month’s last day, oldest month first. Expense goes up, the asset’s book value goes down; no cash moves.'],
+      ['Record [month] depreciation', 'Nothing on this page is in the books until you do this. It shows the entry first, then posts it when you press Record it: each asset’s monthly depreciation as one journal entry dated the month’s last day, oldest month first, so press it once for each month that’s owed. Expense goes up, the asset’s book value goes down; no cash moves. Once recorded, the entry is on General Journal and All Entries, each line marked with the asset ([FA-001]).'],
+      ['Department', 'Optional. It’s written on the asset’s depreciation expense line, so the cost shows under that department in the entries. It never draws from the department’s budget: equipment is the company’s.'],
       ['Dispose', 'Edit the asset, then Dispose…. Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
     ],
     book: { say: 'A ₱240,000 forklift, used for 60 months: ₱4,000 a month.',
@@ -7423,6 +7436,7 @@ const GUIDE = {
     steps: [
       ['Pick a report', 'Income Statement: did the company make money? Balance Sheet: what it owns and owes on a day. Cash Flows: where the cash came from and went. Changes in Equity: what happened to the owners’ share. Trial Balance: every account’s balance, for the accountant.'],
       ['Pick a period, and what to compare with', 'A month, a quarter, the year so far, or a range; against the period before or the same period last year.'],
+      ['Wait for it', 'The figures come from the Google Sheet. A blue panel says it’s loading; it can take up to a minute, especially the first time. Keep the page open.'],
       ['Download Excel or Print', 'For the accountant or the owners. Admins and Approvers only.']
     ],
     book: null,
@@ -7432,14 +7446,16 @@ const GUIDE = {
   health: { who: 'close',
     what: 'The checks an auditor would run, done every time the page opens. Each list in the hub is compared with the account it should equal.',
     when: 'Before locking a month, and any time something looks off.',
-    steps: [['As of', 'Today, or a month end.'], ['Read the cards', 'Red: a number doesn’t tie, so something is in the wrong place. Amber: something is due, like a reconciliation. Green: all good.'], ['Fix it', 'Each card says where to look and links there.']],
+    steps: [['As of', 'Today, or a month end.'], ['Read the cards', 'Red: a number doesn’t tie, so something is in the wrong place. Amber: something is due, like a reconciliation. Green: all good.'],
+      ['What it checks', 'Every entry balances, and so does the trial balance. Unpaid bills equal Accounts Payable; unpaid invoices, Accounts Receivable; checks and cash on hand, Undeposited Funds; advances by employee, Advances - Employees; open shipments, Goods in Transit; the fixed asset register, the asset accounts. Depreciation is recorded for every month that has ended. Each bank account is reconciled, still ties, and isn’t overdrawn. No check is going stale. Petty cash is within its fund. Suspense is cleared. Closed months are locked. The Google Sheet has room to grow.'],
+      ['Fix it', 'Each card says where to look and links there. A bank card opens that account’s register, on the month to work on.']],
     book: null, shows: ['When every card is green, the reports can be trusted.'],
     watch: ['The usual cause of red: something entered on General Journal that should have used its own page, or the wrong account picked.']
   },
   accounts: { who: 'setup',
     what: 'The chart of accounts: every account the books use, each with a code. Think of it as the labelled drawers every peso is filed into.',
     when: 'Rarely. Add an account when something new needs its own line.',
-    steps: [['Codes by section', '1 what the company owns, 2 what it owes, 3 the owners’ share, 4 sales, 5 cost of sales, 6 and 7 expenses, 8 other income and expense.'], ['Add or edit', 'An account in use can be renamed, but its type and section can’t change.'], ['Download chart', 'An Excel copy for the accountant.']],
+    steps: [['Codes by section', '1 what the company owns, 2 what it owes, 3 the owners’ share, 4 sales, 5 cost of sales, 6 and 7 expenses, 8 other income and expense.'], ['Add or edit', 'An account in use can be renamed, but its type and section can’t change.'], ['Download chart', 'An Excel copy for the accountant. Admins and Approvers only.']],
     book: null, shows: ['Every report is built from these accounts, in code order.'], watch: ['Ask before adding one; two accounts for the same thing split a total that should be one.']
   },
   departments: { who: 'setup',
@@ -7451,7 +7467,7 @@ const GUIDE = {
   contacts: { who: 'setup',
     what: 'Everyone the company pays or bills, spelled once: suppliers, vendors, customers, employees.',
     when: 'New names are added as bills and vouchers are saved. Come here to fix spelling or add a TIN.',
-    steps: [['Type', 'Supplier (sells you goods), Vendor (services), Customer, Employee. A supplier’s bills go to Accounts Payable - Trade; a vendor’s to Accounts Payable - Others. Only employees can get cash advances.'], ['TIN', 'Printed on vouchers and needed for tax lists.'], ['Usual account and withholding', 'Filled in for you on their next bill.']],
+    steps: [['Type', 'Supplier (sells you goods), Vendor (services), Customer, Employee. A supplier’s bills go to Accounts Payable - Trade; a vendor’s to Accounts Payable - Others. Only employees can get cash advances.'], ['TIN', 'Printed on vouchers and needed for tax lists.'], ['Usual account and withholding', 'Filled in for you on their next bill.'], ['Edit or delete', 'Each row has Edit. A name on no document can be deleted from inside Edit; it asks first. A name on any document stays.'], ['The colours', 'Each type has its own tag: Supplier blue, Vendor green, Customer dark navy, Employee outlined.']],
     book: null, shows: ['Names on every document, and on the tax lists in the Google Sheet.'], watch: ['One person, one contact. A second spelling splits their history.']
   },
   company: { who: 'setup',
@@ -7463,7 +7479,7 @@ const GUIDE = {
   users: { who: 'setup',
     what: 'Who can sign in, and what each person can do. Each person has one role; each role is a set of permissions.',
     when: 'When someone joins, leaves, or needs to do more.',
-    steps: [['Add a user', 'A username and a temporary password; they change it after signing in.'], ['Roles', 'Give the least that lets someone do their job. Admin can do everything.'], ['Someone leaves', 'Turn their sign-in off. Their name stays on what they did.']],
+    steps: [['Add a user', 'A username and a temporary password; they change it after signing in.'], ['Roles', 'Give the least that lets someone do their job. Admin can do everything. Financial Reports, “See, print and download the reports”, also decides who can Download Excel and print reports anywhere in the hub: give it to Approvers, not Encoders.'], ['Someone leaves', 'Turn their sign-in off. Their name stays on what they did.']],
     book: null, shows: ['Every save in the Change Log carries the user’s name.'], watch: ['Never share a sign-in; the Change Log is only useful if names are true.']
   },
   log: { who: 'setup',
@@ -7495,22 +7511,26 @@ const GUIDE_START = `
     <li><b>Month end:</b> the stock count, depreciation, accruals, the bank reconciliation, Books Health, then lock the month.</li></ol>
   <h3>One way into every document</h3>
   <p>Every list has one button per row: <b>View</b>. Everything you can do to a document, Edit, Print, Void, Approve, Pay back, Receive, Mark cleared, is inside it, in the same place every time. Anything that changes the books takes two steps, open it and then act, so a stray click can’t change anything.</p>
+  <p>Every document opens the same way. At the top: what it is and its date, who it’s for, and its one figure (Payable, Received, Total…) in large blue. Then the facts, then the accounting entry: each account’s code in a blue tag, the credits indented under the debits, and <b>Balanced</b> on the total line when debits equal credits. Check vouchers show as the printed voucher, enlarged on screen.</p>
   <h3>Where it all lives</h3>
   <p>The hub is where you work. Every save goes straight to the company’s Google Sheet, which holds the complete books and the reports for the accounting firm. A copy of the Sheet is made every night.</p>`;
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
   '<b>Check the year</b> at the top of the sidebar. Everything you see and enter is in that year’s books.',
-  '<b>Cards at the top of a page.</b> A page with more than one list (unpaid and paid bills, collections and deposits) shows a card for each with its total. Click a card to see that list; the outlined one is showing. A red or yellow line under the total means something there needs attention.',
+  '<b>Cards in the dark band at the top of a page.</b> A page with more than one list (unpaid and paid bills, collections and deposits) shows a card for each with its total. Click a card to see that list; the one showing is underlined in green. A red or yellow line under the total means something there needs attention.',
+  '<b>Scroll as far as you like.</b> On a computer, the page name, its buttons and its cards (as small tabs), the search and filters, and the column headings stay at the top while the rows scroll under them.',
   '<b>Find your pages.</b> Home comes first: what needs attention today. Then the sidebar follows the work: Payables (what the company owes), Receivables (what it’s owed), Cash and Bank, Inventory, Books, Help and Checks (this guide, Books Health to check the books add up, and the Change Log of who saved what), and last, Setup (contacts, users and roles, the chart of accounts, departments and company details, one tab each). You see only the pages your role uses.',
   '<b>Press the ? by any page title</b> for how that page works, what it writes in the books, and where it shows up.',
   '<b>Hover or tap the (i)</b> beside a field for what goes in it.',
-  '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.'];
+  '<b>Save means saved.</b> If a save can’t go through, the hub says why in red and points to the field. Nothing half-saves.',
+  '<b>When the hub is waiting on Google, it says so</b>: a big blue panel with a spinner while the books, a report or the change log load, and “Saving to the Google Sheet…” at the top while a save goes through (the Save button reads “Saving…”). It can take up to a minute. Keep the page open.',
+  '<b>Red buttons undo or remove.</b> Void, Delete and Dispose are red, and so is the button that confirms them. Green means go ahead.'];
 const HELP_CLOSE = [
   ['Everything for the month is in', 'Every bill, voucher, transfer, invoice, collection and deposit dated in the month.'],
   ['Petty cash and advances', 'Replenish each fund so every PCV is in. Liquidate the advances that have come back.'],
   ['Stock', 'Receive any shipment that arrived, then enter the month-end stock count.'],
   ['Accruals', 'On General Journal: expenses used but not billed yet, set to reverse on the 1st of next month.'],
-  ['Depreciation', 'On Fixed Assets: Book the month.'],
-  ['The bank', 'Reconcile each bank account to its statement.'],
+  ['Depreciation', 'On Fixed Assets: Record each month’s depreciation that’s owed, oldest first.'],
+  ['The bank', 'For each bank account: View it, record the passbook’s interest and bank charges, then Reconcile it to the statement.'],
   ['Books Health', 'As of the month end. Fix anything red; clear anything amber that’s due.'],
   ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
 ];
@@ -7519,7 +7539,10 @@ const HELP_FAQ = [
   ['How do I pay several bills at once?', 'Supplier Bills, Pay bills. Tick the bills, choose the bank, the date and checks or transfers, and Make vouchers: one per payee, waiting for approval. Once approved, Check Vouchers, Print checks prints them together.'],
   ['How do I enter payroll?', 'General Journal, Payroll. Type the totals from the payroll summary: gross pay, each SSS, PhilHealth and Pag-IBIG share, withholding tax, and any cash advances deducted. The hub shows the entry and saves it as a journal entry. The next payroll starts from these figures.'],
   ['Why can’t I print this check?', 'It hasn’t been approved. A check voucher or a payment by transfer waits for an Approver or Admin to open it and choose Approve; then it prints. Nobody approves a payment they entered or changed last, except an Admin. Changing what a payment pays sends it back for approval; marking a check cleared doesn’t.'],
-  ['How do I find something?', 'Press ⌘K (Ctrl+K on Windows), or Search at the top of the sidebar, and type any part of it: an invoice or check no., a name, a TIN, a description, an account code, or an amount (with or without commas). Every word you type must match. It searches the year open in the sidebar. All Entries has its own search box too.'],
+  ['How do I find something?', 'Press ⌘K (Ctrl+K on Windows), or Search at the top of the sidebar, and type any part of it: an invoice or check no., a name, a TIN, a description, an account code, or an amount (with or without commas). Every word you type must match. It searches the year open in the sidebar. To trace a number: All Entries, pick the account and month (and a type, or search). A bank account’s register has its own search and Show.'],
+  ['Why does each row only have View?', 'So nothing changes the books by accident. Open the document, read it, then act: Edit, Print, Void, Approve, Pay back, Receive and Mark cleared are all inside it.'],
+  ['How do I record the interest the bank gave us?', 'Bank Reconciliation, View the bank account, Interest or bank charge. Type the interest as the passbook shows it; the 20% tax withheld fills in. It books Interest Income - Bank, the tax to Income Tax Expense, and the net into the bank. A bank charge works the same way.'],
+  ['What does Record depreciation on Fixed Assets do?', 'It puts the month’s depreciation into the books as a journal entry. Adding an asset only lists it; the purchase itself was the bill or voucher that paid for it. Until a month is recorded, its depreciation isn’t in the reports, and Books Health says so.'],
   ['Why does the hub open so fast? Is it showing old numbers?', 'The hub keeps the books you last saw on this computer, so it opens at once, then asks Google only for what changed since. While it’s checking, the Refresh button spins; it stops when you’re up to date. Refresh, saving and coming back to the tab fetch only what changed, too. On a shared or borrowed computer, sign out when you’re done: that clears the copy kept on it.'],
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
   ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],
@@ -7534,10 +7557,10 @@ const HELP_FAQ = [
   ['A supplier gave us a discount or took goods back.', 'Enter a debit memo on Supplier Bills and apply it to the bill. It reduces what you owe them.'],
   ['A customer returned goods.', 'Enter a credit memo on Sales Invoices and apply it to their invoice.'],
   ['An owner paid for something with their own money.', 'For petty cash or a cash advance, choose “An owner, out of pocket”. It’s listed under Owed to Owners until the company pays them back with a check.'],
-  ['The bank statement doesn’t match the books.', 'That’s normal for checks not yet cashed and deposits made on the last day. Bank Reconciliation accounts for them. If it’s still off, look for a bank charge or interest the books don’t have.'],
+  ['The bank statement doesn’t match the books.', 'That’s normal for checks not yet cashed and deposits made on the last day; the register’s strip adds them back to show what the bank should show. If it’s still off, record any interest or bank charge from the register, then go down the register against the passbook line by line.'],
   ['What’s the difference between Cash on Hand and Undeposited Funds?', 'Both are cash in the office. Undeposited Funds is customers’ payments waiting for a deposit slip. Cash on Hand is any other cash, like the change from an advance.'],
   ['Why is Books Health red?', 'A list doesn’t agree with its account, usually because something went through General Journal that should have used its own page, or the wrong account was picked. The card shows the difference and where to look.'],
-  ['Why don’t I see some pages or buttons?', 'Your role decides what you can do. Ask an Admin if you need more.'],
+  ['Why don’t I see some pages or buttons?', 'Your role decides what you can do. Download Excel and printing reports are for Admins and Approvers. Ask an Admin if you need more.'],
   ['The hub signed me out, or says it can’t reach the books.', 'Sign in again; everything up to your last save is safe. If it keeps happening, tell the Admin: the Google Sheet’s script may need attention.'],
   ['Two people saved at the same time. What happens?', 'The second save stops if it would overwrite the first, and the hub asks you to reload. Nothing is lost.'],
   ['Can I delete something?', 'No. Documents are voided, not deleted, so there’s always a record. That’s what auditors and the BIR expect.'],
@@ -7566,6 +7589,9 @@ const HELP_WORDS = [
   ['Undeposited Funds', 'Customers’ checks and cash not yet in the bank.'],
   ['Cleared', 'A check the bank has paid; it shows on the statement.'],
   ['Reconcile', 'Agree the bank’s statement with the books, item by item.'],
+  ['Register', 'One bank account’s entries in date order with a running balance, like a passbook kept by the books.'],
+  ['Final tax', 'The 20% the bank keeps from interest and pays the BIR. The interest booked is the full amount; the bank shows the net.'],
+  ['Stale check', 'A check more than 180 days old. The bank won’t pay it; void it and issue a new one.'],
   ['Petty cash fund', 'A fixed amount of cash for small expenses, kept by a custodian.'],
   ['Custodian', 'The person who keeps a petty cash fund and answers for it.'],
   ['Liquidation', 'An employee accounting for a cash advance with resibos and the change.'],
@@ -8290,7 +8316,7 @@ const ACT = {
   'welcome-done': () => { try { localStorage.setItem(WELCOME_KEY(), '1'); } catch (e) { } const w = document.querySelector('.welcome'); if (w) w.remove(); },
   reconcile: id => reconForm(id),
   'view-recon': id => viewRecon(id),
-  'view-bank': id => { S.rb = id; S.rm = ''; S.q = ''; S.rgf = ''; refreshMain(); window.scrollTo(0, 0); },
+  'view-bank': id => { if (S.page !== 'recon') go('recon'); S.rb = id; S.rm = ''; S.q = ''; S.rgf = ''; refreshMain(); window.scrollTo(0, 0); },
   'rg-back': () => { S.rb = ''; S.q = ''; S.rgf = ''; refreshMain(); },
   'rg-print': () => canExport() ? regPrint(S.rb) : noExport(),
   'je-clear': () => { Object.assign(S, { q: '', jm: '', ja: '', jt: '' }); refreshMain(); },

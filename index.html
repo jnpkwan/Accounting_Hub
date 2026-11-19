@@ -76,6 +76,10 @@ tr.bsub td{font-size:13.5px;padding-top:6px;padding-bottom:6px}
 .btn:hover,.btn:focus-visible{background:var(--green7);color:#fff;transform:translateY(-2px);box-shadow:0 8px 20px rgba(26,113,62,.22)}
 .btn.ghost{background:#fff;color:var(--blue);box-shadow:inset 0 0 0 1.5px var(--blue)}
 .btn.ghost:hover,.btn.ghost:focus-visible{background:var(--green7);color:#fff;box-shadow:inset 0 0 0 1.5px var(--green7),0 8px 20px rgba(26,113,62,.22)}
+/* Void, delete and dispose are red, before and under the pointer, so they never look like the green go-ahead. */
+.btn.red{background:#A52A24;color:#fff}.btn.red:hover,.btn.red:focus-visible{background:#7E1F1B;color:#fff;box-shadow:0 8px 20px rgba(165,42,36,.28)}
+.btn[data-act^="void-"],.btn[data-act="delete-contact"],.btn[data-act="dispose-asset"]{background:#fff;color:#A52A24;box-shadow:inset 0 0 0 1.5px #A52A24}
+.btn[data-act^="void-"]:hover,.btn[data-act^="void-"]:focus-visible,.btn[data-act="delete-contact"]:hover,.btn[data-act="delete-contact"]:focus-visible,.btn[data-act="dispose-asset"]:hover,.btn[data-act="dispose-asset"]:focus-visible{background:#A52A24;color:#fff;box-shadow:inset 0 0 0 1.5px #A52A24,0 8px 20px rgba(165,42,36,.28)}
 .btn.dark{background:var(--ink)}
 /* a void or delete button warns instead */
 .btn.dark:hover,.btn.dark:focus-visible{background:#A52A24;box-shadow:0 8px 20px rgba(165,42,36,.22)}
@@ -309,6 +313,8 @@ td.dt{white-space:nowrap}
 .bs-n{font:700 12.5px var(--display);color:var(--carbon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bs-i b{font:800 18px var(--display);color:var(--ink);font-variant-numeric:tabular-nums}.bs-i small{font-size:12.5px;color:var(--muted)}
 .bs-key{background:var(--blue05)}.bs-key b{color:var(--blue)}
 .rg-name{font:700 16px var(--display);color:var(--ink)}
+.jf #q{flex:1 1 200px;min-width:180px;max-width:280px}.jf select{max-width:200px}.jf .jf-acct{max-width:300px}
+.jf-sum{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap;margin:0 0 10px}.jf-sum b{font:800 19px var(--display);color:var(--ink)}.jf-sum span{color:var(--muted)}
 .rg td:first-child,.rg td:last-child,.rg .rg-ref,.rg .rg-ref .btn{white-space:nowrap}.rg td:nth-child(2) .sub{display:block!important;margin:2px 0 0!important}.rg .rg-ref .btn{padding-left:0;padding-right:0}
 tr.rg-open td{background:var(--mist)!important}
 .rpd table.rg-p td{vertical-align:top}.rpd .rg-s{color:var(--muted);font-size:8.5px}
@@ -336,6 +342,15 @@ tr.att-red>td:first-child{box-shadow:inset 5px 0 0 #A52A24}tr.att-yellow>td:firs
 .pb .vtab{background:transparent;border:0;border-radius:0;padding:12px 18px 6px 0;margin-right:18px;color:#fff;box-shadow:none;border-bottom:4px solid transparent}
 .pb .vtab span{color:var(--blue1);font-size:11.5px;letter-spacing:.14em}.pb .vtab b{color:#fff;font-size:24px}.pb .vtab small{color:var(--blue3);font-size:13px}
 .pb .vtab:hover{border-color:transparent;border-bottom-color:var(--green3)}.pb .vtab:hover b{color:var(--green3)}.pb .vtab.on{border-bottom-color:var(--green);box-shadow:none}.pb .vtab.on span{color:#fff}
+.pb .vtabs.rp-cards{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;border-top:0;margin-top:20px}
+.pb .rp-cards .vtab{margin:0;padding:16px 18px 14px;border-radius:14px;border:1.5px solid rgba(168,187,219,.35);background:rgba(255,255,255,.05)}
+.pb .rp-cards .vtab b{font-size:21px;line-height:1.15;margin:4px 0 4px}.pb .rp-cards .vtab small{line-height:1.35}
+.pb .rp-cards .vtab:hover{border-color:var(--green3);background:rgba(255,255,255,.1);transform:translateY(-2px)}.pb .rp-cards .vtab:hover b{color:#fff}
+.pb .rp-cards .vtab.on{background:#fff;border-color:#fff;box-shadow:inset 0 -5px 0 var(--green),0 10px 24px rgba(0,0,0,.25)}
+.pb .rp-cards .vtab.on span{color:var(--green7)}.pb .rp-cards .vtab.on b{color:var(--ink)}.pb .rp-cards .vtab.on small{color:var(--carbon)}
+@media (max-width:1100px){.pb .vtabs.rp-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:760px){.pb .vtabs.rp-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.pb .rp-cards .vtab b{font-size:16px}}
+.log-note{font-size:15px;color:var(--ink);font-weight:600}
 .pb .vtab.static:hover{border-bottom-color:transparent}
 .pb .vtab.vt-red b,.pb .vtab.vt-red small{color:#F4908A}.pb .vtab.vt-yellow small{color:#FFC62E}.pb .vtab.vt-green small{color:var(--green3)}
 @media (max-width:760px){.pb{padding:16px 16px 12px;border-radius:14px}.pb-title{font-size:24px}.pb .vtabs{grid-template-columns:repeat(2,minmax(0,1fr))}.pb .vtab{padding:10px 10px 6px 0;margin-right:10px}.pb .vtab b{font-size:17px}.pb .vtab span{font-size:9.5px}}
@@ -388,9 +403,9 @@ tbody tr.jrow.alt td{background:var(--mist)}
 .gate-err:empty{display:none}
 .errlist{max-height:46vh;overflow-y:auto;margin:0 0 20px;padding:12px 16px 12px 32px;border-radius:12px;background:var(--mist);font-size:13.5px}
 .errlist li{margin-bottom:6px}
-#busy{position:fixed;top:16px;right:16px;z-index:70;background:var(--ink);color:#fff;font:700 12.5px var(--display);padding:9px 16px;border-radius:999px;box-shadow:var(--lift);display:none;align-items:center;gap:10px}
+#busy{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:70;background:var(--ink);color:#fff;font:800 18px var(--display);padding:16px 28px;border-radius:999px;box-shadow:0 0 0 4px var(--green),0 16px 40px rgba(0,0,0,.35);display:none;align-items:center;gap:14px;max-width:calc(100vw - 32px)}
 #busy.on{display:flex}
-#busy::before{content:"";width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite}
+#busy::before{content:"";flex:none;width:22px;height:22px;border-radius:50%;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 body.busy #app{pointer-events:none}
 /* modal */
@@ -570,6 +585,28 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
 .hp-b{padding:0 20px 18px}.hp-b p{margin:0;line-height:1.6}
 .hp-words dl{display:grid;grid-template-columns:200px 1fr;gap:10px 20px;margin:0}.hp-words dt{font:700 14px var(--display);color:var(--blue)}.hp-words dd{margin:0}
 @media (max-width:760px){.hp-words dl{grid-template-columns:1fr}.hp-words dd{margin-bottom:8px}.tip::after{max-width:220px}}
+/* Document views: a clear order for the eye. The hero first (what, when, the figure), then the facts, then the entry. */
+.dv{font-size:15px}
+.dv-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding:0 0 18px;margin:0 0 20px;border-bottom:3px solid var(--ink)}
+.dv-eye{margin:0 0 6px;font:700 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--green7)}
+.dv-title{margin:0;font:800 24px/1.2 var(--display);color:var(--ink);letter-spacing:-.01em}
+.dv-meta{margin:6px 0 0;font-size:15px;color:var(--muted)}.dv-meta b{color:var(--ink)}
+.dv-hero-r{text-align:right;flex:none}.dv-hero-r span{display:block;font:700 11px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--green7);margin-bottom:4px}
+.dv-hero-r b{font:800 32px/1 var(--display);color:var(--blue);font-variant-numeric:tabular-nums}
+.dv-grid dt,.dv-amt dt{font-size:11px;color:var(--green7)}
+.dv-grid dd{font-size:16px;font-weight:600;color:var(--ink)}
+.dv-sect{font-size:12px;color:var(--green7);letter-spacing:.16em;margin:0 0 10px}
+.dv .etbl{font-size:15.5px}
+.dv .etbl th{padding:10px 14px;font-size:12px}
+.dv .etbl td{padding:12px 14px;vertical-align:top}
+.dv .etbl td.num{font:600 16.5px var(--body);font-variant-numeric:tabular-nums;color:var(--ink)}
+.dv .etbl td .sub{display:block;margin:3px 0 0;font-size:14px;color:var(--muted)}
+.etbl .ac-c{display:inline-block;font:700 13.5px/1.5 var(--display);color:var(--blue);background:var(--blue05);border-radius:5px;padding:0 7px;margin-right:6px;font-variant-numeric:tabular-nums}
+.etbl .ac-d{display:none}.etbl .ac-n{font-weight:600;color:var(--ink)}
+.dv .etbl tr.e-cr td:first-child{padding-left:56px}
+.dv .etbl tbody tr+tr.e-cr:not(.e-cr+.e-cr) td{border-top:1px dashed var(--blue3)}
+.dv .etbl tfoot td{font:800 17px var(--display);color:var(--ink);padding:12px 14px}
+.e-ok{display:inline-block;margin-left:10px;font:700 12px/1 var(--display);letter-spacing:.04em;color:var(--green7);background:var(--green05);border-radius:999px;padding:5px 10px;vertical-align:middle}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
 .preview-wrap>.vc{zoom:1.4}.preview-wrap:has(>.vc){padding:24px 26px}
@@ -628,7 +665,7 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
   .checkamt .big{font-size:26px}
   .entry{padding:14px}
   .card{padding:20px}
-  .preview-wrap{padding:16px}.preview-wrap>.vc{zoom:1}
+  .preview-wrap{padding:16px}.preview-wrap>.vc{zoom:1}.dv-hero{flex-direction:column;align-items:flex-start}.dv-hero-r{text-align:left}.dv .etbl tr.e-cr td:first-child{padding-left:28px}
   .dv-grid,.dv-amt{grid-template-columns:96px 1fr}
 }
 /* The voucher preview on a phone. Screen only: a Letter page is narrower than 960 px, and print keeps the full form. */
@@ -699,7 +736,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.48';
+const APP_VERSION = '3.49';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -1174,7 +1211,7 @@ function diffBooks(before, after, kind) {
 const SPEC = () => Object.fromEntries(TABLES.map(t => [t.name, { key: t.key, cols: t.cols.map(c => [c[0], c[1], c[2], c[3] || '']) }]));
 function busy(msg) { const b = document.getElementById('busy'); b.textContent = msg || ''; b.classList.toggle('on', !!msg); document.body.classList.toggle('busy', !!msg); }
 async function send(kind, changes, newIds, extra) {
-  busy('Saving…');
+  busy('Saving to the Google Sheet…');
   try { const res = await api('commit', { kind, changes, newIds, spec: SPEC(), ...loadReq(), ...(extra || {}) }); if (applyLoad(res) === 'stale') await loadBooks(true); return { map: res.map || {} }; }
   catch (e) {
     if (e.code === 'auth') { closeModal(); signedOut(e.message); return { handled: true }; }
@@ -2019,7 +2056,7 @@ function openModal(title, body, onSave, saveLabel = 'Save', opts = {}) {
   document.getElementById('modal-root').innerHTML = `<div class="overlay"><div class="modal ${opts.size || ''}" role="dialog" aria-modal="true" aria-labelledby="m-title">
     <div class="modal-head"><div>${(() => { const n = NAV.flatMap(g => g.items).find(i => i.id === S.page); return n ? `<p class="modal-eye">${esc(n.title || n.label)}</p>` : ''; })()}<h2 id="m-title">${title}</h2></div><button class="btn link m-x" data-act="close-modal" aria-label="Close">✕</button></div>
     <div class="modal-body">${body}${opts.doc ? docStamp(opts.doc) : ''}</div>
-    <div class="modal-foot"><p class="form-err" id="m-err" role="alert"></p>${opts.extra || ''}<button class="btn ghost" data-act="close-modal">${opts.cancelLabel || (onSave ? 'Cancel' : 'Close')}</button>${onSave ? `<button class="btn ${opts.danger ? 'dark' : ''}" data-act="save-modal">${saveLabel}</button>` : ''}</div>
+    <div class="modal-foot"><p class="form-err" id="m-err" role="alert"></p>${opts.extra || ''}<button class="btn ghost" data-act="close-modal">${opts.cancelLabel || (onSave ? 'Cancel' : 'Close')}</button>${onSave ? `<button class="btn ${opts.danger ? 'red' : ''}" data-act="save-modal">${saveLabel}</button>` : ''}</div>
   </div></div>`;
   modalSave = onSave;
   histModal();
@@ -2045,12 +2082,13 @@ async function saveModal(extra) {
   const errEl = document.getElementById('m-err'), foot = document.querySelector('#modal-root .modal-foot');
   const btns = foot ? [...foot.querySelectorAll('button')] : [];
   saveModal.busy = true; btns.forEach(b => { b.disabled = true; });
+  const sb = foot && foot.querySelector('[data-act="save-modal"], [data-act="save-print"]'), sl = sb ? sb.textContent : ''; if (sb) sb.textContent = 'Saving…';
   errEl.textContent = '';
   try {
     const err = await modalSave(extra);
     if (err && document.getElementById('m-err')) { document.getElementById('m-err').textContent = err; markInvalid(err); }
   } catch (e) { console.error(e); if (document.getElementById('m-err')) document.getElementById('m-err').textContent = 'Couldn’t save: ' + e.message; }
-  finally { saveModal.busy = false; btns.forEach(b => { b.disabled = false; }); }
+  finally { saveModal.busy = false; btns.forEach(b => { b.disabled = false; }); if (sb && sb.isConnected) sb.textContent = sl; }
 }
 const modalEl = () => document.querySelector('#modal-root .modal');
 /* Points at what a save message is about: the field whose label the message names ("Enter the particulars…" →
@@ -2129,8 +2167,10 @@ function gateScreen() {
 }
 /* While the books load with someone signed in (a reload, a year switch), the hub keeps its frame (sidebar, page
    title) and shows the page's outline, so it never looks like you were sent back to the sign-in screen. */
+/* Anything the hub waits on the Google Sheet for says so in large type, with a spinner, until it's there. */
+const waitPanel = (title, text) => `<div class="rp-wait" role="status" aria-live="polite"><span class="rp-spin" aria-hidden="true"></span><div><b>${esc(title)}</b><p>${esc(text)}</p></div></div>`;
 const skeleton = () => `<div class="skel" aria-busy="true" aria-label="Loading the books"><div class="skel-eyebrow"></div><div class="skel-title"></div><div class="skel-line"></div><div class="skel-line short"></div>
-  <div class="skel-table">${'<div class="skel-row"></div>'.repeat(7)}</div><p class="skel-note">Loading the ${YEAR} books…</p></div>`;
+  <div class="skel-table">${'<div class="skel-row"></div>'.repeat(7)}</div>${waitPanel(`Loading the ${YEAR} books…`, 'Getting everything from the Google Sheet. The first time on a computer can take up to a minute; after that it’s quick. Keep this page open.')}</div>`;
 let renderedPage = null;
 function render() {
   setTimeout(() => document.querySelectorAll('[data-act="refresh"]').forEach(b => { b.classList.toggle('busy', SYNCING); if (SYNCING) b.title = 'Getting what changed since you last opened the hub…'; }), 0);
@@ -3346,29 +3386,85 @@ function entryRef(d, { link = false, label = true } = {}) {
   return `${v ? pill('Void') + ' ' : ''}${ref}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}`;
 }
 
-/* ---------- Books: journal (every entry, view only) ---------- */
+/* ---------- Books: journal (every entry, view only) ----------
+   For finding and troubleshooting: search, plus a month, an account and a document type. With an account chosen, only
+   that account's lines show, each with what it was booked against, and (when nothing else narrows it) a running
+   balance from the balance brought forward, so it can be held against the trial balance or a statement line by line. */
 function journalPage() {
-  return pageHead('journal', 'Every accounting entry the hub has written, oldest first. A voided document’s entry stays where it was, reversed on the day it was voided.')
-    + (journal().length ? `<div class="toolbar"><input id="q" type="search" placeholder="Search ref., name, particulars, account or amount" value="${esc(S.q)}" aria-label="Search entries"></div><div id="list">${journalList()}</div>`
-      : '<div class="empty"><b>No entries yet</b>An entry appears here as soon as a bill or voucher is saved.</div>');
+  if (!journal().length) return pageHead('journal', '') + '<div class="empty"><b>No entries yet</b>An entry appears here as soon as a bill or voucher is saved.</div>';
+  const all = journal(), used = [...new Set(all.flatMap(d => d.lines.map(l => l.acct)))].map(acct).filter(Boolean).sort((a, b) => String(a.code || a.name).localeCompare(String(b.code || b.name)));
+  const ms = [...new Set(all.map(d => d.date.slice(0, 7)))].filter(m => m.startsWith(String(YEAR))).sort();
+  const types = [...new Set(all.map(d => d.src.replace(/Void$/, '')))].filter(k => SOURCES[k]).sort((a, b) => SOURCES[a].label.localeCompare(SOURCES[b].label));
+  return pageHead('journal', '', btn('je-xlsx', 'Download Excel', 'ghost'))
+    + `<div class="toolbar jf"><input id="q" type="search" placeholder="Search ref., name, particulars or amount" value="${esc(S.q)}" aria-label="Search entries">
+      <select id="jm" aria-label="Month">${opt('', `All of ${YEAR}`, S.jm)}${ms.map(m => opt(m, monthLabel(m), S.jm)).join('')}</select>
+      <select id="ja" aria-label="Account" class="jf-acct">${opt('', 'All accounts', S.ja)}${used.map(a => opt(a.id, acctLabel(a), S.ja)).join('')}</select>
+      <select id="jt" aria-label="Document type">${opt('', 'All documents', S.jt)}${types.map(k => opt(k, SOURCES[k].label + 's', S.jt)).join('')}${opt('void', 'Voids only', S.jt)}</select>
+</div><div id="list">${journalList()}</div>`;
 }
 /* An entry matches when every word typed is in it: its ref., name, particulars, line descriptions, accounts (code or
    name), document type, or an amount (typed with or without commas). */
 const entryHay = d => [d.ref, d.contact, d.memo, (SOURCES[d.src] || {}).label, ...d.lines.flatMap(l => [l.memo, acctLabel(acct(l.acct)), l.tag ? tagName(l.tag) : ''])].join(' ').toLowerCase();
 const amtHit = (tok, amts) => { const t = tok.replace(/[₱,\s]/g, ''); return /^\d+(\.\d*)?$/.test(t) && amts.some(a => a && money(Math.abs(a)).replace(/,/g, '').includes(t)); };
 const matchAll = (q, hay, amts) => String(q || '').toLowerCase().split(/\s+/).filter(Boolean).every(tok => hay.includes(tok) || amtHit(tok, amts));
+/* The entries and lines the filters leave, and the running balance when it can be shown. */
+function jeFiltered() {
+  const all = journal(), q = S.q.trim(), a = S.ja && acct(S.ja) ? S.ja : '';
+  const from = S.jm ? `${S.jm}-01` : '', to = S.jm ? eom(S.jm) : '';
+  const docs = all.filter(d => (!from || (d.date >= from && d.date <= to))
+    && (!S.jt || (S.jt === 'void' ? isVoidSrc(d.src) : d.src.replace(/Void$/, '') === S.jt))
+    && (!a || d.lines.some(l => l.acct === a))
+    && (!q || matchAll(q, entryHay(d), d.lines.flatMap(l => [l.dr, l.cr]).concat([sum(d.lines.map(l => l.dr || 0))]))));
+  const sign = a ? stmtOf(acct(a).type)[2] : 1, run = !!a && !q && !S.jt;
+  const open = run ? round2(sign * acctBalance(a, from ? prevDay(from) : `${YEAR - 1}-12-31`)) : 0;
+  let bal = open;
+  const rows = docs.map(d => ({ d, lines: (a ? d.lines.filter(l => l.acct === a) : d.lines).map(l => ({ l, bal: run ? (bal = round2(bal + sign * ((l.dr || 0) - (l.cr || 0)))) : null })),
+    against: a ? [...new Set(d.lines.filter(l => l.acct !== a).map(l => l.acct))] : [] }));
+  const ls = rows.flatMap(r => r.lines.map(x => x.l));
+  return { all, docs, rows, a, sign, run, open, close: bal, from, to, q, dr: round2(sum(ls.map(l => l.dr || 0))), cr: round2(sum(ls.map(l => l.cr || 0))) };
+}
+const jeAgainst = ids => ids.length ? `against ${ids.slice(0, 2).map(id => acctName(id)).join(', ')}${ids.length > 2 ? ` and ${ids.length - 2} more` : ''}` : '';
 function journalList() {
-  const all = journal(), q = S.q.trim(), docs = q ? all.filter(d => matchAll(q, entryHay(d), d.lines.flatMap(l => [l.dr, l.cr]).concat([sum(d.lines.map(l => l.dr || 0))]))) : all;
-  if (!docs.length) return `<div class="empty"><b>Nothing matches “${esc(q)}”</b>Try part of a ref. or name, an account code, or an amount.</div>`;
-  const dr = sum(docs.flatMap(d => d.lines.map(l => l.dr))), cr = sum(docs.flatMap(d => d.lines.map(l => l.cr)));
-  const body = chunked(docs.map((d, di) => [d, di]), ([d, di]) => d.lines.map((l, i) => `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
+  const F = jeFiltered(), { docs, rows, a, run } = F;
+  if (!docs.length) return `<div class="empty"><b>Nothing matches</b>${F.q ? `Nothing has “${esc(F.q)}” with these filters. ` : ''}Try another month, account or type. <button type="button" class="btn link sm" data-act="je-clear">Clear filters</button></div>`;
+  const an = a ? acct(a) : null, side = an && F.sign < 0 ? 'credit' : 'debit';
+  const clear = '<button type="button" class="btn link sm" data-act="je-clear">Clear filters</button>';
+  const head = a ? `<div class="jf-sum"><b>${esc(acctLabel(an))}</b><span>${S.jm ? esc(monthLabel(S.jm)) : `All of ${YEAR}`} · ${docs.length.toLocaleString('en-US')} entr${docs.length === 1 ? 'y' : 'ies'}${run ? ` · balance shown as a ${side} balance` : ' · the running balance shows when only the month and account are chosen'}</span>${clear}</div>`
+    : S.q || S.jm || S.jt ? `<div class="jf-sum"><span>Showing ${docs.length.toLocaleString('en-US')} of ${F.all.length.toLocaleString('en-US')} entries</span>${clear}</div>` : '';
+  const body = (run ? `<tr class="jrow jfirst rg-open"><td class="dt">${fdate(F.from ? prevDay(F.from) : `${YEAR - 1}-12-31`)}</td><td><b>Brought forward</b></td><td><span class="hint">${F.from ? 'Balance at the end of the day' : `Closing balance of the ${YEAR - 1} books`}</span></td><td></td><td class="num"></td><td class="num"></td><td class="num"><b>${money(F.open)}</b></td></tr>` : '')
+    + chunked(rows.map((r, di) => [r, di]), ([r, di]) => r.lines.map((x, i) => { const l = x.l, d = r.d; return `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
       <td class="dt">${i === 0 ? fdate(d.date) : ''}</td>
       <td>${i === 0 ? entryRef(d, { link: true, label: false }) : ''}</td>
       <td>${i === 0 ? `${esc(d.contact)}<span class="sub">${esc(d.memo)}</span>` : ''}</td>
-      <td class="${l.cr ? 'cr' : ''}">${esc(acctName(l.acct))}${l.memo || l.tag ? `<span class="sub">${esc([l.tag ? tagName(l.tag) : '', l.memo].filter(Boolean).join(' · '))}</span>` : ''}</td>
-      <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join(''), 6);
-  return `<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ref.</th><th>Payee and particulars</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${body}</tbody>
-    <tfoot><tr><td colspan="4">${q ? `${docs.length} of ${all.length} entries` : `${docs.length} entr${docs.length === 1 ? 'y' : 'ies'}`}</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table></div>`;
+      <td class="${l.cr && !a ? 'cr' : ''}">${a ? '' : esc(acctName(l.acct))}${l.memo || l.tag || (a && r.against.length) ? `<span class="sub"${a ? ' style="margin-left:0"' : ''}>${esc([l.tag ? tagName(l.tag) : '', l.memo, a && i === 0 ? jeAgainst(r.against) : ''].filter(Boolean).join(' · '))}</span>` : ''}</td>
+      <td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td>${run ? `<td class="num"><b>${money(x.bal)}</b></td>` : ''}</tr>`; }).join(''), run ? 7 : 6);
+  const count = docs.length === F.all.length ? `${docs.length.toLocaleString('en-US')} entr${docs.length === 1 ? 'y' : 'ies'}` : `${docs.length.toLocaleString('en-US')} of ${F.all.length.toLocaleString('en-US')} entries`;
+  return `${head}<div class="tbl-wrap"><table><thead><tr><th>Date</th><th>Ref.</th><th>Payee and particulars</th><th>${a ? 'Line' : 'Account'}</th><th class="num">Debit</th><th class="num">Credit</th>${run ? '<th class="num">Balance</th>' : ''}</tr></thead><tbody>${body}</tbody>
+    <tfoot><tr><td colspan="4">${count}${a ? `<span class="sub" style="margin-left:8px">Net ${money(Math.abs(round2(F.dr - F.cr)))} ${F.dr >= F.cr ? 'debit' : 'credit'}</span>` : ''}</td><td class="num">${money(F.dr)}</td><td class="num">${money(F.cr)}</td>${run ? `<td class="num">${money(F.close)}</td>` : ''}</tr></tfoot></table></div>`;
+}
+/* Excel: the lines the filters leave, one row each, dates as dates, money as numbers. */
+function jeXlsx() {
+  const F = jeFiltered(), co = D.company.name || COMPANY, an = F.a ? acct(F.a) : null;
+  const x = v => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = c => String.fromCharCode(64 + c), out = []; let n = 0;
+  const serial = d => { const [y, m, dd] = d.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, dd) - Date.UTC(1899, 11, 30)) / 864e5); };
+  const cell = (c, v, st) => v === '' || v == null ? (st ? `<c r="${colL(c)}${n}" s="${st}"/>` : '') : typeof v === 'number' ? `<c r="${colL(c)}${n}" s="${st || 0}"><v>${Math.round(v * 100) / 100}</v></c>` : `<c r="${colL(c)}${n}" s="${st || 0}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const row = (cells, ht) => { n++; out.push(`<row r="${n}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells.map(([v, st], i) => cell(i + 1, v, st)).join('')}</row>`); };
+  const what = [S.jm ? monthLabel(S.jm) : `All of ${YEAR}`, an && acctLabel(an), S.jt && (S.jt === 'void' ? 'Voids only' : SOURCES[S.jt].label + 's'), F.q && `Search: ${F.q}`].filter(Boolean).join(' · ');
+  row([[co, 1]], 20); row([['Entries', 2]], 18); row([[what, 3]]); row([[`Prepared by the Accounting Hub on ${DATE_FMT.format(new Date())}.`, 3]]); row([]);
+  const hd = [['Date', 4], ['Ref.', 4], ['Document', 4], ['Name', 4], ['Particulars', 4], ['Account', 4], ['Line', 4], ['Debit', 5], ['Credit', 5]].concat(F.run ? [['Balance', 5]] : []);
+  const head = n + 1; row(hd, 22);
+  if (F.run) row([['', 13], ['Brought forward', 13], ['', 13], ['', 13], ['', 13], ['', 13], ['', 13], ['', 14], ['', 14], [F.open, 14]]);
+  F.rows.forEach(r => r.lines.forEach(({ l, bal }) => row([[serial(r.d.date), 21], [String(r.d.ref).replace(/ void$/, '') + (isVoidSrc(r.d.src) ? ' (void)' : ''), 0], [(SOURCES[r.d.src] || {}).label || '', 0], [r.d.contact || '', 0], [r.d.memo || '', 0], [acctLabel(acct(l.acct)), 0], [[l.tag ? tagName(l.tag) : '', l.memo].filter(Boolean).join(' · '), 0], [l.dr || '', 9], [l.cr || '', 9]].concat(F.run ? [[bal, 9]] : []))));
+  row([['', 15], ['Total', 15], ['', 15], ['', 15], ['', 15], ['', 15], ['', 15], [F.dr, 16], [F.cr, 16]].concat(F.run ? [[F.close, 16]] : []));
+  const w = [12, 16, 18, 26, 36, 34, 30, 15, 15, 15], last = colL(F.run ? 10 : 9);
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${last}${n}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${head}" topLeftCell="A${head + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/><cols>${w.slice(0, F.run ? 10 : 9).map((v, i) => `<col min="${i + 1}" max="${i + 1}" width="${v}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${out.join('')}</sheetData><printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;L&amp;"Arial"&amp;8${x(co)} · Entries&amp;R&amp;"Arial"&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter></worksheet>`;
+  xlDownload('Entries', head, sheet, `${co.replace(/[^\w.-]+/g, '_')}_Entries_${(S.jm || String(YEAR))}${an ? '_' + String(an.code || an.name).replace(/[^\w.-]+/g, '_') : ''}.xlsx`);
+  toast('Entries downloaded');
 }
 
 /* ---------- Search everything (⌘K) ----------
@@ -3497,6 +3593,7 @@ function exceptionsBlock(ym) {
    here match the Financial Statements and Trial Balance tabs. Downloaded as Excel or printed. */
 const REP = { d: null, year: 0, totals: {}, years: [], err: '', busy: false };
 const RP_KINDS = [['is', 'Income Statement'], ['bs', 'Balance Sheet'], ['cf', 'Cash Flows'], ['eq', 'Changes in Equity'], ['tb', 'Trial Balance']];
+const RP_ABOUT = { is: ['Profit or loss', 'Did we make money?'], bs: ['Position', 'What we own and what we owe'], cf: ['Cash', 'Where the cash came from and went'], eq: ['Owners', 'What happened to the owners’ stake'], tb: ['The check', 'Every account; debits equal credits'] };
 const RP_PERS = [['month', 'Month'], ['quarter', 'Quarter'], ['ytd', 'Year to date'], ['year', 'Full year'], ['range', 'Range of months']];
 const RP_CMPS = [['prev', 'Previous period'], ['ly', 'Same period last year'], ['none', 'No comparison']];
 const MON3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -3709,7 +3806,7 @@ function reportsPage() {
     : r.per === 'range' ? `${mo('rp-from', r.from)}<span class="hint">to</span>${mo('rp-to', r.to)}` : '';
   const acts = REP.d === D && REP.year === YEAR && !REP.err ? `${btn('rp-xlsx', 'Download Excel', 'ghost')}${btn('rp-print', 'Print')}` : '';
   return pageHead('reports', `Income statement, balance sheet, cash flows, changes in equity and trial balance, compared with the period before or the same period last year. The Google Sheet also has the ledger, the books of accounts, VAT and aging.`, acts)
-    + seg('rp-kind', RP_KINDS, r.kind)
+    + `<div class="vtabs rp-cards" role="tablist" aria-label="Report">${RP_KINDS.map(([k, l]) => { const [e, q] = RP_ABOUT[k]; return `<button type="button" role="tab" aria-selected="${k === r.kind}" class="vtab${k === r.kind ? ' on' : ''}" data-act="rp-kind" data-id="${k}"><span>${e}</span><b>${l}</b><small>${q}</small></button>`; }).join('')}</div>`
     + `<div class="toolbar rp-bar"><label class="rp-l">${['bs', 'tb'].includes(r.kind) ? 'As of the end of' : 'Period'}</label><select id="rp-per" aria-label="Period">${RP_PERS.map(([k, l]) => opt(k, l, r.per)).join('')}</select>${pick}
       ${r.kind === 'eq' ? '' : `<label class="rp-l">Compare with</label><select id="rp-cmp" aria-label="Compare with">${RP_CMPS.map(([k, l]) => opt(k, l, r.cmp)).join('')}</select>`}</div>
     <div id="list">${reportBody()}</div>`;
@@ -3717,7 +3814,7 @@ function reportsPage() {
 function reportBody() {
   const r = rpState();
   if (REP.err) return `<div class="empty"><b>Couldn’t get the figures</b>${esc(REP.err)} ${btn('rp-retry', 'Try again', 'sm')}</div>`;
-  if (REP.d !== D || REP.year !== YEAR) { rpLoad(); return `<div class="rp-wait" role="status" aria-live="polite"><span class="rp-spin" aria-hidden="true"></span><div><b>Loading the report…</b><p>Getting the figures from the Google Sheet. This can take up to a minute, especially the first time. Keep this page open; the report appears here by itself.</p></div></div><div class="skel-table rp-skel">${'<div class="skel-row"></div>'.repeat(8)}</div>`; }
+  if (REP.d !== D || REP.year !== YEAR) { rpLoad(); return `${waitPanel('Loading the report…', 'Getting the figures from the Google Sheet. This can take up to a minute, especially the first time. Keep this page open; the report appears here by itself.')}<div class="skel-table rp-skel">${'<div class="skel-row"></div>'.repeat(8)}</div>`; }
   const R = rpBuild(r), miss = rpMissing(R);
   return `<div class="rp-cap"><span class="rp-eye">${esc(rpTitle(r))}</span><b>${esc(rpLabel(R.cur, R.asOf))}</b>${R.cmp ? `<span>compared with ${esc(rpLabel(R.cmp, R.asOf))}</span>` : ''}</div>
     <div class="tbl-wrap rp-wrap">${rpTable(R)}</div>
@@ -4274,7 +4371,7 @@ function usersPage() {
 }
 const fstamp = t => { const d = new Date(t); return isNaN(d) ? esc(t) : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); };
 async function usersCall(action, payload, okMsg) {
-  busy('Saving…');
+  busy('Saving to the Google Sheet…');
   try { const r = await api(action, payload); USERS = r.users; ROLE_LIST = r.roles; }
   catch (e) { if (e.code === 'auth') { closeModal(); signedOut(e.message); return; } return e.message; }
   finally { busy(''); }
@@ -4319,7 +4416,7 @@ function passwordForm() {
     if (!cur) return 'Enter your current password.';
     if (next.length < 8) return 'Use at least 8 characters for the new password.';
     if (next !== document.getElementById('pw-again').value) return 'The new passwords don’t match.';
-    busy('Saving…');
+    busy('Saving to the Google Sheet…');
     try { await api('changePassword', { current: cur, next }); }
     catch (e) { if (e.code === 'auth') { closeModal(); signedOut(e.message); return; } return e.message; }
     finally { busy(''); }
@@ -6437,10 +6534,14 @@ function suggestJe(dateIso, prefix) {
   (D.journals || []).forEach(j => { if (j.no.startsWith(pre)) { const n = parseInt(j.no.slice(pre.length), 10); if (n > max) max = n; } });
   return pre + pad(max + 1, 3);
 }
+/* An account as a code chip and a name, so the eye finds the code first; the " · " stays in the text for search and copy. */
+const acctChip = id => { const a = acct(id); return a && a.code ? `<b class="ac-c">${esc(a.code)}</b><span class="ac-d"> · </span><span class="ac-n">${esc(a.name)}</span>` : `<span class="ac-n">${esc(acctLabel(a))}</span>`; };
+/* The top of a document view: what it is and when, its title in words, and the one figure that matters. */
+const dvHero = ({ eye, title, meta = '', label, amount }) => `<div class="dv-hero"><div class="dv-hero-l"><p class="dv-eye">${eye}</p><h3 class="dv-title">${esc(title)}</h3>${meta ? `<p class="dv-meta">${meta}</p>` : ''}</div>${amount ? `<div class="dv-hero-r"><span>${esc(label)}</span><b>${amount}</b></div>` : ''}</div>`;
 const entryTable = (lines, opts = {}) => {
   const dr = sum(lines.map(e => e.dr)), cr = sum(lines.map(e => e.cr));
-  return `<table class="compact"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${lines.filter(e => e.dr || e.cr).map(e => `<tr><td class="${e.cr ? 'cr' : ''}">${esc(acctName(e.acct))}${e.dept ? `<span class="sub">${esc(e.dept)}</span>` : ''}${e.memo ? `<span class="sub">${esc(e.memo)}</span>` : ''}${e.usd ? `<span class="sub">US$${money(e.usd)}</span>` : ''}</td><td class="num">${e.dr ? money(e.dr) : ''}</td><td class="num">${e.cr ? money(e.cr) : ''}</td></tr>`).join('')}</tbody>
-    <tfoot><tr><td>Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table>${opts.noBal ? '' : balLine(dr, cr)}`;
+  return `<table class="compact etbl"><thead><tr><th>Account</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${lines.filter(e => e.dr || e.cr).map(e => `<tr class="${e.cr ? 'e-cr' : 'e-dr'}"><td class="${e.cr ? 'cr' : ''}">${acctChip(e.acct)}${e.dept ? `<span class="sub">${esc(e.dept)}</span>` : ''}${e.memo ? `<span class="sub">${esc(e.memo)}</span>` : ''}${e.usd ? `<span class="sub">US$${money(e.usd)}</span>` : ''}</td><td class="num">${e.dr ? money(e.dr) : ''}</td><td class="num">${e.cr ? money(e.cr) : ''}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>Total${Math.abs(dr - cr) < 0.005 && dr ? ' <span class="e-ok">Balanced</span>' : ''}</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table>${opts.noBal ? '' : balLine(dr, cr)}`;
 };
 function moveForm(j0) {
   const edit = !!j0, self = edit ? j0.id : null;
@@ -6617,7 +6718,7 @@ function viewJournal(id) {
   const facts = t ? `<dt>From</dt><dd>${esc(acctName(j.from))}</dd><dt>Amount out</dt><dd>${amt(j.amountOut, c.fc)}</dd><dt>To</dt><dd>${esc(acctName(j.to))}</dd><dt>Amount in</dt><dd>${amt(c.inn, c.tc)}</dd>${j.refNo ? `<dt>Reference</dt><dd>${esc(j.refNo)}</dd>` : ''}${j.charges ? `<dt>Bank charges</dt><dd>${amt(j.charges, c.fc)}</dd>` : ''}`
     : `${j.name ? `<dt>Name</dt><dd>${esc(j.name)}</dd>` : ''}${j.reverses ? `<dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd>` : ''}`;
   openModal(`${t ? 'Transfer' : 'Journal Entry'} ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : rv ? `<p class="lead">${esc(rv.no)} reverses it on ${fdate(rv.date)}. To change or void this entry, void ${esc(rv.no)} first.</p>` : live(j) && isLocked(j.date) ? '<p class="lead">In a locked month. It can be voided on an open date, but not changed.</p>' : ''}${ow ? `<p class="lead">${ow.owed > 0.004 ? `${pill('Unpaid')} ${peso(ow.owed)} still owed to ${esc(ow.owner)}` : `${pill('Paid')} Paid back to ${esc(ow.owner)}`}${ow.by.length ? `${ow.owed > 0.004 ? '; paid so far by' : ' by'} ${ow.by.map(v => `<button type="button" class="btn link sm" data-act="view-voucher" data-id="${esc(v.id)}">${esc(v.cv)}</button>`).join(', ')}` : ''}.</p>` : ''}
-    <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}<dl class="dv-grid"><dt>Date</dt><dd>${fdate(j.date)}</dd>${facts}<dt class="dv-wide-l">Memo</dt><dd class="dv-wide">${esc(j.memo)}</dd></dl>
+    <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}${dvHero({ eye: `${t ? 'Bank transfer' : 'General journal'} · ${esc(fdate(j.date))}`, title: j.memo || (t ? 'Bank transfer' : 'Journal entry'), meta: !t && j.name ? `For <b>${esc(j.name)}</b>` : '', label: t ? 'Amount out' : 'Total', amount: t ? amt(j.amountOut, c.fc) : peso(sum((j.entry || []).map(e => e.dr || 0))) })}${t ? `<dl class="dv-grid">${facts}</dl>` : j.reverses ? `<dl class="dv-grid"><dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd></dl>` : ''}
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}</div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: j });
 }
 function voidJournal(id) {
@@ -6696,8 +6797,8 @@ function depLines(m) {
 }
 function assetsPage() {
   const due = depDue(), booked = [...depBookedMonths()].sort(), can = canBooks('journal.edit');
-  const acts = can ? `${btn('new-asset', 'Add asset', due.length ? 'ghost' : '')}${due.length ? btn('book-dep', `Book ${monthLabel(due[0].m)}`) : ''}` : '';
-  const status = due.length ? `<p class="warnline" style="margin:0 0 18px">Depreciation for ${monthLabel(due[0].m)} isn’t booked: ${peso(due[0].total)}.${due.length > 1 ? ` ${due.length - 1} more month${due.length > 2 ? 's' : ''} after it.` : ''}</p>`
+  const acts = can ? `${btn('new-asset', 'Add asset', due.length ? 'ghost' : '')}${due.length ? btn('book-dep', `Record ${monthLabel(due[0].m)} depreciation`) : ''}` : '';
+  const status = due.length ? `<p class="warnline" style="margin:0 0 18px">Depreciation for ${monthLabel(due[0].m)} isn’t recorded yet: ${peso(due[0].total)}.${due.length > 1 ? ` ${due.length - 1} more month${due.length > 2 ? 's' : ''} after it.` : ''}</p>`
     : (D.assets || []).some(x => x.life > 0) ? `<p class="balcheck ok" style="margin:0 0 18px">Depreciation is booked${booked.length ? ` through ${monthLabel(booked[booked.length - 1])}` : ''}.</p>` : '';
   return pageHead('assets', 'The company’s equipment, vehicles, buildings and improvements: what each cost, its accounts, and its straight-line depreciation. Depreciation is booked once a month as a journal entry.', acts)
     + status + `<div id="list">${assetList()}</div>`;
@@ -6793,7 +6894,7 @@ function bookDepreciation() {
   const rows = d.lines.map(l => `<tr><td><b>${esc(l.x.no)}</b> ${esc(l.x.desc)}<span class="sub">${esc(acctName(l.x.exp))}${l.x.dept ? ` · ${esc(l.x.dept)}` : ''}</span></td><td class="num">${money(l.amount)}</td></tr>`).join('');
   const body = `<p class="lead">One journal entry dated ${fdate(date)}: each asset’s expense debited, its accumulated depreciation credited.${d.lines.some(l => Math.abs(l.amount - depMonthly(l.x)) >= 0.005) ? ' Some amounts differ from a month’s share: an asset added or changed late is caught up here.' : ''}</p>
     <div class="tbl-wrap"><table class="compact"><thead><tr><th>Asset</th><th class="num">Depreciation</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td class="num">${peso(d.total)}</td></tr></tfoot></table></div>`;
-  openModal(`Book ${monthLabel(d.m)}`, body, () => {
+  openModal(`Record ${monthLabel(d.m)} Depreciation`, body, () => {
     const no = suggestJe(date, 'JE'), entry = [];
     d.lines.forEach(l => { const a = Math.abs(l.amount), up = l.amount > 0, memo = `${assetTag(l.x)} ${l.x.desc}`;
       entry.push({ acct: l.x.exp, memo, dr: up ? a : 0, cr: up ? 0 : a, dept: l.x.dept || '' }, { acct: l.x.accum, memo, dr: up ? 0 : a, cr: up ? a : 0, dept: '' }); });
@@ -6801,7 +6902,7 @@ function bookDepreciation() {
       D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: '', memo: DEP_MEMO(d.m), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '', entry,
         reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
     }, () => toast(`${no} saved: depreciation for ${monthLabel(d.m)}`));
-  }, 'Book it', { size: 'mid' });
+  }, 'Record it', { size: 'mid' });
 }
 /* Disposing: sold or written off. The month before is depreciated first; the entry takes the cost and its
    accumulated depreciation off the books, records what came in, and the difference is a gain or a loss. */
@@ -7171,7 +7272,7 @@ const GUIDE = {
   journal: { who: 'everyday',
     what: 'Every entry the books hold, from every page, in date order: the bookkeeper’s journal.',
     when: 'To find an entry, see what a document wrote, or trace an amount.',
-    steps: [['Search', 'By number, name or account.'], ['Open', 'To see each line and where it came from.']],
+    steps: [['Search', 'By number, name, particulars or amount (with or without commas). Every word you type must match.'], ['Narrow it', 'Pick a month, an account and a type of document. Clear filters starts over.'], ['Trace an account', 'Pick an account and a month. Only that account’s lines show, each with what it was booked against, and a running balance from the balance brought forward. The last balance should match the trial balance for that date.'], ['Open', 'Click a document number to see it whole and fix it there.'], ['Download Excel', 'Saves exactly what’s showing, to work through or send to the accountant.']],
     book: null, shows: ['Everything on the reports adds up from these entries.'], watch: ['Nothing is changed here. Fix a document on its own page.']
   },
   summary: { who: 'close',
@@ -7189,10 +7290,10 @@ const GUIDE = {
   },
   assets: { who: 'close',
     what: 'Things the company keeps for years (equipment, vehicles, a building) aren’t a cost all at once. Their cost is spread over the months they’re used. That spread is depreciation, and this page does it each month.',
-    when: 'Add an asset when it’s bought (after the bill or voucher for it). Book depreciation once a month. Dispose when it’s sold or scrapped.',
+    when: 'Add an asset when it’s bought (after the bill or voucher for it). Record depreciation once a month: the part of each asset’s cost used up that month becomes an expense. Dispose when it’s sold or scrapped.',
     steps: [
       ['Add asset', 'Description, account, date acquired, cost, and useful life in months (60 for five years; 0 for land). The depreciation accounts fill in.'],
-      ['Book [month]', 'Posts the month’s depreciation for every asset as one journal entry, oldest month first.'],
+      ['Record [month] depreciation', 'Shows the entry first, then posts it when you press Record it: each asset’s monthly depreciation as one journal entry dated the month’s last day, oldest month first. Expense goes up, the asset’s book value goes down; no cash moves.'],
       ['Dispose', 'Edit the asset, then Dispose…. Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
     ],
     book: { say: 'A ₱240,000 forklift, used for 60 months: ₱4,000 a month.',
@@ -7972,7 +8073,7 @@ async function loadLog() {
 function logPage() {
   if (!LOG.rows && !LOG.busy && !LOG.err) setTimeout(loadLog, 0);
   const filtered = LOG.q || LOG.user || LOG.days;
-  const note = LOG.busy ? 'Loading…' : LOG.err ? '' : filtered ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
+  const note = LOG.busy ? '' : LOG.err ? '' : filtered ? `${LOG.rows.length === 200 ? 'First 200 matches' : `${LOG.rows.length} match${LOG.rows.length === 1 ? '' : 'es'}`} in the latest ${LOG.scanned.toLocaleString('en-US')} changes.` : LOG.rows ? `The latest ${LOG.rows.length} of ${LOG.total.toLocaleString('en-US')} changes.` : '';
   // everyone who saved in the last 30 days, and anyone in the rows shown, for the Person list
   const people = [...new Set(LOG.people.map(p => p.user).concat((LOG.rows || []).map(r => r.user), LOG.user ? [LOG.user] : []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const periods = [[0, 'Any time'], [1, 'Last 24 hours'], [7, 'Last 7 days'], [30, 'Last 30 days']];
@@ -7983,13 +8084,14 @@ function logPage() {
     + `<div class="toolbar"><input id="lq" type="search" placeholder="Search CV no., invoice, check no., amount" value="${esc(LOG.q)}" aria-label="Search the change log">
       <select id="lu" aria-label="Person"><option value="">Everyone</option>${people.map(u => opt(u, u, LOG.user)).join('')}</select>
       <select id="ld" aria-label="Period">${periods.map(([d, l]) => opt(String(d), l, String(LOG.days))).join('')}</select>
-      ${btn('log-search', 'Search', 'ghost')}${filtered ? btn('log-clear', 'Clear', 'link') : ''}<span class="grow"></span><span class="hint">${note}</span></div>`
-    + (LOG.err ? `<div class="empty"><b>Couldn’t load the change log</b>${esc(LOG.err)}</div>` : LOG.rows ? logTable(LOG.rows) : '');
+      ${btn('log-search', 'Search', 'ghost')}${filtered ? btn('log-clear', 'Clear', 'link') : ''}<span class="grow"></span>${LOG.busy ? '' : `<span class="log-note">${note}</span>`}</div>`
+    + (LOG.busy ? waitPanel(filtered ? 'Searching the change log…' : 'Loading the change log…', 'Reading the latest changes from Google Drive. This can take up to half a minute. Keep this page open; the list appears here by itself.') : '')
+    + (LOG.err ? `<div class="empty"><b>Couldn’t load the change log</b>${esc(LOG.err)}</div>` : LOG.rows && !LOG.busy ? logTable(LOG.rows) : '');
 }
 async function historyOf(id) {
   const si = invoiceOf(id), d = billOf(id) || voucher(id) || journalOf(id) || si || collectionOf(id) || depositOf(id) || pcvOf(id) || liqOf(id), n = historyOf.n = (historyOf.n || 0) + 1;
   const title = si ? `${isMemo(si) ? 'Credit Memo' : 'Sales Invoice'} ${si.ref}` : d.cv || d.cr || d.no || `${isMemo(d) ? 'Debit Memo' : 'Invoice'} ${d.ref}`;
-  openModal(`History of ${esc(title)}`, `<div id="hist" data-n="${n}"><p class="hint">Loading…</p></div>`, null, '', { size: 'wide' });
+  openModal(`History of ${esc(title)}`, `<div id="hist" data-n="${n}">${waitPanel('Loading the history…', 'Reading every change to it from the change log. This can take up to half a minute.')}</div>`, null, '', { size: 'wide' });
   let body;
   try { const r = await api('history', { record: id }); body = r.rows.length ? logTable(r.rows) : '<div class="empty">No changes logged for it yet. Saves from before the change log began aren’t listed.</div>'; }
   catch (e) { if (e.code === 'auth') { closeModal(); return signedOut(e.message); } body = `<p class="form-err">${esc(e.message)}</p>`; }
@@ -8025,7 +8127,7 @@ const go = (page, fromHistory) => {
   document.body.classList.remove('nav-open');
   const changed = page !== S.page;
   { const g = NAV.find(x => x.items.some(n => n.id === page)); if (g && NAV_OPEN && !NAV_OPEN.has(g.group)) navKeep(g.group, true); }
-  S.page = page; S.q = ''; S.cr = ''; S.rb = ''; if (page === 'log' && LOG.rows) LOG.rows = null;
+  S.page = page; S.q = ''; S.cr = ''; S.rb = ''; if (changed) Object.assign(S, { jm: '', ja: '', jt: '' }); if (page === 'log' && LOG.rows) LOG.rows = null;
   S.enter = changed; render(); if (changed) window.scrollTo(0, 0);
   if (!fromHistory && changed) histPage();
 };
@@ -8076,6 +8178,8 @@ const ACT = {
   'view-bank': id => { S.rb = id; S.rm = ''; refreshMain(); window.scrollTo(0, 0); },
   'rg-back': () => { S.rb = ''; refreshMain(); },
   'rg-print': () => regPrint(S.rb),
+  'je-clear': () => { Object.assign(S, { q: '', jm: '', ja: '', jt: '' }); refreshMain(); },
+  'je-xlsx': () => jeXlsx(),
   'rg-xlsx': () => regXlsx(S.rb),
   'undo-recon': id => undoRecon(id),
   'new-asset': () => assetForm(),
@@ -8267,6 +8371,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'tm') { S.tm = t.value; relist(); }
   else if (t.id === 'gm') { S.gm = t.value; relist(); }
   else if (t.id === 'rgm') { S.rm = t.value; relist(); }
+  else if (['jm', 'ja', 'jt'].includes(t.id) && S.page === 'journal') { S[t.id] = t.value; refreshMain(); }
 });
 /* On a phone, tables of four or more columns show each row as a card; each cell carries its column's name. */
 function labelTables(root) {

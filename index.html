@@ -446,6 +446,9 @@ tbody tr.jrow.alt td{background:var(--mist)}
 body.busy #app{pointer-events:none}
 /* modal */
 .overlay{position:fixed;inset:0;background:rgba(16,33,59,.55);display:flex;align-items:flex-start;justify-content:center;padding:32px 16px;overflow:hidden;z-index:50;animation:fade .2s ease}
+.modal.nudge{animation:nudge .32s ease}
+@keyframes nudge{20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+@media (prefers-reduced-motion:reduce){.modal.nudge{animation:none}}
 .modal{background:#fff;border-radius:16px;width:100%;max-width:620px;box-shadow:var(--lift);animation:rise .25s cubic-bezier(.4,0,.2,1);
   /* a dialog never runs off the screen: its head and its buttons stay put, and only the middle scrolls between them */
   display:flex;flex-direction:column;max-height:calc(100vh - 64px);max-height:calc(100dvh - 64px);overflow:hidden}
@@ -924,7 +927,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.57';
+const APP_VERSION = '3.58';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -8663,10 +8666,22 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'lq') { e.preventDefault(); LOG.q = e.target.value.trim(); loadLog(); return; }
   if (e.key === 'Escape' && document.body.classList.contains('nav-open')) { document.body.classList.remove('nav-open'); return; }
   if (e.key !== 'Escape' || !document.querySelector('#modal-root .overlay')) return;
-  const m = modalEl();
-  if (m && m.dataset.dirty) { toast('Unsaved changes. Click Cancel to close without saving.'); return; }
-  closeModal();
+  dismissModal();
 });
+/* Esc or a click on the dark area around a dialog closes it, like Close. A form with something typed in it stays open
+   (Cancel closes it without saving), and nothing closes while it's saving. The press must start and end outside the
+   dialog, so selecting text and letting go past its edge doesn't close it. */
+function dismissModal() {
+  if (saveModal.busy) return;
+  const m = modalEl();
+  if (m && m.dataset.dirty) { toast('Unsaved changes. Click Cancel to close without saving.'); m.classList.remove('nudge'); void m.offsetWidth; m.classList.add('nudge'); return; }
+  closeModal();
+}
+let downOnOverlay = false;
+document.addEventListener('mousedown', e => { downOnOverlay = e.target.matches('#modal-root .overlay'); });
+document.addEventListener('click', e => { if (downOnOverlay && e.target.matches('#modal-root .overlay')) dismissModal(); downOnOverlay = false; });
+/* Any form with a Save is marked changed once something in it is typed, ticked or picked. */
+['input', 'change'].forEach(t => document.addEventListener(t, e => { const m = modalEl(); if (m && modalSave && e.target.closest && e.target.closest('#modal-root .modal')) m.dataset.dirty = '1'; }, true));
 window.addEventListener('beforeunload', e => { const m = modalEl(); if (m && m.dataset.dirty) { e.preventDefault(); e.returnValue = ''; } });
 document.addEventListener('keydown', e => { if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K') && S0.screen === 'app') { e.preventDefault(); if (!document.getElementById('gs-q')) searchAll(); } });
 document.addEventListener('input', e => {

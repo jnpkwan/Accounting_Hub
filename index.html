@@ -869,7 +869,8 @@ html.dark .main h2{color:#ededed}
 html.dark #pbmini .pm-tab.on{color:#1a1a1a}
 html.dark .preview-wrap{background:#232323;border-color:#333}
 html.dark .preview-wrap:has(>.vc){background:#2a2a2a}
-html.dark .vc{background:#fff;color:#2c2c2c;border-radius:8px}
+html.dark .vc{background:#fff;color:#2c2c2c;border-radius:10px}
+html.dark .preview-wrap>.vc{padding:18px 22px 20px}
 /* Paper and white chips keep the light palette inside them, so their own text stays dark. */
 html.dark :is(.vc,.rpd,#print-area,.ckf,.pb .rp-cards .vtab.on,#pbmini .pm-tab.on){color-scheme:light;
   --mist:#F5F5F5;--ink:#10213B;--carbon:#2C2C2C;--muted:#6E6E6E;--silver:#DDDDDD;
@@ -923,7 +924,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.56';
+const APP_VERSION = '3.57';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */

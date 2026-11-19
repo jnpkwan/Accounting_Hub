@@ -306,6 +306,12 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .bs-h span{margin-top:3px;font:400 12.5px var(--body);letter-spacing:0;text-transform:none;color:var(--muted)}
 .bs-i{flex:1 1 180px;display:flex;flex-direction:column;justify-content:center;gap:1px;padding:10px 18px;border-left:1px solid var(--mist);min-width:0}
 .bs-n{font:700 12.5px var(--display);color:var(--carbon);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bs-i b{font:800 18px var(--display);color:var(--ink);font-variant-numeric:tabular-nums}.bs-i small{font-size:12.5px;color:var(--muted)}
+.bs-key{background:var(--blue05)}.bs-key b{color:var(--blue)}
+.rg-name{font:700 16px var(--display);color:var(--ink)}
+.rg td:first-child,.rg td:last-child,.rg .rg-ref,.rg .rg-ref .btn{white-space:nowrap}.rg td:nth-child(2) .sub{display:block!important;margin:2px 0 0!important}.rg .rg-ref .btn{padding-left:0;padding-right:0}
+tr.rg-open td{background:var(--mist)!important}
+.rpd table.rg-p td{vertical-align:top}.rpd .rg-s{color:var(--muted);font-size:8.5px}
+.rpd table.rg-sum{width:52%;margin:16px 0 0 auto}
 .bs-neg{box-shadow:inset 4px 0 0 #A52A24}.bs-neg b{color:#A52A24}.bs-neg small{color:#A52A24;font-weight:600}
 tr.att-red>td:first-child{box-shadow:inset 5px 0 0 #A52A24}tr.att-yellow>td:first-child{box-shadow:inset 5px 0 0 #FFC62E}
 /* One line per row: the grey detail under a name or number sits beside it, not under it (amount columns keep theirs
@@ -687,7 +693,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.45';
+const APP_VERSION = '3.47';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -2234,7 +2240,7 @@ function voucherList() {
     { h: 'Check', k: v => `${esc(v.checkNo)}<span class="sub">${fdate(v.checkDate)}</span>` },
     { h: 'Check amount', num: 1, k: v => `<span class="amt">${peso(v.checkAmount)}</span>${v.ewt ? `<span class="sub">${money(v.ewt)} withheld</span>` : ''}` },
     { h: 'Status', k: v => (needsApproval(v) ? approvalPill(v) : pill(vStatus(v))) + (v.status === 'void' ? `<span class="sub">${esc(v.voidReason || '')}</span>` : v.clearedOn ? `<span class="sub">${fdate(v.clearedOn)}</span>` : '') },
-    { h: '', k: v => rowActs([['view-voucher', v.id, 'View'], live(v) && !needsApproval(v) && ['print-voucher', v.id, 'Print'], live(v) && !isLocked(entryDate(v)) && canBooks('vouchers.edit') && ['edit-voucher', v.id, 'Edit']]) }
+    { h: '', k: v => rowActs([['view-voucher', v.id, 'View']]) }
   ];
   const lv = rows.filter(live);
   return table(cols, rows, 'No vouchers match.', `<tfoot><tr><td>${lv.length} voucher${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => v.status === 'void' ? 'void' : '');
@@ -2929,7 +2935,7 @@ function viewVoucher(id) {
     return;
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, live(v) && !needsApproval(v) && `<button class="btn${canPrintCheck(v) ? ' ghost' : ''}" data-act="print-voucher" data-id="${id}">${t ? 'Print' : 'Print voucher'}</button>`, canPrintCheck(v) && `<button class="btn" data-act="print-on-check" data-id="${id}">${v.printedOn ? 'Print on check again' : 'Print on check'}</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, !t && live(v) && canBooks('checks.clear') && !(v.clearedOn && lastRecon(vBank(v)) && v.clearedOn <= lastRecon(vBank(v)).date) && (v.clearedOn ? `<button class="btn ghost" data-act="unclear" data-id="${id}">Undo cleared</button>` : `<button class="btn ghost" data-act="clear-one" data-id="${id}">Mark cleared…</button>`), live(v) && !needsApproval(v) && `<button class="btn${canPrintCheck(v) ? ' ghost' : ''}" data-act="print-voucher" data-id="${id}">${t ? 'Print' : 'Print voucher'}</button>`, canPrintCheck(v) && `<button class="btn" data-act="print-on-check" data-id="${id}">${v.printedOn ? 'Print on check again' : 'Print on check'}</button>`].filter(Boolean).join('');
   const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}${v.printedOn ? `. Check printed on ${fdate(String(v.printedOn).slice(0, 10))} by ${esc(v.printedBy)}` : ''}</span></p>`
     : needsApproval(v) ? `<p class="stamp appr-wait">${approvalPill(v)} <span>${t ? 'Waiting for approval before it’s sent.' : 'Waiting for approval. The check prints once it’s approved.'}${canApprove(v) ? '' : can('payments.approve') ? ' You entered or changed it last, so someone else approves it.' : ' An Approver or Admin approves it.'}</span></p>` : '';
   openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
@@ -2993,7 +2999,7 @@ function billList() {
     { h: 'Amount payable', num: 1, k: ({ b }) => `<span class="amt">${isMemo(b) ? `(${amt(b.payable, b.currency)})` : amt(b.payable, b.currency)}</span>${b.ewt ? `<span class="sub">${money(b.ewt)} withheld</span>` : ''}${isFx(b.currency) ? `<span class="sub">${peso(pesoOf(b, b.payable))} at ${fmtRate(b.rate)}</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ b, st }) => st === 'Void' ? '' : amt(billBalance(b), b.currency) },
     { h: 'Status', k: ({ b, st }) => st === 'Void' ? stCell(st, null, esc(b.voidReason || '')) : stCell(st, billDue(b)) },
-    { h: '', k: ({ b }) => rowActs([['view-bill', b.id, 'View'], own(b) && live(b) && !isLocked(b.date) && canBooks('bills.edit') && ['edit-bill', b.id, 'Edit']]) }
+    { h: '', k: ({ b }) => rowActs([['view-bill', b.id, 'View']]) }
   ];
   const lv = rows.filter(r => live(r.b));
   const usdNote = lv.some(r => isFx(r.b.currency)) ? '<span class="sub">In pesos; dollar and yuan bills at their own rate</span>' : '';
@@ -3076,7 +3082,7 @@ function checkList() {
     { h: 'Payee', k: v => `${esc(v.payeeName)}<span class="sub">${esc(v.cv)}, ${esc(v.particulars)}</span>${v.from ? `<span class="sub">${esc(fromNote(v))}</span>` : ''}` },
     { h: 'Amount', num: 1, k: v => peso(v.checkAmount) },
     { h: 'Status', k: v => stCell(vStatus(v), v.clearedOn ? null : checkAge(v), v.clearedOn ? fdate(v.clearedOn) : '') },
-    { h: '', k: v => { const lr = lastRecon(vBank(v)), rec = v.clearedOn && lr && v.clearedOn <= lr.date; return rowActs([canBooks('checks.clear') && !rec && (v.clearedOn ? ['unclear', v.id, 'Undo cleared'] : ['clear-one', v.id, 'Cleared…']), ['view-voucher', v.id, 'Voucher']]) + (rec ? '<span class="sub" style="text-align:right">Reconciled</span>' : ''); } }
+    { h: '', k: v => { const lr = lastRecon(vBank(v)), rec = v.clearedOn && lr && v.clearedOn <= lr.date; return rowActs([['view-voucher', v.id, 'View']]) + (rec ? '<span class="sub" style="text-align:right">Reconciled</span>' : ''); } }
   ];
   return table(cols, rows, '', `<tfoot><tr><td>${rows.length} check${rows.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(rows.map(v => v.checkAmount)))}</td><td></td><td></td></tr></tfoot>`, v => yearClosed() ? '' : attRow(checkAge(v)));
 }
@@ -3104,14 +3110,14 @@ function reconPage() {
 function reconList() {
   const banks = recBanks(), today = defaultDate();
   if (!banks.length) return '<div class="empty"><b>No bank accounts</b>Bank accounts are accounts of type Bank on the Chart of Accounts.</div>';
-  const can = canBooks('checks.clear');
+  if (S.rb && banks.some(a => a.id === S.rb)) return regView(S.rb);
   const top = table([
     { h: 'Account', k: a => `<b>${esc(acctLabel(a))}</b>${bankCur(a.id) === 'USD' ? '<span class="sub">US dollars</span>' : ''}` },
     { h: 'Books today', num: 1, k: a => money(bookBal(a.id, today)) },
     { h: 'Last reconciled', k: a => { const r = lastRecon(a.id); return r ? `${fdate(r.date)}<span class="sub">Statement ${money(r.statement)}</span>` : '<span class="hint">Not yet</span>'; } },
     { h: 'Checks out', num: 1, k: a => { const c = recChecks(a.id, today); return c.length ? `${money(sum(c.map(v => v.checkAmount)))}<span class="sub">${c.length} check${c.length === 1 ? '' : 's'}</span>` : ''; } },
     { h: 'Deposits not yet in', num: 1, k: a => { const d = recDeposits(a.id, today); return d.length ? `${money(sum(d.map(x => x.amount)))}<span class="sub">${d.length} slip${d.length === 1 ? '' : 's'}</span>` : ''; } },
-    { h: '', k: a => rowActs([can && ['reconcile', a.id, 'Reconcile'], can && lastRecon(a.id) && !isLocked(lastRecon(a.id).date) && ['undo-recon', lastRecon(a.id).id, 'Undo latest']]) }
+    { h: '', k: a => rowActs([['view-bank', a.id, 'View']]) }
   ], banks);
   const hist = (D.recons || []).slice().sort((a, b) => b.date.localeCompare(a.date) || acctName(a.bank).localeCompare(acctName(b.bank)));
   return top + (hist.length ? `<h2 class="mt">Reconciled in ${YEAR}</h2>${table([
@@ -3123,6 +3129,115 @@ function reconList() {
     { h: 'Still ties', k: x => { const now = bookBal(x.bank, x.date); return Math.abs(now - x.book) < 0.005 ? '<span class="pill p-cleared">Ties</span>' : `<span class="pill p-tie-off">Changed</span><span class="sub">Books now ${money(now)}</span>`; } },
     { h: '', k: x => rowActs([['view-recon', x.id, 'View']]) }
   ], hist)}` : '');
+}
+/* The register: one bank account's entries for a month, in date order, with a running balance, and whether each one
+   has reached the bank. The accountant ticks it against the passbook line by line. Checks reach the bank when they
+   clear, deposit slips when the bank credits them; transfers, collections into the bank and entries on their own date.
+   The strip on top works out what the bank should show at month end: the books, plus checks not cleared yet, less
+   deposits not in yet. Reconcile and Undo latest live here, so a bank account has one way in: View. */
+const prevDay = d => { const x = parseD(d); x.setDate(x.getDate() - 1); return iso(x); };
+function regPer(bank) {
+  const ms = yearMonths(); if (S.rm === 'year' || ms.includes(S.rm)) return S.rm;
+  const lr = lastRecon(bank), next = lr ? nextDay(lr.date).slice(0, 7) : '';
+  return ms.includes(next) ? next : ms[0];
+}
+function regStatus(d, bank) {
+  const doc = entryDoc(d.id) || {};
+  if (isVoidSrc(d.src)) return { k: 'void', t: 'Void reversal' };
+  if (d.src === 'cv' && isCheck(doc) && vBank(doc) === bank) return doc.clearedOn ? { k: 'in', t: `Cleared ${fdate(doc.clearedOn)}` } : doc.status === 'void' ? { k: 'void', t: 'Voided, never cleared' } : { k: 'out', t: 'Not cleared' };
+  if (d.src === 'dep') return doc.clearedOn ? { k: 'in', t: `Cleared ${fdate(doc.clearedOn)}` } : doc.status === 'void' ? { k: 'void', t: 'Voided, never in' } : { k: 'out', t: 'Not in yet' };
+  return { k: 'day', t: 'Same day' };
+}
+function regData(bank, per) {
+  const usd = bankCur(bank) === 'USD', from = per === 'year' ? `${YEAR}-01-01` : `${per}-01`, to = per === 'year' ? `${YEAR}-12-31` : eom(per);
+  const open = bookBal(bank, prevDay(from)); let bal = open; const rows = [];
+  journal().forEach(d => {
+    if (d.date < from || d.date > to) return;
+    const ls = d.lines.filter(l => l.acct === bank); if (!ls.length) return;
+    const net = round2(sum(ls.map(l => usd ? (l.usd ? (l.dr ? l.usd : -l.usd) : 0) : (l.dr || 0) - (l.cr || 0))));
+    if (Math.abs(net) < 0.005) return;
+    bal = round2(bal + net);
+    const doc = entryDoc(d.id) || {};
+    rows.push({ d, net, bal, st: regStatus(d, bank), check: d.src === 'cv' && isCheck(doc) ? doc.checkNo : '', ref: d.src === 'dep' ? doc.refNo || '' : '' });
+  });
+  const cs = recChecks(bank, to), ds = recDeposits(bank, to), book = bookBal(bank, to), outC = round2(sum(cs.map(v => v.checkAmount))), outD = round2(sum(ds.map(x => x.amount)));
+  return { bank, per, usd, from, to, open, rows, close: bal, book, cs, ds, outC, outD, bank0: round2(book + outC - outD),
+    out: round2(sum(rows.filter(r => r.net < 0).map(r => -r.net))), in: round2(sum(rows.filter(r => r.net > 0).map(r => r.net))) };
+}
+const regLabel = R => R.per === 'year' ? `All of ${YEAR}` : monthLabel(R.per);
+const regName = bank => acctLabel(acct(bank));
+function regView(bank) {
+  const R = regData(bank, regPer(bank)), can = canBooks('checks.clear'), lr = lastRecon(bank), m = n => R.usd ? amt(n, 'USD') : peso(n);
+  const ms = yearMonths(), sel = `<select id="rgm" aria-label="Month">${ms.map(x => opt(x, monthLabel(x), R.per)).join('')}${opt('year', `All of ${YEAR}`, R.per)}</select>`;
+  const acts = [can && lr && !isLocked(lr.date) && btn('undo-recon', `Undo ${fdate(lr.date)} reconciliation`, 'link sm', lr.id), btn('rg-print', 'Print', 'ghost'), btn('rg-xlsx', 'Download Excel', 'ghost'), can && btn('reconcile', 'Reconcile', '', bank)].filter(Boolean).join('');
+  const strip = `<section class="bstrip" aria-label="What the bank should show"><p class="bs-h">${esc(fdate(R.to))}<span>${lr ? `Reconciled through ${fdate(lr.date)}` : 'Not reconciled yet'}</span></p>
+    <div class="bs-i"><span class="bs-n">Per the books</span><b>${m(R.book)}</b></div>
+    <div class="bs-i"><span class="bs-n">+ Checks not cleared</span><b>${m(R.outC)}</b><small>${R.cs.length ? plural(R.cs.length, 'check') : 'none'}</small></div>
+    <div class="bs-i"><span class="bs-n">− Deposits not in yet</span><b>${m(R.outD)}</b><small>${R.ds.length ? plural(R.ds.length, 'slip') : 'none'}</small></div>
+    <div class="bs-i bs-key"><span class="bs-n">= Bank should show</span><b>${m(R.bank0)}</b><small>Compare with the passbook</small></div></section>`;
+  const rows = [{ open: true }].concat(R.rows);
+  const tbl = table([
+    { h: 'Date', k: r => fdate(r.open ? prevDay(R.from) : r.d.date) },
+    { h: 'Document', k: r => r.open ? '<b>Brought forward</b>' : regRef(r.d) },
+    { h: 'Payee and particulars', k: r => { if (r.open) return `<span class="hint">${R.from === `${YEAR}-01-01` ? `Closing balance of the ${YEAR - 1} books` : 'Per the books at the end of the day'}</span>`;
+      const part = esc([r.check && `Check ${r.check}`, r.ref && `Ref. ${r.ref}`, r.d.memo].filter(Boolean).join(' · ')); return r.d.contact ? `${esc(r.d.contact)}<span class="sub">${part}</span>` : part; } },
+    { h: 'Out', num: 1, k: r => r.open || r.net > 0 ? '' : money(-r.net) },
+    { h: 'In', num: 1, k: r => r.open || r.net < 0 ? '' : money(r.net) },
+    { h: 'Balance', num: 1, k: r => `<b>${money(r.open ? R.open : r.bal)}</b>` },
+    { h: 'At the bank', k: r => r.open ? '' : r.st.k === 'out' ? sPill({ lvl: 'yellow', text: r.st.t }) : `<span class="sub" style="margin:0">${esc(r.st.t)}</span>` }
+  ], rows, '', `<tfoot><tr><td></td><td>${R.rows.length.toLocaleString('en-US')} entr${R.rows.length === 1 ? 'y' : 'ies'}</td><td>Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.out)}</td><td class="num">${money(R.in)}</td><td class="num">${money(R.close)}</td><td></td></tr></tfoot>`,
+    r => r.open ? 'rg-open' : r.st.k === 'void' ? 'void' : '');
+  return `<div class="toolbar"><button type="button" class="btn link" data-act="rg-back">← All bank accounts</button><b class="rg-name">${esc(regName(bank))}${R.usd ? ' <span class="hint">US dollars</span>' : ''}</b>${sel}<span class="grow"></span>${acts}</div>${strip}<div class="rg">${tbl}</div>
+    ${R.rows.length ? '' : `<p class="hint" style="margin-top:10px">Nothing went in or out of this account in ${esc(regLabel(R))}.</p>`}`;
+}
+const regRef = d => { const v = isVoidSrc(d.src), base = String(d.ref).replace(/ void$/, ''), what = (SOURCES[d.src.replace(/Void$/, '')] || SOURCES[d.src]).label;
+  return `<span class="rg-ref">${SRC_VIEW[d.src] ? `<button type="button" class="btn link att-go" data-act="${SRC_VIEW[d.src]}" data-id="${esc(d.id)}">${esc(base)}</button>` : `<b>${esc(base)}</b>`}</span><span class="sub">${v ? 'Void · ' : ''}${esc(what)}</span>`; };
+function regRowsPlain(R) {
+  return R.rows.map(r => ({ date: r.d.date, ref: String(r.d.ref).replace(/ void$/, '') + (isVoidSrc(r.d.src) ? ' (void)' : ''), what: (SOURCES[r.d.src.replace(/Void$/, '')] || SOURCES[r.d.src]).label,
+    who: r.d.contact || '', part: [r.check && `Check ${r.check}`, r.ref && `Ref. ${r.ref}`, r.d.memo].filter(Boolean).join(' · '), out: r.net < 0 ? -r.net : '', in: r.net > 0 ? r.net : '', bal: r.bal, st: r.st.t }));
+}
+/* Printed: Letter, the report page design. */
+function regPrint(bank) {
+  const R = regData(bank, regPer(bank)), co = D.company, cur = R.usd ? 'US$' : '₱', xs = regRowsPlain(R);
+  document.getElementById('print-area').innerHTML = `<article class="rpd"><header class="rpd-head"><div><span class="vc-eye">Bank register</span><h1 class="rpd-title">${esc(regName(bank))}</h1><div class="rpd-rule"></div>
+      <p class="rpd-meta"><b>${esc(co.name || COMPANY)}</b>${co.tin ? ` · TIN ${esc(co.tin)}` : ''}<br>${esc(regLabel(R))}, in ${cur}</p></div><img class="rpd-tree" src="${TREE}" alt="" width="96" height="45"></header>
+    <table class="rp rg-p"><thead><tr><th>Date</th><th>Document</th><th>Payee and particulars</th><th class="num">Out</th><th class="num">In</th><th class="num">Balance</th><th>At the bank</th></tr></thead><tbody>
+      <tr class="rp-sub"><td></td><td colspan="4">Balance brought forward</td><td class="num">${money(R.open)}</td><td></td></tr>
+      ${xs.map(x => `<tr><td>${esc(fdate(x.date))}</td><td><b>${esc(x.ref)}</b><br><span class="rg-s">${esc(x.what)}</span></td><td>${esc(x.who)}<br><span class="rg-s">${esc(x.part)}</span></td><td class="num">${x.out === '' ? '' : money(x.out)}</td><td class="num">${x.in === '' ? '' : money(x.in)}</td><td class="num">${money(x.bal)}</td><td>${esc(x.st)}</td></tr>`).join('')}</tbody>
+      <tfoot><tr class="rp-grand"><td></td><td colspan="2">Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.out)}</td><td class="num">${money(R.in)}</td><td class="num">${money(R.close)}</td><td></td></tr></tfoot></table>
+    <table class="rp rg-sum"><tbody><tr><td>Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.book)}</td></tr><tr><td>Add checks not cleared (${R.cs.length})</td><td class="num">${money(R.outC)}</td></tr>
+      <tr><td>Less deposits not in the bank yet (${R.ds.length})</td><td class="num">(${money(R.outD)})</td></tr><tr class="rp-grand"><td>The bank should show</td><td class="num">${money(R.bank0)}</td></tr></tbody></table>
+    <footer class="rpd-foot"><span>${esc((co.name || COMPANY).toUpperCase())}</span><span>Prepared by the Accounting Hub on ${esc(DATE_FMT.format(new Date()))}</span></footer></article>`;
+  let pg = document.getElementById('pg-style'); if (!pg) { pg = document.createElement('style'); pg.id = 'pg-style'; document.head.appendChild(pg); }
+  pg.textContent = '@media print{@page{size:letter;margin:.55in .5in}}';
+  document.body.classList.add('pv');
+  window.print();
+}
+/* Excel: one row per entry, dates as dates, money as numbers. */
+function regXlsx(bank) {
+  const R = regData(bank, regPer(bank)), co = D.company.name || COMPANY, xs = regRowsPlain(R), title = `${acct(bank).name} register`;
+  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = n => String.fromCharCode(64 + n), rows = []; let n = 0;
+  const serial = d => { const [y, mo, da] = d.split('-').map(Number); return Math.round((Date.UTC(y, mo - 1, da) - Date.UTC(1899, 11, 30)) / 864e5); };
+  const cell = (c, v, s) => v === '' || v == null ? (s ? `<c r="${colL(c)}${n}" s="${s}"/>` : '') : typeof v === 'number' ? `<c r="${colL(c)}${n}" s="${s || 0}"><v>${Math.round(v * 100) / 100}</v></c>` : `<c r="${colL(c)}${n}" s="${s || 0}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+  const row = (cells, ht) => { n++; rows.push(`<row r="${n}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells.map(([v, s], i) => cell(i + 1, v, s)).join('')}</row>`); };
+  row([[co, 1]], 20); row([[title, 2]], 18); row([[`${regLabel(R)}, in ${R.usd ? 'US dollars' : 'pesos'}`, 3]]); row([[`Prepared by the Accounting Hub on ${DATE_FMT.format(new Date())}.`, 3]]); row([]);
+  const head = n + 1; row([['Date', 4], ['Document', 4], ['Type', 4], ['Payee', 4], ['Particulars', 4], ['Out', 5], ['In', 5], ['Balance', 5], ['At the bank', 4]], 22);
+  row([['', 13], ['Balance brought forward', 13], ['', 13], ['', 13], ['', 13], ['', 14], ['', 14], [R.open, 14], ['', 13]]);
+  xs.forEach(r => row([[serial(r.date), 21], [r.ref, 0], [r.what, 0], [r.who, 0], [r.part, 0], [r.out, 9], [r.in, 9], [r.bal, 9], [r.st, 0]]));
+  row([['', 15], [`Balance per the books, ${fdate(R.to)}`, 15], ['', 15], ['', 15], ['', 15], [R.out, 16], [R.in, 16], [R.close, 16], ['', 15]]);
+  row([]);
+  row([['', 0], ['Add checks not cleared', 0], ['', 0], ['', 0], ['', 0], ['', 0], ['', 0], [R.outC, 9]]);
+  row([['', 0], ['Less deposits not in the bank yet', 0], ['', 0], ['', 0], ['', 0], ['', 0], ['', 0], [-R.outD, 9]]);
+  row([['', 15], ['The bank should show', 15], ['', 15], ['', 15], ['', 15], ['', 15], ['', 15], [R.bank0, 16]]);
+  const widths = [12, 18, 16, 28, 44, 14, 14, 15, 24];
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:I${n}"/><sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${head}" topLeftCell="A${head + 1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+<sheetFormatPr defaultRowHeight="15"/><cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>
+<sheetData>${rows.join('')}</sheetData><printOptions horizontalCentered="1"/><pageMargins left="0.4" right="0.4" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
+<pageSetup paperSize="1" orientation="landscape" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;L&amp;"Arial"&amp;8${x(co)} · ${x(title)}&amp;R&amp;"Arial"&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter></worksheet>`;
+  xlDownload(title.slice(0, 31).replace(/[\\/?*[\]:]/g, ' '), head, sheet, `${co.replace(/[^\w.-]+/g, '_')}_${acct(bank).name.replace(/[^\w.-]+/g, '_')}_register_${regLabel(R).replace(/[^\w]+/g, '_')}.xlsx`);
+  toast(`${title} downloaded`);
 }
 function reconForm(bank) {
   const last = lastRecon(bank), cur = bankCur(bank), ticked = new Set();
@@ -3614,18 +3729,12 @@ function rpPrint() {
   document.body.classList.add('pv');
   window.print();
 }
-/* Excel: the same rows, numbers as numbers, money as #,##0.00 with negatives in brackets. */
-function rpXlsx() {
-  const r = rpState(), R = rpBuild(r), cols = rpCols(R), pctCol = !R.tb && !R.fixed && cols.length === 4 ? 3 : -1, co = D.company.name || COMPANY;
-  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const colL = n => String.fromCharCode(64 + n), W = 2 + cols.length;
-  // styles: 0 plain, 1 company, 2 title, 3 meta, 4 header, 5 header right, 6 band, 7 section head, 8 code, 9 money, 10 pct, 11 sub label, 12 sub money, 13 total label, 14 total money, 15 grand label, 16 grand money, 17 sub pct, 18 total pct, 19 grand pct, 20 note
-  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00;(#,##0.00);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%;(0.0%);&quot;-&quot;"/></numFmts>
+const XL_STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0.00;(#,##0.00);&quot;-&quot;"/><numFmt numFmtId="165" formatCode="0.0%;(0.0%);&quot;-&quot;"/><numFmt numFmtId="166" formatCode="mmm d, yyyy"/></numFmts>
 <fonts count="7"><font><sz val="10"/><color rgb="FF2C2C2C"/><name val="Arial"/></font><font><b/><sz val="14"/><color rgb="FF1B4DA0"/><name val="Arial"/></font><font><b/><sz val="12"/><color rgb="FF2C2C2C"/><name val="Arial"/></font><font><sz val="9"/><color rgb="FF6E6E6E"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF1B4DA0"/><name val="Arial"/></font><font><b/><sz val="10"/><color rgb="FF2C2C2C"/><name val="Arial"/></font></fonts>
 <fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF1B4DA0"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEAF0FA"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDF1F7"/></patternFill></fill></fills>
 <borders count="3"><border/><border><top style="thin"><color rgb="FFDDDDDD"/></top></border><border><top style="thin"><color rgb="FF10213B"/></top><bottom style="double"><color rgb="FF10213B"/></bottom></border></borders>
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="21">
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="22">
 <xf fontId="0"/><xf fontId="1" applyFont="1"/><xf fontId="2" applyFont="1"/><xf fontId="3" applyFont="1"/>
 <xf fontId="4" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf><xf fontId="4" fillId="2" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="right" vertical="center" wrapText="1"/></xf>
 <xf fontId="5" fillId="3" applyFont="1" applyFill="1"/><xf fontId="6" applyFont="1"/><xf fontId="3" applyFont="1"/>
@@ -3634,7 +3743,29 @@ function rpXlsx() {
 <xf fontId="6" fillId="4" borderId="1" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="164" fontId="6" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/>
 <xf fontId="5" borderId="2" applyFont="1" applyBorder="1"/><xf numFmtId="164" fontId="5" borderId="2" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
 <xf numFmtId="165" fontId="6" borderId="1" applyNumberFormat="1" applyFont="1" applyBorder="1"/><xf numFmtId="165" fontId="6" fillId="4" borderId="1" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="165" fontId="5" borderId="2" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
-<xf fontId="3" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+<xf fontId="3" applyFont="1"/><xf numFmtId="166" fontId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="left"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+/* One-sheet .xlsx: the sheet's XML, its name, the header row to repeat on each printed page, and the file name. */
+function xlDownload(name, head, sheet, file) {
+  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'), styles = XL_STYLES;
+  const files = [
+    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`],
+    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(name)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${x(name)}'!$${head}:$${head}</definedName></definedNames></workbook>`],
+    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ['xl/styles.xml', styles],
+    ['xl/worksheets/sheet1.xml', sheet]
+  ];
+  const a = document.createElement('a'), url = URL.createObjectURL(zipStore(files));
+  a.href = url; a.download = file;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+/* Excel: the same rows, numbers as numbers, money as #,##0.00 with negatives in brackets. */
+function rpXlsx() {
+  const r = rpState(), R = rpBuild(r), cols = rpCols(R), pctCol = !R.tb && !R.fixed && cols.length === 4 ? 3 : -1, co = D.company.name || COMPANY;
+  const x = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = n => String.fromCharCode(64 + n), W = 2 + cols.length;
+  // styles: 0 plain, 1 company, 2 title, 3 meta, 4 header, 5 header right, 6 band, 7 section head, 8 code, 9 money, 10 pct, 11 sub label, 12 sub money, 13 total label, 14 total money, 15 grand label, 16 grand money, 17 sub pct, 18 total pct, 19 grand pct, 20 note
+  const styles = XL_STYLES;
   const rows = []; let n = 0;
   const cell = (c, v, s) => v === '' || v == null ? (s ? `<c r="${colL(c)}${n}" s="${s}"/>` : '') : typeof v === 'number' ? `<c r="${colL(c)}${n}" s="${s || 0}"><v>${Math.round(v * 1e6) / 1e6}</v></c>` : `<c r="${colL(c)}${n}" s="${s || 0}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
   const row = (cells, ht) => { n++; rows.push(`<row r="${n}"${ht ? ` ht="${ht}" customHeight="1"` : ''}>${cells.map(([v, s], i) => cell(i + 1, v, s)).join('')}</row>`); };
@@ -3658,17 +3789,8 @@ function rpXlsx() {
 <sheetData>${rows.join('')}</sheetData><printOptions horizontalCentered="1"/><pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>
 <pageSetup paperSize="1" orientation="portrait" fitToWidth="1" fitToHeight="0"/><headerFooter><oddFooter>&amp;L&amp;"Arial"&amp;8${x(co)} · ${x(rpTitle(r))}&amp;R&amp;"Arial"&amp;8Page &amp;P of &amp;N</oddFooter></headerFooter></worksheet>`;
   const name = rpTitle(r).slice(0, 31);
-  const files = [
-    ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>`],
-    ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
-    ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(name)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${x(name)}'!$${head}:$${head}</definedName></definedNames></workbook>`],
-    ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
-    ['xl/styles.xml', styles],
-    ['xl/worksheets/sheet1.xml', sheet]
-  ];
-  const a = document.createElement('a'), url = URL.createObjectURL(zipStore(files)), stamp = rpLabel(R.cur, R.asOf).replace(/[^\w]+/g, '_');
-  a.href = url; a.download = `${co.replace(/[^\w.-]+/g, '_')}_${rpTitle(r).replace(/ /g, '_')}_${stamp}.xlsx`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000);
+  const stamp = rpLabel(R.cur, R.asOf).replace(/[^\w]+/g, '_');
+  xlDownload(name, head, sheet, `${co.replace(/[^\w.-]+/g, '_')}_${rpTitle(r).replace(/ /g, '_')}_${stamp}.xlsx`);
   toast(`${rpTitle(r)} downloaded`);
 }
 
@@ -3838,9 +3960,13 @@ function closeYearForm() {
 }
 
 /* ---------- Lists: contacts ---------- */
-function contactsPage() {
+/* On any bill, voucher, invoice or collection, or tagged on a line, liquidation or fund: can't be deleted. */
+function contactUsed(id) {
   const tagged = new Set(journal().flatMap(d => d.lines.map(l => l.tag)).concat((D.liquidations || []).map(x => x.employee), Object.values(D.banks || {}).map(b => b.custodian)).filter(Boolean));
-  const used = id => D.vouchers.some(v => v.payeeId === id) || D.bills.some(b => b.payeeId === id) || (D.invoices || []).some(x => x.customerId === id) || (D.collections || []).some(x => x.customerId === id) || tagged.has(id);
+  return D.vouchers.some(v => v.payeeId === id) || D.bills.some(b => b.payeeId === id) || (D.invoices || []).some(x => x.customerId === id) || (D.collections || []).some(x => x.customerId === id) || tagged.has(id);
+}
+function contactsPage() {
+  const used = contactUsed;
   // bills, vouchers, invoices and collections in this year's books (it showed true or false before)
   const docCount = id => D.vouchers.filter(v => v.payeeId === id).length + D.bills.filter(b => b.payeeId === id).length + (D.invoices || []).filter(x => x.customerId === id).length + (D.collections || []).filter(x => x.customerId === id).length;
   const q = S.q.toLowerCase();
@@ -3855,7 +3981,7 @@ function contactsPage() {
       { h: 'Usual account', k: p => p.accountId ? esc(acctName(p.accountId)) : '' },
       { h: 'Usual withholding', k: p => esc(p.atc || '') },
       { h: 'Documents', num: 1, k: p => { const n = docCount(p.id); return n ? n.toLocaleString('en-US') : '<span style="color:var(--muted)">—</span>'; } },
-      { h: '', k: p => can('contacts.edit') ? rowActs([['edit-contact', p.id, 'Edit'], !used(p.id) && ['delete-contact', p.id, 'Delete']]) : '' }
+      { h: '', k: p => can('contacts.edit') ? rowActs([['edit-contact', p.id, 'Edit']]) : '' }
     ], rows, D.contacts.length ? 'No contacts match.' : '<b>No contacts yet</b>They’re added as you save bills and vouchers.')}</div>`;
 }
 function contactForm(id) {
@@ -3884,7 +4010,7 @@ function contactForm(id) {
       if (p) { Object.assign(contact(id), data); [...D.vouchers, ...D.bills].filter(v => v.payeeId === id).forEach(v => { v.payeeName = name; }); [...(D.invoices || []), ...(D.collections || [])].filter(x => x.customerId === id).forEach(x => { x.customerName = name; }); }
       else D.contacts.push({ id: nextId('p'), ...data });
     }, () => toast(`${name} saved`));
-  }, 'Save contact');
+  }, 'Save contact', p && !contactUsed(p.id) ? { extra: `<button class="btn ghost" data-act="delete-contact" data-id="${esc(p.id)}">Delete contact</button>` } : undefined);
 }
 
 /* ---------- Lists: chart of accounts (view and add) ---------- */
@@ -5087,7 +5213,7 @@ function invoiceList() {
     { h: 'Amount', num: 1, k: ({ i }) => `<span class="amt">${isMemo(i) ? `(${peso(i.receivable)})` : peso(i.receivable)}</span>${i.vat ? `<span class="sub">${money(i.vat)} VAT</span>` : ''}` },
     { h: 'Balance', num: 1, k: ({ i, st }) => st === 'Void' ? '' : peso(invBalance(i)) },
     { h: 'Status', k: ({ i, st }) => st === 'Void' ? stCell(st, null, esc(i.voidReason || '')) : stCell(st, invDue(i)) },
-    { h: '', k: ({ i }) => rowActs([['view-invoice', i.id, 'View'], own(i) && live(i) && !isLocked(i.date) && canBooks('sales.edit') && ['edit-invoice', i.id, 'Edit']]) }
+    { h: '', k: ({ i }) => rowActs([['view-invoice', i.id, 'View']]) }
   ];
   const lv = rows.filter(r => live(r.i));
   return table(cols, rows, 'No invoices match.', `<tfoot><tr><td>${lv.length} document${lv.length === 1 ? '' : 's'}</td><td></td><td class="num">${peso(sum(lv.map(r => sg(r.i) * r.i.receivable)))}</td><td class="num">${peso(sum(lv.map(r => sg(r.i) * invBalance(r.i))))}</td><td></td><td></td></tr></tfoot>`, r => r.i.status === 'void' ? 'void' : attRow(invDue(r.i)));
@@ -5308,7 +5434,7 @@ function collectionList() {
     { h: 'How', k: c => `${esc(c.method)}${c.refNo ? ` ${esc(c.refNo)}` : ''}${c.custBank ? `<span class="sub">${esc(c.custBank)}</span>` : ''}` },
     { h: 'Received', num: 1, k: c => `<span class="amt">${peso(c.amount)}</span>${c.cwt ? `<span class="sub">${money(c.cwt)} withheld</span>` : ''}` },
     { h: 'Status', k: c => { const st = cStatus(c), d = st === 'Deposited' ? depositFor(c) : null, ag = yearClosed() ? null : depositAge(c); return pill(st) + (ag ? `<span class="sub">${sPill(ag)}</span>` : '') + (d ? `<span class="sub">${esc(d.no)}, ${fdate(d.date)}</span>` : st === 'In the bank' ? `<span class="sub">${esc(acctName(c.into))}</span>` : st === 'Void' ? `<span class="sub">${esc(c.voidReason || '')}</span>` : ''); } },
-    { h: '', k: c => rowActs([['view-collection', c.id, 'View'], open(c) && ['edit-collection', c.id, 'Edit']]) }
+    { h: '', k: c => rowActs([['view-collection', c.id, 'View']]) }
   ];
   const lv = rows.filter(live);
   const list = !all.length ? `<div class="empty"><b>No collections in ${YEAR}</b>${canBooks('collections.edit') ? `Record each payment as it comes in. ${btn('new-collection', 'New collection', 'sm')}` : ''}</div>`
@@ -5321,7 +5447,7 @@ function collectionList() {
     { h: 'Receipts', k: d => esc((d.items || []).map(p => (collectionOf(p.collectionId) || {}).cr || p.collectionId).join(', ')) },
     { h: 'Amount', num: 1, k: d => peso(d.amount) },
     { h: 'Status', k: d => pill(d.status === 'void' ? 'Void' : 'Deposited') + (d.status === 'void' ? `<span class="sub">${esc(d.voidReason || '')}</span>` : '') },
-    { h: '', k: d => rowActs([['view-deposit', d.id, 'View'], live(d) && !isLocked(d.date) && canBooks('collections.edit') && ['edit-deposit', d.id, 'Edit']]) }
+    { h: '', k: d => rowActs([['view-deposit', d.id, 'View']]) }
   ], deps, '', '', d => d.status === 'void' ? 'void' : '') : `<div class="empty"><b>No deposits ${S.q ? 'match' : `in ${YEAR}`}</b>Checks and cash go to the bank on a deposit slip: New deposit puts them on it.</div>`;
 }
 function collectionForm(c0) {
@@ -5663,7 +5789,7 @@ function staffList(mode) {
       { h: 'Used for', k: usedFor },
       { h: 'Amount', num: 1, k: x => `<span class="amt">${peso(vGross(x))}</span>${x.vat ? `<span class="sub">${money(x.vat)} VAT</span>` : ''}` },
       { h: 'Status', k: x => x.status === 'void' ? pill('Void') + `<span class="sub">${esc(x.voidReason || '')}</span>` : '' },
-      { h: '', k: x => rowActs([['view-pcv', x.id, 'View'], live(x) && !isLocked(x.date) && canBooks('staff.edit') && ['edit-pcv', x.id, 'Edit']]) }
+      { h: '', k: x => rowActs([['view-pcv', x.id, 'View']]) }
     ], rows, 'No vouchers match.', `<tfoot><tr><td>${lv.length} voucher${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(vGross)))}</td><td></td><td></td></tr></tfoot>`, x => x.status === 'void' ? 'void' : '');
   }
   // advances by employee: given (debits), cleared (credits), outstanding
@@ -5707,7 +5833,7 @@ function staffList(mode) {
       { h: 'Cash', num: 1, k: x => x.returned ? `${money(x.returned)}<span class="sub">returned</span>` : x.reimbursed ? `(${money(x.reimbursed)})<span class="sub">reimbursed</span>` : '' },
       { h: 'Advance cleared', num: 1, k: x => peso(round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0))) },
       { h: 'Status', k: x => x.status === 'void' ? pill('Void') + `<span class="sub">${esc(x.voidReason || '')}</span>` : '' },
-      { h: '', k: x => rowActs([['view-liq', x.id, 'View'], live(x) && !isLocked(x.date) && canBooks('staff.edit') && ['edit-liq', x.id, 'Edit']]) }
+      { h: '', k: x => rowActs([['view-liq', x.id, 'View']]) }
     ], liqs, '', '', x => x.status === 'void' ? 'void' : '') : `<div class="empty"><b>No liquidations ${S.q ? 'match' : `in ${YEAR}`}</b>When an employee comes back with resibos, Liquidate on their row.</div>`;
   } else body = ownerStrip('advance', true);
   return body;
@@ -5808,7 +5934,7 @@ function ownerStrip(kind = 'refill', bare) {
     { h: adv ? 'Advanced' : 'Refilled', num: 1, k: x => money(x.amount) },
     { h: 'Paid back', num: 1, k: x => x.paid ? `${money(x.paid)}${x.by.length ? `<span class="sub">${x.by.map(v => `<button type="button" class="btn link sm" data-act="view-voucher" data-id="${esc(v.id)}">${esc(v.cv)}</button>`).join(' ')}</span>` : ''}` : '' },
     { h: 'Still owed', num: 1, k: x => x.owed > 0 ? `<b>${peso(x.owed)}</b>` : pill('Paid') },
-    { h: '', k: x => rowActs([['view-je', x.j.id, 'View'], x.owed > 0 && canBooks('vouchers.edit') && ['pay-owner', x.j.id, 'Pay back']]) }
+    { h: '', k: x => rowActs([['view-je', x.j.id, 'View']]) }
   ], xs)}</section>`;
 }
 function pcvForm(x0, pre) {
@@ -6172,8 +6298,8 @@ function countList() {
     { h: 'Inventory per books', num: 1, k: r => money(r.before) },
     { h: 'Count', num: 1, k: r => r.c ? money(r.c.amount) : '' },
     { h: 'Cost of goods sold', num: 1, k: r => r.c ? `<b>${money(sum(r.c.entry.filter(l => l.acct === D.control.cogs).map(l => (l.dr || 0) - (l.cr || 0))))}</b>` : '' },
-    { h: 'Status', k: r => !r.c && !countable(r.ym) ? `<span class="hint">Counted from ${fdate(eom(r.ym))}</span>` : r.changed ? `${pill('Changed')}<span class="sub">Books moved ${money(round2(r.after - r.c.amount))} after the count. Save the count again.</span>` : r.c ? pill('Counted') : '' },
-    { h: '', k: r => rowActs([r.c && ['view-count', r.c.id, 'View'], canBooks('inventory.edit') && !isLocked(eom(r.ym)) && (r.c ? ['edit-count', r.c.id, r.changed ? 'Save again' : 'Edit'] : countable(r.ym) && ['new-count', r.ym, 'Enter'])]) }
+    { h: 'Status', k: r => !r.c && !countable(r.ym) ? `<span class="hint">Counted from ${fdate(eom(r.ym))}</span>` : r.changed ? `${pill('Changed')}<span class="sub">Books moved ${money(round2(r.after - r.c.amount))} after the count. View it and save again.</span>` : r.c ? pill('Counted') : '' },
+    { h: '', k: r => rowActs([r.c ? ['view-count', r.c.id, 'View'] : canBooks('inventory.edit') && !isLocked(eom(r.ym)) && countable(r.ym) && ['new-count', r.ym, 'Enter']]) }
   ], rows, '');
 }
 function countForm(j0, ym0) {
@@ -6220,7 +6346,7 @@ function countForm(j0, ym0) {
 }
 function viewCount(id) {
   const j = journalOf(id), open = live(j) && !isLocked(j.date);
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(j) && canVoid() && canBooks('inventory.void') && `<button class="btn ghost" data-act="void-count" data-id="${id}">Void</button>`, open && canBooks('inventory.edit') && `<button class="btn" data-act="edit-count" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(j) && canVoid() && canBooks('inventory.void') && `<button class="btn ghost" data-act="void-count" data-id="${id}">Void</button>`, open && canBooks('inventory.edit') && `<button class="btn" data-act="edit-count" data-id="${id}">${live(j) && Math.abs(acctBalance(D.control.inventory, j.date) - j.amount) >= 0.005 ? 'Save again' : 'Edit'}</button>`].filter(Boolean).join('');
   openModal(`Stock Count ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid"><dt>Month</dt><dd class="payee">${monthLabel(j.date.slice(0, 7))}</dd><dt>Count no.</dt><dd>${esc(j.no)}</dd><dt>Dated</dt><dd>${fdate(j.date)}</dd></dl>
@@ -6290,7 +6416,7 @@ function transferList() {
     { h: 'Reference', k: x => `${esc(x.ref || '')}<span class="sub">${x.kind === 'pay' ? 'Payment' : 'Between accounts'}</span>` },
     { h: 'Amount', num: 1, k: x => `<span class="amt">${amt(x.amount, x.cur)}</span>${x.cur === 'USD' ? `<span class="sub">${peso(x.php)}</span>` : ''}` },
     { h: 'Status', k: x => (x.kind === 'pay' && needsApproval(voucher(x.id)) ? approvalPill(voucher(x.id)) : x.void ? pill('Void') : x.kind === 'pay' ? pill('Approved') : pill('Done')) + (x.void ? `<span class="sub">${esc(x.d.voidReason || '')}</span>` : '') },
-    { h: '', k: x => x.kind === 'pay' ? rowActs([['view-voucher', x.id, 'View'], !x.void && !needsApproval(voucher(x.id)) && ['print-voucher', x.id, 'Print'], open(x) && ['edit-voucher', x.id, 'Edit']]) : rowActs([['view-je', x.id, 'View'], open(x) && ['edit-move', x.id, 'Edit']]) }
+    { h: '', k: x => rowActs([[x.kind === 'pay' ? 'view-voucher' : 'view-je', x.id, 'View']]) }
   ];
   const lv = rows.filter(x => !x.void);
   return table(cols, rows, 'No transfers match.', `<tfoot><tr><td>${lv.length} transfer${lv.length === 1 ? '' : 's'}</td><td></td><td></td><td class="num">${peso(sum(lv.map(x => x.php)))}</td><td></td><td></td></tr></tfoot>`, x => x.void ? 'void' : '');
@@ -6384,7 +6510,7 @@ function jeList() {
     { h: 'Memo', k: j => `${esc(j.memo)}${j.name ? `<span class="sub">${esc(j.name)}</span>` : ''}${j.reverses ? `<span class="sub">Reverses ${esc((journalOf(j.reverses) || {}).no || j.reverses)}</span>` : ''}` },
     { h: 'Amount', num: 1, k: j => peso(sum((j.entry || []).map(l => l.dr))) },
     { h: 'Status', k: j => pill(j.status === 'void' ? 'Void' : 'Posted') + (j.status === 'void' ? `<span class="sub">${esc(j.voidReason)}</span>` : '') },
-    { h: '', k: j => rowActs([['view-je', j.id, 'View'], live(j) && !isLocked(j.date) && !reversalOf(j.id) && canBooks('journal.edit') && ['edit-je', j.id, 'Edit']]) }
+    { h: '', k: j => rowActs([['view-je', j.id, 'View']]) }
   ];
   return table(cols, rows, 'No entries match.', '', j => j.status === 'void' ? 'void' : '');
 }
@@ -6477,12 +6603,13 @@ const reversalOf = id => (D.journals || []).find(x => x.reverses === id && live(
 function viewJournal(id) {
   const j = journalOf(id), t = j.kind === 'Transfer', P = t ? 'transfers' : 'journal', rv = reversalOf(id);
   const open = live(j) && !isLocked(j.date) && !rv;
+  const ow = !t && live(j) ? ownerItems('refill').concat(ownerItems('advance')).find(o => o.j.id === id) : null, owes = !!(ow && ow.owed > 0.004 && canBooks('vouchers.edit'));
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(j) && !rv && canVoid() && canBooks(t ? 'transfers.void' : 'journal.edit') && `<button class="btn ghost" data-act="void-je" data-id="${id}">Void</button>`,
-    open && canBooks(`${P}.edit`) && `<button class="btn" data-act="${t ? 'edit-move' : 'edit-je'}" data-id="${id}">Edit</button>`, `<button class="btn ghost" data-act="print-doc" data-id="je:${id}">Print</button>`].filter(Boolean).join('');
+    open && canBooks(`${P}.edit`) && `<button class="btn${owes ? ' ghost' : ''}" data-act="${t ? 'edit-move' : 'edit-je'}" data-id="${id}">Edit</button>`, `<button class="btn ghost" data-act="print-doc" data-id="je:${id}">Print</button>`, owes && `<button class="btn" data-act="pay-owner" data-id="${id}">Pay back</button>`].filter(Boolean).join('');
   const c = t ? calcMove(j) : null;
   const facts = t ? `<dt>From</dt><dd>${esc(acctName(j.from))}</dd><dt>Amount out</dt><dd>${amt(j.amountOut, c.fc)}</dd><dt>To</dt><dd>${esc(acctName(j.to))}</dd><dt>Amount in</dt><dd>${amt(c.inn, c.tc)}</dd>${j.refNo ? `<dt>Reference</dt><dd>${esc(j.refNo)}</dd>` : ''}${j.charges ? `<dt>Bank charges</dt><dd>${amt(j.charges, c.fc)}</dd>` : ''}`
     : `${j.name ? `<dt>Name</dt><dd>${esc(j.name)}</dd>` : ''}${j.reverses ? `<dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd>` : ''}`;
-  openModal(`${t ? 'Transfer' : 'Journal Entry'} ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : rv ? `<p class="lead">${esc(rv.no)} reverses it on ${fdate(rv.date)}. To change or void this entry, void ${esc(rv.no)} first.</p>` : live(j) && isLocked(j.date) ? '<p class="lead">In a locked month. It can be voided on an open date, but not changed.</p>' : ''}
+  openModal(`${t ? 'Transfer' : 'Journal Entry'} ${esc(j.no)}`, `${j.status === 'void' ? `<p class="lead">Voided ${fdate(j.voidedOn)}: ${esc(j.voidReason)}</p>` : rv ? `<p class="lead">${esc(rv.no)} reverses it on ${fdate(rv.date)}. To change or void this entry, void ${esc(rv.no)} first.</p>` : live(j) && isLocked(j.date) ? '<p class="lead">In a locked month. It can be voided on an open date, but not changed.</p>' : ''}${ow ? `<p class="lead">${ow.owed > 0.004 ? `${pill('Unpaid')} ${peso(ow.owed)} still owed to ${esc(ow.owner)}` : `${pill('Paid')} Paid back to ${esc(ow.owner)}`}${ow.by.length ? `${ow.owed > 0.004 ? '; paid so far by' : ' by'} ${ow.by.map(v => `<button type="button" class="btn link sm" data-act="view-voucher" data-id="${esc(v.id)}">${esc(v.cv)}</button>`).join(', ')}` : ''}.</p>` : ''}
     <div class="preview-wrap"><div class="dv">${j.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}<dl class="dv-grid"><dt>Date</dt><dd>${fdate(j.date)}</dd>${facts}<dt class="dv-wide-l">Memo</dt><dd class="dv-wide">${esc(j.memo)}</dd></dl>
       <p class="dv-sect">Accounting entry</p>${entryTable(j.entry || [], { noBal: true })}</div></div>${j.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(j.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: j });
 }
@@ -6581,7 +6708,7 @@ function assetList() {
     { h: 'Accumulated', num: 1, k: x => x.disposedOn ? '' : money(depOnBooks(x)) },
     { h: 'Book value', num: 1, k: x => x.disposedOn ? '' : `<b>${money(nbv(x))}</b>` },
     { h: 'Status', k: st },
-    { h: '', k: x => rowActs([canBooks('journal.edit') && !x.disposedOn && ['edit-asset', x.id, 'Edit'], canBooks('journal.edit') && !x.disposedOn && ['dispose-asset', x.id, 'Dispose']]) }
+    { h: '', k: x => rowActs([canBooks('journal.edit') && !x.disposedOn && ['edit-asset', x.id, 'Edit']]) }
   ], xs, '', `<tfoot><tr><td>${xs.filter(x => !x.disposedOn).length} in use</td><td></td><td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(x => x.cost)))}</td><td></td>
     <td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(depOnBooks)))}</td><td class="num">${money(sum(xs.filter(x => !x.disposedOn).map(nbv)))}</td><td></td><td></td></tr></tfoot>`, x => x.disposedOn ? 'void' : '');
 }
@@ -6638,7 +6765,7 @@ function assetForm(id) {
     const rec = { no: x.no, desc: x.desc, acct: x.acct, accum: x.life > 0 ? x.accum : '', exp: x.life > 0 ? x.exp : '', dept: x.life > 0 ? x.dept : '', acquired: x.acquired, cost: round2(x.cost), salvage: round2(x.salvage), life: x.life,
       start: x.life > 0 ? x.start : '', before: round2(x.before), disposedOn: edit ? x0.disposedOn : '', notes: x.notes };
     return save('saveAsset', () => { if (edit) Object.assign(assetOf(id), rec); else { D.assets = D.assets || []; D.assets.push({ id: nextId('f'), ...rec }); } }, () => toast(`${x.no} saved`));
-  }, 'Save', { size: 'wide', onOpen: () => {
+  }, 'Save', { size: 'wide', extra: edit && !x0.disposedOn ? `<button class="btn ghost" data-act="dispose-asset" data-id="${esc(x0.id)}">Dispose…</button>` : '', onOpen: () => {
     const m = modalEl();
     m.addEventListener('input', update);
     m.addEventListener('change', e => {
@@ -6945,7 +7072,7 @@ const GUIDE = {
   checks: { who: 'everyday',
     what: 'Every check the company wrote, and whether the bank has paid it yet (cleared).',
     when: 'To see which checks are still out, and to mark one cleared once it’s on the bank statement.',
-    steps: [['Cleared…', 'Enter the date the check shows on the bank statement.'], ['Or let Bank Reconciliation do it', 'Ticking a check there marks it cleared for you.']],
+    steps: [['Mark cleared', 'View the check, then Mark cleared…, and enter the date the check shows on the bank statement. Undo cleared is there too.'], ['Or let Bank Reconciliation do it', 'Ticking a check there marks it cleared for you.']],
     book: null,
     shows: ['Nothing new in the books; the check was booked when it was written. This is about timing: what the bank has paid so far.'],
     watch: ['A check on a reconciled statement stays cleared. If it was a mistake, undo that reconciliation first.']
@@ -6955,7 +7082,9 @@ const GUIDE = {
     when: 'When each month’s bank statement comes, for each bank account.',
     steps: [
       ['Record what’s missing first', 'If the statement shows a bank charge, interest, or a transfer the books don’t have, enter it first (Bank Transfers or General Journal).'],
-      ['Reconcile', 'Pick the account. Enter the statement date and its ending balance.'],
+      ['View the account', 'View opens its register: the month’s entries in date order, a running balance, and whether each has reached the bank. The strip on top is what the bank should show at month end; compare it with the passbook.'],
+      ['When it doesn’t tie', 'Go down the register against the passbook, line by line. A line on one and not the other is the difference. Click a document to open it and fix it. Print or download it to Excel for the file.'],
+      ['Reconcile', 'From the register. Enter the statement date and its ending balance.'],
       ['Tick', 'Tick each check and each deposit that appears on the statement.'],
       ['Read the bottom', 'Statement balance, less checks not on it yet, plus deposits not on it yet, must equal the books. If it’s off, look for a missed tick or a wrong amount.'],
       ['Save', 'It only saves when it agrees. What you ticked is marked cleared.']
@@ -6982,7 +7111,7 @@ const GUIDE = {
     what: 'A cash advance is money given to an employee before they spend it, for a trip or a purchase. A liquidation is the employee coming back with the resibos and the sukli (change).',
     when: 'Release when the money goes out. Liquidate when the employee returns.',
     steps: [
-      ['The three tabs', 'The page opens on what’s still with employees, the most overdue first. Liquidations lists every liquidation; Owed to owners, advances an owner paid that the company still has to pay back.'],
+      ['The three tabs', 'The page opens on what’s still with employees, the most overdue first. Liquidations lists every liquidation; Owed to owners, advances an owner paid that the company still has to pay back. View one to see what’s been paid back, and Pay back from there.'],
       ['Release an advance', 'The employee, the amount, what it’s for, when the liquidation is due, and how it’s paid: by check, transfer, petty cash, or by an owner out of pocket. It opens the voucher filled in, to check and save.'],
       ['When it’s due', 'The liquidation due date starts 7 days after the release; change it to suit the trip. It prints on the voucher (“liquidate by…”). The employee’s row turns yellow 7 days before it and red once it’s passed.'],
       ['Liquidate', 'On the employee’s row. Enter each resibo with its account and department, then the change they hand back. If they spent more than they got, enter what you paid them on top instead.'],
@@ -7057,7 +7186,7 @@ const GUIDE = {
     steps: [
       ['Add asset', 'Description, account, date acquired, cost, and useful life in months (60 for five years; 0 for land). The depreciation accounts fill in.'],
       ['Book [month]', 'Posts the month’s depreciation for every asset as one journal entry, oldest month first.'],
-      ['Dispose', 'Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
+      ['Dispose', 'Edit the asset, then Dispose…. Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
     ],
     book: { say: 'A ₱240,000 forklift, used for 60 months: ₱4,000 a month.',
       rows: [['760-010 · Depreciation Expense', 4000, 0], ['159-030 · Accumulated Depreciation - Warehouse Equipment', 0, 4000]],
@@ -7141,6 +7270,8 @@ const GUIDE_START = `
     <li><b>Selling:</b> a <b>sales invoice</b> (the customer owes), then a <b>collection</b> (they paid), then a <b>deposit</b> (it’s in the bank).</li>
     <li><b>Small cash:</b> <b>petty cash vouchers</b> and <b>cash advances</b>, settled with resibos.</li>
     <li><b>Month end:</b> the stock count, depreciation, accruals, the bank reconciliation, Books Health, then lock the month.</li></ol>
+  <h3>One way into every document</h3>
+  <p>Every list has one button per row: <b>View</b>. Everything you can do to a document, Edit, Print, Void, Approve, Pay back, Receive, Mark cleared, is inside it, in the same place every time. Anything that changes the books takes two steps, open it and then act, so a stray click can’t change anything.</p>
   <h3>Where it all lives</h3>
   <p>The hub is where you work. Every save goes straight to the company’s Google Sheet, which holds the complete books and the reports for the accounting firm. A copy of the Sheet is made every night.</p>`;
 const GUIDE_FIRST = ['<b>Change your password</b> (bottom of the sidebar) if the Admin gave you a temporary one.',
@@ -7887,7 +8018,7 @@ const go = (page, fromHistory) => {
   document.body.classList.remove('nav-open');
   const changed = page !== S.page;
   { const g = NAV.find(x => x.items.some(n => n.id === page)); if (g && NAV_OPEN && !NAV_OPEN.has(g.group)) navKeep(g.group, true); }
-  S.page = page; S.q = ''; S.cr = ''; if (page === 'log' && LOG.rows) LOG.rows = null;
+  S.page = page; S.q = ''; S.cr = ''; S.rb = ''; if (page === 'log' && LOG.rows) LOG.rows = null;
   S.enter = changed; render(); if (changed) window.scrollTo(0, 0);
   if (!fromHistory && changed) histPage();
 };
@@ -7935,6 +8066,10 @@ const ACT = {
   'welcome-done': () => { try { localStorage.setItem(WELCOME_KEY(), '1'); } catch (e) { } const w = document.querySelector('.welcome'); if (w) w.remove(); },
   reconcile: id => reconForm(id),
   'view-recon': id => viewRecon(id),
+  'view-bank': id => { S.rb = id; S.rm = ''; refreshMain(); window.scrollTo(0, 0); },
+  'rg-back': () => { S.rb = ''; refreshMain(); },
+  'rg-print': () => regPrint(S.rb),
+  'rg-xlsx': () => regXlsx(S.rb),
   'undo-recon': id => undoRecon(id),
   'new-asset': () => assetForm(),
   'edit-asset': id => assetForm(id),
@@ -8124,6 +8259,7 @@ document.addEventListener('change', e => {
   else if (t.id === 'lu' || t.id === 'ld') { LOG.q = val('lq'); LOG.user = val('lu'); LOG.days = Number(val('ld')) || 0; loadLog(); }
   else if (t.id === 'tm') { S.tm = t.value; relist(); }
   else if (t.id === 'gm') { S.gm = t.value; relist(); }
+  else if (t.id === 'rgm') { S.rm = t.value; relist(); }
 });
 /* On a phone, tables of four or more columns show each row as a card; each cell carries its column's name. */
 function labelTables(root) {

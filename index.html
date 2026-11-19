@@ -410,21 +410,32 @@ tbody tr.jrow.alt td{background:var(--mist)}
 .banner{background:var(--ink);color:#fff;padding:12px 24px;font:600 14px var(--display);text-align:center}
 .banner:empty{display:none}
 /* sign-in and status screens */
-.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 16px;background:var(--depth);position:relative}
-.gate::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:var(--grad)}
-.gate-card{background:#fff;border-radius:16px;box-shadow:var(--lift);width:100%;max-width:420px;padding:40px 36px 32px;animation:rise .4s cubic-bezier(.4,0,.2,1)}
-.gate-card.wide{max-width:640px}
-.gate-logo{display:flex;justify-content:center;margin-bottom:20px}
-.gate-logo img{width:150px;max-width:150px}
-.gate-logo .wordmark{color:var(--blue);font-size:26px}
-.gate-eyebrow{text-align:center;font:700 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--green7);margin-bottom:24px}
-.gate-card h1{font-size:24px;font-weight:800;margin-bottom:10px}
-.gate-card .lead{margin:0 0 20px;color:var(--carbon)}
-.gate-card .field{margin-bottom:16px}
-.gate-card .btn{width:100%}
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px 16px;background:var(--depth);position:relative;overflow:hidden}
+.gate-ghost{position:absolute;left:50%;top:50%;width:min(860px,120vw);transform:translate(-50%,-46%);opacity:.07;filter:grayscale(1) brightness(2.2) blur(1px);pointer-events:none;user-select:none}
+.gate-wrap{position:relative;width:100%;max-width:420px;display:flex;flex-direction:column;align-items:center;animation:rise .45s cubic-bezier(.4,0,.2,1)}
+.gate-wrap.wide{max-width:640px}
+.gate-logo{display:flex;justify-content:center;margin-bottom:22px}
+.gate-logo img{width:150px;height:auto}
+.gate-title{margin:0 0 30px;font:800 34px/1.15 var(--display);color:#fff;letter-spacing:-.01em;text-align:center}
+.gate-card{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:22px;padding:30px 30px 34px;box-shadow:0 24px 60px rgba(0,0,0,.35);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff}
+.gate-card h1{font:800 22px var(--display);color:#fff;margin-bottom:10px}
+.gate-card .lead{margin:0 0 20px;color:#C9D3E3}
+.gate-card .lead b,.gate-card .lead code{color:#fff}
+.gate-card .field{margin-bottom:18px}
+.gate-card .field label{display:block;font:700 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:#A9B6CB;margin-bottom:8px}
+.gate-card input{height:52px;border-radius:12px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);color:#fff;font-size:17px;text-align:center;letter-spacing:.02em;transition:border-color .2s,box-shadow .2s,background .2s}
+.gate-card input::placeholder{color:rgba(255,255,255,.45)}
+.gate-card input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 4px rgba(34,167,73,.25);background:rgba(255,255,255,.14)}
+.gate-card input:-webkit-autofill{-webkit-text-fill-color:#fff;-webkit-box-shadow:0 0 0 40px #2A3B57 inset;caret-color:#fff}
+.gate-card .btn{width:100%;height:52px;border-radius:12px;font:800 17px var(--display);margin-top:6px}
+.gate-card .btn:not(.ghost){background:var(--grad);color:#fff;box-shadow:0 12px 28px rgba(27,77,160,.35)}
+.gate-card .btn:not(.ghost):hover,.gate-card .btn:not(.ghost):focus-visible{background:var(--green7);color:#fff;box-shadow:0 12px 28px rgba(26,113,62,.4)}
+.gate-card .btn.ghost{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
+.gate-card .btn.ghost:hover,.gate-card .btn.ghost:focus-visible{background:var(--green7);box-shadow:inset 0 0 0 1.5px var(--green7)}
 .gate-card .btn + .btn{margin-top:10px}
-.gate-foot{text-align:center;margin-top:24px;font:700 10.5px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
-.gate-err{margin:0 0 16px}
+.gate-card .errlist{color:#fff}
+.gate-foot{text-align:center;margin-top:30px;font:700 11px var(--display);letter-spacing:.16em;text-transform:uppercase;color:rgba(169,182,203,.75)}
+.gate-err{margin:0 0 18px;background:rgba(165,42,36,.22);border:1px solid rgba(255,140,130,.45);color:#FFD9D5;border-radius:10px;padding:10px 14px}
 .gate-err:empty{display:none}
 .errlist{max-height:46vh;overflow-y:auto;margin:0 0 20px;padding:12px 16px 12px 32px;border-radius:12px;background:var(--mist);font-size:13.5px}
 .errlist li{margin-bottom:6px}
@@ -768,7 +779,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.52';
+const APP_VERSION = '3.54';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -2217,12 +2228,12 @@ const allowed = n => n.kids ? n.kids.some(k => allowed(NAV.flatMap(g => g.items)
 const groupOf = id => (NAV.find(g => g.items.some(i => i.id === id)) || {}).group || '';
 const labelOf = id => NAV.flatMap(g => g.items).find(i => i.id === id).label;
 /* Screens before the books: sign-in, loading, setup, problems in the sheet. */
-const gate = (inner, wide) => `<div class="gate"><div class="gate-card ${wide ? 'wide' : ''}"><div class="gate-logo">${logo('light', 'gate-img')}</div><div class="gate-eyebrow">${APP_NAME}</div>${inner}<div class="gate-foot">Bold. Rooted. Trusted.</div></div></div>`;
+const gate = (inner, wide) => `<div class="gate"><img class="gate-ghost" src="${TREE}" alt="" aria-hidden="true"><div class="gate-wrap ${wide ? 'wide' : ''}"><div class="gate-logo"><img src="${TREE}" alt="${esc(COMPANY)}" width="150" height="70"></div><h1 class="gate-title">${APP_NAME}</h1><div class="gate-card">${inner}</div><div class="gate-foot">AcaciaHBC · Authorised personnel only</div></div></div>`;
 function gateScreen() {
   const err = `<p class="form-err gate-err" id="l-err" role="alert">${esc(S0.msg || '')}</p>`;
   switch (S0.screen) {
     case 'noconfig': return gate(`<h1>Not connected yet</h1><p class="lead">This copy of the hub doesn’t know which Google Sheet to use. Open <b>index.html</b>, find <code>PASTE_YOUR_WEB_APP_URL_HERE</code> near the top, replace it with the Apps Script web app URL, and upload the file again.</p>`);
-    case 'login': return gate(`${err}${F('l-user', 'Username', inp('l-user', '', 'text', 'autocomplete="username" autocapitalize="none" spellcheck="false"'))}${F('l-pass', 'Password', inp('l-pass', '', 'password', 'autocomplete="current-password"'))}<button class="btn" id="l-btn" data-act="sign-in">Sign in</button>`);
+    case 'login': return gate(`${err}${F('l-user', 'Username', inp('l-user', '', 'text', 'autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="your username"'))}${F('l-pass', 'Password', inp('l-pass', '', 'password', 'autocomplete="current-password" placeholder="••••••••"'))}<button class="btn" id="l-btn" data-act="sign-in">Sign in →</button>`);
     case 'loading': return gate(`<p class="lead" style="text-align:center">Loading the books…</p>`);
     case 'failed': return gate(`<h1>Can’t reach the books</h1><p class="lead">${esc(S0.msg)}</p><button class="btn" data-act="reload">Try again</button><button class="btn ghost" data-act="sign-out">Sign out</button>`);
     case 'setup': return isAdmin()
@@ -4561,7 +4572,7 @@ async function signIn() {
     SESSION = { token: r.token, user: r.user, last: Date.now(), year: THIS_YEAR() }; saveSession(); YEAR = THIS_YEAR(); S.sm = todayIso().slice(0, 7);
     await loadBooks();
   } catch (e) {
-    if (document.getElementById('l-err')) { errEl.textContent = e.message; b.disabled = false; b.textContent = 'Sign in'; }
+    if (document.getElementById('l-err')) { errEl.textContent = e.message; b.disabled = false; b.textContent = 'Sign in →'; }
   }
 }
 function signedOut(msg) {
@@ -6917,7 +6928,7 @@ function depLines(m) {
 }
 function assetsPage() {
   const due = depDue(), booked = [...depBookedMonths()].sort(), can = canBooks('journal.edit');
-  const acts = can ? `${btn('new-asset', 'Add asset', due.length ? 'ghost' : '')}${due.length ? btn('book-dep', `Record ${monthLabel(due[0].m)} depreciation`) : ''}` : '';
+  const acts = can ? `${btn('new-asset', 'Add asset', due.length ? 'ghost' : '')}${due.length ? btn('book-dep', (() => { const n = depBatch().out.length; return n > 1 ? `Record ${n} months of depreciation` : `Record ${monthLabel(due[0].m)} depreciation`; })()) : ''}` : '';
   const status = due.length ? `<p class="warnline" style="margin:0 0 18px">Depreciation for ${monthLabel(due[0].m)} isn’t recorded yet: ${peso(due[0].total)}.${due.length > 1 ? ` ${due.length - 1} more month${due.length > 2 ? 's' : ''} after it.` : ''}</p>`
     : (D.assets || []).some(x => x.life > 0) ? `<p class="balcheck ok" style="margin:0 0 18px">Depreciation is booked${booked.length ? ` through ${monthLabel(booked[booked.length - 1])}` : ''}.</p>` : '';
   return pageHead('assets', 'The company’s equipment, vehicles, buildings and improvements: what each cost, its accounts, and its straight-line depreciation. Depreciation is booked once a month as a journal entry.', acts)
@@ -7006,23 +7017,47 @@ function assetForm(id) {
   } });
 }
 /* Book the oldest month not yet booked: one entry, dated the month's last day. */
+/* Every month owed at once: one preview, one "Record them", one journal entry per month (dated its last day), oldest
+   first. Each month's amounts are worked out in turn, so a month only carries what the months before it in the batch
+   didn't. Months that haven't ended wait, unless the current month is all that's owed. A locked month stops the batch
+   there: depreciation is booked in order. */
+function depBatch() {
+  const due = depDue(), today = todayIso(), ended = due.filter(d => eom(d.m) <= today), pick = ended.length ? ended : due.slice(0, 1), out = [], prior = {};
+  for (const d of pick) {
+    if (isLocked(eom(d.m))) break;
+    const lines = (D.assets || []).filter(x => x.life > 0 && x.start && ymOf(x.start) <= d.m && assetLive(x, `${d.m}-01`))
+      .map(x => ({ x, amount: round2(depThrough(x, d.m) - depOnBooks(x) - (prior[x.id] || 0)) })).filter(l => Math.abs(l.amount) >= 0.005);
+    lines.forEach(l => { prior[l.x.id] = round2((prior[l.x.id] || 0) + l.amount); });
+    if (lines.length) out.push({ m: d.m, lines, total: round2(sum(lines.map(l => l.amount))) });
+  }
+  return { due, out };
+}
 function bookDepreciation() {
-  const due = depDue();
-  if (!due.length) { toast('Depreciation is booked through this month.'); return; }
-  const d = due[0], date = eom(d.m);
-  if (isLocked(date)) { toast(`${monthLabel(d.m)} is locked. Unlock it on Monthly Summary to book its depreciation.`, true); return; }
-  const rows = d.lines.map(l => `<tr><td><b>${esc(l.x.no)}</b> ${esc(l.x.desc)}<span class="sub">${esc(acctName(l.x.exp))}${l.x.dept ? ` · ${esc(l.x.dept)}` : ''}</span></td><td class="num">${money(l.amount)}</td></tr>`).join('');
-  const body = `<p class="lead">One journal entry dated ${fdate(date)}: each asset’s expense debited, its accumulated depreciation credited.${d.lines.some(l => Math.abs(l.amount - depMonthly(l.x)) >= 0.005) ? ' Some amounts differ from a month’s share: an asset added or changed late is caught up here.' : ''}</p>
-    <div class="tbl-wrap"><table class="compact"><thead><tr><th>Asset</th><th class="num">Depreciation</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td>Total</td><td class="num">${peso(d.total)}</td></tr></tfoot></table></div>`;
-  openModal(`Record ${monthLabel(d.m)} Depreciation`, body, () => {
-    const no = suggestJe(date, 'JE'), entry = [];
-    d.lines.forEach(l => { const a = Math.abs(l.amount), up = l.amount > 0, memo = `${assetTag(l.x)} ${l.x.desc}`;
-      entry.push({ acct: l.x.exp, memo, dr: up ? a : 0, cr: up ? 0 : a, dept: l.x.dept || '' }, { acct: l.x.accum, memo, dr: up ? 0 : a, cr: up ? a : 0, dept: '' }); });
-    return save('saveJournal', () => {
-      D.journals.push({ id: nextId('j'), no, date, kind: 'Entry', name: '', memo: DEP_MEMO(d.m), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '', entry,
-        reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' });
-    }, () => toast(`${no} saved: depreciation for ${monthLabel(d.m)}`));
-  }, 'Record it', { size: 'mid' });
+  const { due, out } = depBatch();
+  if (!due.length) { toast('Depreciation is recorded through this month.'); return; }
+  if (!out.length) { toast(`${monthLabel(due[0].m)} is locked. Unlock it on Monthly Summary to record its depreciation.`, true); return; }
+  const total = round2(sum(out.map(d => d.total))), many = out.length > 1, stopped = due.find(d => !out.some(o => o.m === d.m) && eom(d.m) <= todayIso());
+  const assets = [...new Map(out.flatMap(d => d.lines.map(l => [l.x.id, l.x]))).values()];
+  const rows = out.map(d => `<tr><td class="dt"><b>${esc(monthLabel(d.m))}</b><span class="sub" style="margin-left:0;display:block">dated ${esc(fdate(eom(d.m)))}</span></td>${assets.map(x => { const l = d.lines.find(y => y.x.id === x.id); return `<td class="num">${l ? money(l.amount) : ''}</td>`; }).join('')}<td class="num"><b>${money(d.total)}</b></td></tr>`).join('');
+  const head = assets.map(x => `<th class="num" title="${esc(x.desc)}">${esc(x.no)}</th>`).join('');
+  const body = `<p class="lead">${many ? `${out.length} months are owed, ${esc(monthLabel(out[0].m))} through ${esc(monthLabel(out[out.length - 1].m))}. Recording them makes one journal entry for each month, dated its last day, oldest first` : `One journal entry dated ${esc(fdate(eom(out[0].m)))}`}: each asset’s depreciation expense debited, its accumulated depreciation credited. No cash moves.</p>
+    ${out.some(d => d.lines.some(l => Math.abs(l.amount - depMonthly(l.x)) >= 0.005)) ? '<p class="hint">Some amounts differ from a month’s share: an asset added or changed late is caught up in its first month here.</p>' : ''}
+    ${stopped ? `<p class="warnline">${esc(monthLabel(stopped.m))} and after wait: ${esc(monthLabel(stopped.m))} is locked. Unlock it on Monthly Summary to record it.</p>` : ''}
+    <div class="tbl-wrap"><table class="compact"><thead><tr><th>Month</th>${head}<th class="num">Total</th></tr></thead><tbody>${rows}</tbody>
+      ${many ? `<tfoot><tr><td>${out.length} months</td>${assets.map(x => `<td class="num">${money(sum(out.map(d => (d.lines.find(y => y.x.id === x.id) || {}).amount || 0)))}</td>`).join('')}<td class="num">${peso(total)}</td></tr></tfoot>` : ''}</table></div>
+    <p class="hint" style="margin-top:10px">${assets.map(x => `<b>${esc(x.no)}</b> ${esc(x.desc)} · ${esc(acctName(x.exp))}${x.dept ? ` · ${esc(x.dept)}` : ''}`).join('<br>')}</p>`;
+  openModal(many ? `Record ${out.length} Months of Depreciation` : `Record ${monthLabel(out[0].m)} Depreciation`, body, () => {
+    const made = [], used = {};
+    const jeNo = date => { const ym = date.slice(0, 7), pre = `JE${ym}-`; let mx = 0; (D.journals || []).forEach(j => { if (j.no.startsWith(pre)) { const n = parseInt(j.no.slice(pre.length), 10); if (n > mx) mx = n; } }); mx = Math.max(mx, used[ym] || 0) + 1; used[ym] = mx; return pre + pad(mx, 3); };
+    const docs = out.map(d => { const date = eom(d.m), entry = [];
+      d.lines.forEach(l => { const a = Math.abs(l.amount), up = l.amount > 0, memo = `${assetTag(l.x)} ${l.x.desc}`;
+        entry.push({ acct: l.x.exp, memo, dr: up ? a : 0, cr: up ? 0 : a, dept: l.x.dept || '' }, { acct: l.x.accum, memo, dr: up ? 0 : a, cr: up ? a : 0, dept: '' }); });
+      const no = jeNo(date); made.push(no);
+      return { id: nextId('j'), no, date, kind: 'Entry', name: '', memo: DEP_MEMO(d.m), from: '', to: '', amountOut: 0, amountIn: 0, rate: 0, charges: 0, refNo: '', notes: '', entry,
+        reverses: '', status: 'active', voidReason: '', voidedOn: '', createdAt: '', updatedAt: '', createdBy: '', updatedBy: '' }; });
+    return save('saveJournal', () => { docs.forEach(x => D.journals.push(x)); },
+      () => toast(many ? `${made.length} entries saved (${made[0]} to ${made[made.length - 1]}): depreciation for ${monthLabel(out[0].m)} through ${monthLabel(out[out.length - 1].m)}` : `${made[0]} saved: depreciation for ${monthLabel(out[0].m)}`));
+  }, many ? `Record all ${out.length} months` : 'Record it', { size: 'wide' });
 }
 /* Disposing: sold or written off. The month before is depreciated first; the entry takes the cost and its
    accumulated depreciation off the books, records what came in, and the difference is a gain or a loss. */
@@ -7122,8 +7157,8 @@ function healthChecks(asOf) {
     tie({ key: 'fa', title: 'The fixed asset register equals the asset accounts', page: 'assets', rows: faIds.filter(id => !near(want[id] || 0, 0) || !near(B(id), 0)).map(id => [id, want[id] || 0, B(id)]),
       text: 'Each asset account against the cost of the assets on the register, and each accumulated depreciation account against what’s been booked for them (in brackets).' });
     const due = depDue().filter(d => d.m < asOf.slice(0, 7) || (d.m === asOf.slice(0, 7) && asOf === eom(d.m)));
-    out.push({ key: 'dep', title: 'Depreciation is booked', state: due.length ? 'todo' : 'ok', page: 'assets',
-      text: due.length ? `${due.map(d => monthLabel(d.m)).join(', ')} ${due.length === 1 ? 'isn’t' : 'aren’t'} booked yet: ${peso(sum(due.map(d => d.total)))}. Until a month is booked its depreciation isn’t in the books: on Fixed Assets, press Book for each month, oldest first.` : 'Every month that has ended is booked.' });
+    out.push({ key: 'dep', title: 'Depreciation is recorded', state: due.length ? 'todo' : 'ok', page: 'assets',
+      text: due.length ? `${due.map(d => monthLabel(d.m)).join(', ')} ${due.length === 1 ? 'isn’t' : 'aren’t'} recorded yet: ${peso(sum(due.map(d => d.total)))}. Until a month is recorded its depreciation isn’t in the books. On Fixed Assets, Record depreciation shows every month owed and records them all at once.` : 'Every month that has ended is recorded.' });
   }
   // the bank: reconciled, still tying, not overdrawn
   const lastEnded = (() => { const d = parseD(asOf); return iso(new Date(d.getFullYear(), d.getMonth(), 0)); })();
@@ -7420,7 +7455,7 @@ const GUIDE = {
     when: 'Add an asset when it’s bought (after the bill or voucher for it). Record depreciation once a month: the part of each asset’s cost used up that month becomes an expense. Dispose when it’s sold or scrapped.',
     steps: [
       ['Add asset', 'Description, account, date acquired, cost, and useful life in months (60 for five years; 0 for land). The depreciation accounts fill in.'],
-      ['Record [month] depreciation', 'Nothing on this page is in the books until you do this. It shows the entry first, then posts it when you press Record it: each asset’s monthly depreciation as one journal entry dated the month’s last day, oldest month first, so press it once for each month that’s owed. Expense goes up, the asset’s book value goes down; no cash moves. Once recorded, the entry is on General Journal and All Entries, each line marked with the asset ([FA-001]).'],
+      ['Record depreciation', 'Nothing on this page is in the books until you do this. The button shows how many months are owed. It opens a preview: every month that has ended and isn’t recorded, with each asset’s amount and the total. Record them, and the hub makes one journal entry per month, dated its last day, oldest first. Expense goes up, the asset’s book value goes down; no cash moves. Once recorded, the entries are on General Journal and All Entries, each line marked with the asset ([FA-001]). A locked month stops the batch there: unlock it to go on.'],
       ['Department', 'Optional. It’s written on the asset’s depreciation expense line, so the cost shows under that department in the entries. It never draws from the department’s budget: equipment is the company’s.'],
       ['Dispose', 'Edit the asset, then Dispose…. Depreciate up to the month before, then enter what it was sold for (if anything). The hub books the gain or loss.']
     ],
@@ -7529,7 +7564,7 @@ const HELP_CLOSE = [
   ['Petty cash and advances', 'Replenish each fund so every PCV is in. Liquidate the advances that have come back.'],
   ['Stock', 'Receive any shipment that arrived, then enter the month-end stock count.'],
   ['Accruals', 'On General Journal: expenses used but not billed yet, set to reverse on the 1st of next month.'],
-  ['Depreciation', 'On Fixed Assets: Record each month’s depreciation that’s owed, oldest first.'],
+  ['Depreciation', 'On Fixed Assets: Record depreciation, which records every month owed in one go.'],
   ['The bank', 'For each bank account: View it, record the passbook’s interest and bank charges, then Reconcile it to the statement.'],
   ['Books Health', 'As of the month end. Fix anything red; clear anything amber that’s due.'],
   ['Review and lock', 'Look over the Income Statement and Balance Sheet, then lock the month on Monthly Summary.']
@@ -7542,7 +7577,7 @@ const HELP_FAQ = [
   ['How do I find something?', 'Press ⌘K (Ctrl+K on Windows), or Search at the top of the sidebar, and type any part of it: an invoice or check no., a name, a TIN, a description, an account code, or an amount (with or without commas). Every word you type must match. It searches the year open in the sidebar. To trace a number: All Entries, pick the account and month (and a type, or search). A bank account’s register has its own search and Show.'],
   ['Why does each row only have View?', 'So nothing changes the books by accident. Open the document, read it, then act: Edit, Print, Void, Approve, Pay back, Receive and Mark cleared are all inside it.'],
   ['How do I record the interest the bank gave us?', 'Bank Reconciliation, View the bank account, Interest or bank charge. Type the interest as the passbook shows it; the 20% tax withheld fills in. It books Interest Income - Bank, the tax to Income Tax Expense, and the net into the bank. A bank charge works the same way.'],
-  ['What does Record depreciation on Fixed Assets do?', 'It puts the month’s depreciation into the books as a journal entry. Adding an asset only lists it; the purchase itself was the bill or voucher that paid for it. Until a month is recorded, its depreciation isn’t in the reports, and Books Health says so.'],
+  ['What does Record depreciation on Fixed Assets do?', 'It puts the month’s depreciation into the books as a journal entry. Adding an asset only lists it; the purchase itself was the bill or voucher that paid for it. Until a month is recorded, its depreciation isn’t in the reports, and Books Health says so. Several months owed are recorded together, one entry per month.'],
   ['Why does the hub open so fast? Is it showing old numbers?', 'The hub keeps the books you last saw on this computer, so it opens at once, then asks Google only for what changed since. While it’s checking, the Refresh button spins; it stops when you’re up to date. Refresh, saving and coming back to the tab fetch only what changed, too. On a shared or borrowed computer, sign out when you’re done: that clears the copy kept on it.'],
   ['I saved something wrong. How do I fix it?', 'Open it and choose Edit. If that’s not allowed (it’s paid, cleared, or its month is locked), void it with the date and reason and enter it again. A void keeps the original on record and reverses its entry, so nothing quietly disappears.'],
   ['What’s the difference between a bill and a check voucher?', 'The bill is what you owe; the voucher is paying it. Enter the bill when it arrives and the voucher when you pay. Paid on the spot with no bill? A voucher with lines does both at once.'],

@@ -687,7 +687,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.44';
+const APP_VERSION = '3.45';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -2774,15 +2774,53 @@ function voucherDoc(v) {
       <div><div class="vc-line"></div><span class="vc-eye">Signature over printed name</span></div><div><div class="vc-line"></div><span class="vc-eye">OR / CR no.</span></div><div><div class="vc-line"></div><span class="vc-eye">Date</span></div></div>
   </article>`;
 }
+/* The other documents print in the voucher's design: masthead, facts band, particulars and amount, the entry, the
+   signatures, and a Received by line where cash changed hands. */
+function formDoc({ eye, no, date, facts, particulars, amountLabel, amount, words, entry, received, isVoid }) {
+  const co = D.company, lines = entry || [], dr = sum(lines.map(e => e.dr)), cr = sum(lines.map(e => e.cr));
+  const cell = (label, value) => `<div><span class="vc-eye">${label}</span><div class="vc-v">${value}</div></div>`;
+  const sign = (label, name) => `<div class="vc-pair"><div><div class="vc-line">${esc(name || '')}</div><span class="vc-eye">${label}</span></div><div><div class="vc-line"></div><span class="vc-eye">Date</span></div></div>`;
+  return `<article class="vc vc-page">${isVoid ? '<div class="dv-stamp">Void</div>' : ''}
+    <header class="vc-head"><div class="vc-mast"><img class="vc-tree" src="${TREE}" alt="" width="72" height="34"><div><div class="vc-co">${esc(co.name)}</div><div class="vc-tag">Bold. Rooted. Trusted.</div>
+      <div class="vc-meta">${[co.tin && `TIN ${esc(co.tin)}`, co.address && esc(co.address)].filter(Boolean).join(' · ')}</div></div></div>
+      <div class="vc-id"><span class="vc-eye">${eye}</span><div class="vc-no">${esc(no)}</div><div class="vc-date">${fdate(date)}</div></div></header>
+    <div class="vc-rule"></div>
+    <div class="vc-band"><div><span class="vc-eye">${facts[0][0]}</span><div class="vc-payee">${esc(facts[0][1] || '')}</div></div>${facts.slice(1).map(([l, v]) => cell(l, esc(v || ''))).join('')}</div>
+    <div class="vc-mid"><div><span class="vc-eye">Particulars</span><div class="vc-v">${esc(particulars || '')}</div></div>
+      <div class="vc-amt"><span class="vc-eye">${amountLabel}</span><div class="vc-big">${peso(amount)}</div>${words ? `<div class="vc-words">${esc(inWords(amount))}</div>` : ''}</div></div>
+    <table class="vc-tbl"><thead><tr><th>Accounting entry</th><th class="num">Debit</th><th class="num">Credit</th></tr></thead><tbody>${lines.map(e => `<tr><td class="${e.cr ? 'cr' : ''}">${esc(acctName(e.acct))}${e.memo ? ` <span class="memo">· ${esc(e.memo)}</span>` : ''}</td><td class="num">${e.dr ? money(e.dr) : ''}</td><td class="num">${e.cr ? money(e.cr) : ''}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td>Total</td><td class="num">${money(dr)}</td><td class="num">${money(cr)}</td></tr></tfoot></table>
+    <div class="vc-sign">${sign('Prepared by', D.signers.prepared)}${sign('Checked by', D.signers.checked)}${sign('Approved by', D.signers.approved)}</div>
+    ${received ? `<div class="vc-recv"><div class="vc-recv-say"><span class="vc-eye">Received by</span><p>${received}</p></div>
+      <div><div class="vc-line"></div><span class="vc-eye">Signature over printed name</span></div><div><div class="vc-line"></div><span class="vc-eye">OR / CR no.</span></div><div><div class="vc-line"></div><span class="vc-eye">Date</span></div></div>` : ''}
+  </article>`;
+}
+function printDocForm(kind, id) {
+  if (kind === 'je') { const j = journalOf(id), dr = round2(sum((j.entry || []).map(e => e.dr))), adv = ADV_RE.test(j.memo || '') || OWNER_RE.test(j.memo || '');
+    return printForms([formDoc({ eye: j.kind === 'Transfer' ? 'Transfer' : 'Journal voucher', no: j.no, date: j.date, facts: [['Name', j.name || ''], ['Kind', j.kind === 'Transfer' ? 'Between the company’s accounts' : adv ? 'Paid by an owner, out of pocket' : 'Journal entry']],
+      particulars: j.memo, amountLabel: 'Amount', amount: dr, words: true, entry: j.entry, isVoid: j.status === 'void' })]); }
+  if (kind === 'liq') { const x = liqOf(id), emp = (contact(x.employee) || {}).name || '', cleared = round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0));
+    return printForms([formDoc({ eye: 'Liquidation', no: x.no, date: x.date, facts: [['Employee', emp], ['Receipts', peso(vGross(x))], [x.returned ? 'Returned' : x.reimbursed ? 'Reimbursed' : 'Change', x.returned || x.reimbursed ? peso(x.returned || x.reimbursed) : 'None']],
+      particulars: x.particulars, amountLabel: 'Advance cleared', amount: cleared, words: true, entry: x.entry, isVoid: x.status === 'void',
+      received: x.reimbursed ? `Received from ${esc(D.company.name)} the amount of ${peso(x.reimbursed)}, reimbursing what I spent beyond the advance.` : x.returned ? `${esc(D.company.name)} received ${peso(x.returned)} returned from the advance.` : '' })]); }
+  if (kind === 'pcv') { const x = pcvOf(id);
+    return printForms([formDoc({ eye: 'Petty cash voucher', no: x.no, date: x.date, facts: [['Paid to', x.paidTo || ''], ['From', acctName(x.fund)]], particulars: x.particulars, amountLabel: 'Amount', amount: vGross(x), words: true, entry: x.entry, isVoid: x.status === 'void',
+      received: `Received from ${esc(D.company.name)} the amount of ${peso(vGross(x))} for the above.` })]); }
+}
 /* Each voucher is measured at print width: one that fits half a sheet (5 in) takes half (two share a page, with a cut line
    between), one with a long entry takes the page. */
 function printVouchers(ids) {
-  const pg0 = document.getElementById('pg-style'); if (pg0) pg0.remove(); // a page size left by another print
   const all = ids.map(voucher).filter(Boolean), wait = all.filter(needsApproval), vs = all.filter(v => !needsApproval(v));
   if (wait.length) toast(`${wait.map(v => v.cv).join(', ')} ${wait.length === 1 ? 'isn’t' : 'aren’t'} approved yet, so ${wait.length === 1 ? 'it' : 'they'} can’t be printed.`, true);
   if (!vs.length) return;
+  printForms(vs.map(voucherDoc));
+}
+/* Prints half-Letter forms (vouchers, journal vouchers, liquidations, petty cash vouchers): each is measured at print
+   width; one that fits half a sheet (5 in) takes half, two sharing a page with a cut line; a long one takes the page. */
+function printForms(html) {
+  const pg0 = document.getElementById('pg-style'); if (pg0) pg0.remove(); // a page size left by another print
   const pa = document.getElementById('print-area');
-  pa.innerHTML = vs.map(voucherDoc).join('');
+  pa.innerHTML = html.join('');
   pa.style.cssText = 'display:block;position:absolute;left:-9999px;top:0;width:7.9in;visibility:hidden';
   const pages = [...pa.querySelectorAll('.vc-page')];
   let slot = 0;
@@ -5744,8 +5782,9 @@ function ownerItems(kind) {
   const re = kind === 'advance' ? ADV_RE : OWNER_RE;
   return (D.journals || []).filter(j => j.kind === 'Entry' && live(j) && re.test(j.memo || '')).map(j => {
     const cr = (j.entry || []).find(l => l.cr > 0) || {}, dr = (j.entry || []).find(l => l.dr > 0) || {}, amount = round2(cr.cr || 0), m = j.memo.match(re);
-    const paid = round2(sum(D.vouchers.filter(live).flatMap(v => (v.lines || []).filter(l => l.accountId === cr.acct && String(l.desc || '').includes(j.no)).map(l => numIn(l.amount)))));
-    return { j, kind, owner: j.name || (kind === 'advance' ? m[2] : m[1]), fund: dr.acct, emp: kind === 'advance' ? ((contact(dr.tag) || {}).name || m[1]) : '', due: cr.acct, amount, paid, owed: round2(amount - paid) };
+    const pays = D.vouchers.filter(live).filter(v => (v.lines || []).some(l => l.accountId === cr.acct && String(l.desc || '').includes(j.no)));
+    const paid = round2(sum(pays.flatMap(v => (v.lines || []).filter(l => l.accountId === cr.acct && String(l.desc || '').includes(j.no)).map(l => numIn(l.amount)))));
+    return { j, kind, by: pays, owner: j.name || (kind === 'advance' ? m[2] : m[1]), fund: dr.acct, emp: kind === 'advance' ? ((contact(dr.tag) || {}).name || m[1]) : '', due: cr.acct, amount, paid, owed: round2(amount - paid) };
   }).sort((a, b) => b.j.date.localeCompare(a.j.date));
 }
 const ownerRefills = () => ownerItems('refill');
@@ -5767,9 +5806,9 @@ function ownerStrip(kind = 'refill', bare) {
     { h: adv ? 'Advance' : 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(adv ? x.emp : acctName(x.fund))}</span>` },
     { h: 'Owner', k: x => `${esc(x.owner)}<span class="sub">${esc(acctName(x.due))}</span>` },
     { h: adv ? 'Advanced' : 'Refilled', num: 1, k: x => money(x.amount) },
-    { h: 'Paid back', num: 1, k: x => x.paid ? money(x.paid) : '' },
+    { h: 'Paid back', num: 1, k: x => x.paid ? `${money(x.paid)}${x.by.length ? `<span class="sub">${x.by.map(v => `<button type="button" class="btn link sm" data-act="view-voucher" data-id="${esc(v.id)}">${esc(v.cv)}</button>`).join(' ')}</span>` : ''}` : '' },
     { h: 'Still owed', num: 1, k: x => x.owed > 0 ? `<b>${peso(x.owed)}</b>` : pill('Paid') },
-    { h: '', k: x => rowActs([x.owed > 0 && canBooks('vouchers.edit') && ['pay-owner', x.j.id, 'Pay back']]) }
+    { h: '', k: x => rowActs([['view-je', x.j.id, 'View'], x.owed > 0 && canBooks('vouchers.edit') && ['pay-owner', x.j.id, 'Pay back']]) }
   ], xs)}</section>`;
 }
 function pcvForm(x0, pre) {
@@ -5831,7 +5870,7 @@ function pcvForm(x0, pre) {
 }
 function viewPcv(id) {
   const x = pcvOf(id), open = live(x) && !isLocked(x.date);
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-pcv" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-pcv" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-pcv" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-pcv" data-id="${id}">Edit</button>`, `<button class="btn ghost" data-act="print-doc" data-id="pcv:${id}">Print</button>`].filter(Boolean).join('');
   openModal(`Petty Cash Voucher ${esc(x.no)}`, `${x.status === 'void' ? `<p class="lead">Voided ${fdate(x.voidedOn)}: ${esc(x.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${x.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid"><dt>Paid to</dt><dd class="payee">${esc(x.paidTo || '')}</dd><dt>PCV no.</dt><dd>${esc(x.no)}</dd><dt>From</dt><dd>${esc(acctName(x.fund))}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd><dt class="dv-wide-l">Particulars</dt><dd class="dv-wide">${esc(x.particulars)}</dd></dl>
@@ -5972,7 +6011,7 @@ function liqForm(x0, empId) {
 }
 function viewLiq(id) {
   const x = liqOf(id), open = live(x) && !isLocked(x.date), cleared = round2(vGross(x) + (x.returned || 0) - (x.reimbursed || 0));
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-liq" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-liq" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(x) && canVoid() && canBooks('staff.void') && `<button class="btn ghost" data-act="void-liq" data-id="${id}">Void</button>`, open && canBooks('staff.edit') && `<button class="btn" data-act="edit-liq" data-id="${id}">Edit</button>`, `<button class="btn ghost" data-act="print-doc" data-id="liq:${id}">Print</button>`].filter(Boolean).join('');
   openModal(`Liquidation ${esc(x.no)}`, `${x.status === 'void' ? `<p class="lead">Voided ${fdate(x.voidedOn)}: ${esc(x.voidReason)}</p>` : ''}
     <div class="preview-wrap"><div class="dv">${x.status === 'void' ? '<div class="dv-stamp">Void</div>' : ''}
       <dl class="dv-grid"><dt>Employee</dt><dd class="payee">${esc((contact(x.employee) || {}).name || '')}</dd><dt>LQ no.</dt><dd>${esc(x.no)}</dd><dt>Date</dt><dd>${fdate(x.date)}</dd>
@@ -5999,7 +6038,7 @@ function shipmentRow(s) {
   return { s, costs, received, left, parts, st, last: rec.map(j => j.date).sort().pop() || '' };
 }
 function shipmentsPage() {
-  const acts = canBooks('inventory.edit') ? `${btn('new-receipt', 'Receive a shipment', 'ghost')}${btn('new-shipment', 'New shipment')}` : '';
+  const acts = canBooks('inventory.edit') ? btn('new-shipment', 'New shipment') : ''; // receiving and clearing are done from inside a shipment, after looking at its costs
   return pageHead('shipments', `Bills and payments for an import post to ${esc(transitWord())} under its shipment, one account per kind of cost. When it arrives, enter its landed cost from the costing system and it moves into inventory.`, acts)
     + ((D.shipments || []).length ? shipmentTabs() : '') + `<div class="toolbar"><input id="q" type="search" placeholder="Search shipment no., description" value="${esc(S.q)}" aria-label="Search"></div>
     <div id="list">${shipmentList()}</div>`;
@@ -6009,7 +6048,7 @@ function shipmentTabs() {
   const cur = ['open', 'all'].includes(S.sf) ? S.sf : 'open';
   return viewTabs('sf', [
     { id: 'open', label: 'Open', big: peso(sum(open.map(r => r.left))), small: open.length ? `${plural(open.length, 'shipment')} in transit${diff ? ` · ${diff} with a cost difference` : ''}` : 'nothing in transit', lvl: diff ? 'yellow' : '' },
-    { id: 'all', label: 'All shipments', big: rs.length.toLocaleString('en-US'), small: `${plural(rs.filter(r => r.st === 'Received').length, 'received')}` }], cur, 'Shipments');
+    { id: 'all', label: 'All shipments', big: rs.length.toLocaleString('en-US'), small: `${rs.filter(r => r.st === 'Received').length} received` }], cur, 'Shipments');
 }
 function shipmentList() {
   const all = (D.shipments || []);
@@ -6022,7 +6061,7 @@ function shipmentList() {
     { h: 'Received at landed cost', num: 1, k: r => r.received ? `${money(r.received)}${r.last ? `<span class="sub">${fdate(r.last)}</span>` : ''}` : '' },
     { h: 'In transit', num: 1, k: r => `<b>${peso(r.left)}</b>` },
     { h: 'Status', k: r => pill(r.st) },
-    { h: '', k: r => rowActs([['view-shipment', r.s.id, 'View'], canBooks('inventory.edit') && r.st === 'In transit' && ['receive', r.s.id, 'Receive'], canBooks('inventory.edit') && r.st === 'Cost difference' && ['clear-diff', r.s.id, 'Clear difference']]) }
+    { h: '', k: r => rowActs([['view-shipment', r.s.id, 'View']]) }
   ], rows, 'No shipments match.', `<tfoot><tr><td>${rows.length} shipment${rows.length === 1 ? '' : 's'}</td><td class="num">${money(sum(rows.map(r => r.costs)))}</td><td class="num">${money(sum(rows.map(r => r.received)))}</td><td class="num">${peso(sum(rows.map(r => r.left)))}</td><td></td><td></td></tr></tfoot>`);
 }
 function shipmentForm(id) {
@@ -6439,7 +6478,7 @@ function viewJournal(id) {
   const j = journalOf(id), t = j.kind === 'Transfer', P = t ? 'transfers' : 'journal', rv = reversalOf(id);
   const open = live(j) && !isLocked(j.date) && !rv;
   const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(j) && !rv && canVoid() && canBooks(t ? 'transfers.void' : 'journal.edit') && `<button class="btn ghost" data-act="void-je" data-id="${id}">Void</button>`,
-    open && canBooks(`${P}.edit`) && `<button class="btn" data-act="${t ? 'edit-move' : 'edit-je'}" data-id="${id}">Edit</button>`].filter(Boolean).join('');
+    open && canBooks(`${P}.edit`) && `<button class="btn" data-act="${t ? 'edit-move' : 'edit-je'}" data-id="${id}">Edit</button>`, `<button class="btn ghost" data-act="print-doc" data-id="je:${id}">Print</button>`].filter(Boolean).join('');
   const c = t ? calcMove(j) : null;
   const facts = t ? `<dt>From</dt><dd>${esc(acctName(j.from))}</dd><dt>Amount out</dt><dd>${amt(j.amountOut, c.fc)}</dd><dt>To</dt><dd>${esc(acctName(j.to))}</dd><dt>Amount in</dt><dd>${amt(c.inn, c.tc)}</dd>${j.refNo ? `<dt>Reference</dt><dd>${esc(j.refNo)}</dd>` : ''}${j.charges ? `<dt>Bank charges</dt><dd>${amt(j.charges, c.fc)}</dd>` : ''}`
     : `${j.name ? `<dt>Name</dt><dd>${esc(j.name)}</dd>` : ''}${j.reverses ? `<dt>Reverses</dt><dd>${esc((journalOf(j.reverses) || {}).no || j.reverses)}</dd>` : ''}`;
@@ -6961,7 +7000,7 @@ const GUIDE = {
     steps: [
       ['New shipment', 'Its number and a short description.'],
       ['Bills', 'On Supplier Bills, each line goes to a Goods in Transit account (131-…) and names the shipment.'],
-      ['Receive', 'When the goods are in the warehouse. The landed cost moves into Inventories.']
+      ['Receive', 'When the goods are in the warehouse: View the shipment, check its costs by line, then Receive and type the landed cost from the costing system. It moves into Inventories. A cost difference is cleared from the same View.']
     ],
     book: { say: 'Goods of ₱200,000 and ocean freight of ₱20,000, then received.',
       rows: [['131-010 · Goods in Transit - Supplier Cost', 200000, 0], ['210-010 · Accounts Payable - Trade', 0, 200000], ['131-020 · Goods in Transit - Ocean Freight', 20000, 0], ['210-020 · Accounts Payable - Others', 0, 20000], ['', null, null], ['130-010 · Inventories', 220000, 0], ['131-010 · Goods in Transit - Supplier Cost', 0, 200000], ['131-020 · Goods in Transit - Ocean Freight', 0, 20000]],
@@ -7953,6 +7992,7 @@ const ACT = {
   'unlock-month': () => { const ym = D.lockedThrough.slice(0, 7), [y, m] = ym.split('-').map(Number), prev = eom(`${m === 1 ? y - 1 : y}-${pad(m === 1 ? 12 : m - 1, 2)}`); openModal(`Unlock ${monthLabel(ym)}?`, `<p class="lead">Bills and vouchers in ${monthLabel(ym)} can be changed again. Earlier months stay locked.</p>`, () => {
     return save('unlock', () => { D.lockedThrough = prev; }, () => toast(`${monthLabel(ym)} unlocked`)); }, 'Unlock'); },
   'print-voucher': id => printVouchers([id]),
+  'print-doc': id => { const [k, i] = id.split(':'); printDocForm(k, i); },
   'print-on-check': id => printCheckAsk([id]),
   'check-setup': () => checkLayoutForm(),
   'cl-test': () => { const x = checkLayoutForm.read(); printOnChecks([x.sample], true, x.lay); },

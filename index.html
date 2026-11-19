@@ -281,6 +281,7 @@ tr.att-red>td:first-child{box-shadow:inset 3px 0 0 #D63C34}tr.att-yellow>td:firs
 .p-for-approval{background:var(--blue);color:#fff}
 .p-partly-paid,.p-partly-applied{background:var(--blue1);color:var(--ink);box-shadow:none}
 .d8{color:var(--muted);font-size:13px;white-space:nowrap}
+td.dt{white-space:nowrap}
 /* The search and filters sit on the list itself, as its top strip, not floating alone on the canvas */
 @media (min-width:761px){
   .toolbar:has(+ #list > .tbl-wrap:first-child){margin:0;padding:10px 12px;background:#fff;border-radius:12px 12px 0 0;box-shadow:var(--rest);clip-path:inset(-24px -24px 0 -24px);border-bottom:1px solid var(--mist)}
@@ -343,7 +344,8 @@ tr.att-red>td:first-child{box-shadow:inset 5px 0 0 #A52A24}tr.att-yellow>td:firs
 tr.jfirst td{border-top:2px solid var(--blue1)}
 tbody tr.jrow td{background:#fff}
 tbody tr.jrow.alt td{background:var(--mist)}
-.tag{display:inline-block;font:600 11.5px var(--display);color:var(--muted);background:var(--mist);border-radius:6px;padding:2px 8px;margin:0 4px 4px 0}
+.tag{display:inline-block;font:700 12.5px/1.3 var(--display);color:var(--carbon);background:#fff;border:1.5px solid #BBBBBB;border-radius:6px;padding:2px 9px;margin:0 4px 4px 0}
+.tag.r-supplier{background:var(--blue1);border-color:var(--blue3);color:var(--blue7)}.tag.r-service{background:var(--green05);border-color:var(--green3);color:var(--green7)}.tag.r-customer{background:var(--ink);border-color:var(--ink);color:#fff}.tag.r-employee{background:#fff;border-color:#8A8A8A;color:var(--carbon)}
 /* voucher form */
 .vform .section{margin-bottom:32px}
 /* a form's sections read like the pages' eyebrows: Green 700 caps, then a rule to the edge */
@@ -570,6 +572,10 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
 @media (max-width:760px){.hp-words dl{grid-template-columns:1fr}.hp-words dd{margin-bottom:8px}.tip::after{max-width:220px}}
 .dv-stamp{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%) rotate(-12deg);font:800 72px var(--display);letter-spacing:.08em;color:rgba(16,33,59,.12);pointer-events:none;text-transform:uppercase}
 .preview-wrap{border:1px solid var(--silver);border-radius:12px;padding:32px 40px;background:#fff;box-shadow:var(--shadow)}
+.preview-wrap>.vc{zoom:1.4}.preview-wrap:has(>.vc){padding:24px 26px}
+.rp-wait{display:flex;gap:18px;align-items:center;background:var(--blue05);border-left:6px solid var(--blue);border-radius:12px;padding:20px 24px;margin:0 0 16px}
+.rp-wait b{display:block;font:800 22px/1.2 var(--display);color:var(--ink)}.rp-wait p{margin:6px 0 0;font-size:16px;line-height:1.45;color:var(--carbon)}
+.rp-spin{flex:none;width:34px;height:34px;border-radius:50%;border:4px solid var(--blue1,#C9D6EE);border-top-color:var(--blue);animation:spin .9s linear infinite}
 #print-area{display:none}
 @media print{
   @page{size:letter;margin:.3in}
@@ -622,7 +628,7 @@ details.hp[open]>summary::after{transform:rotate(45deg)}
   .checkamt .big{font-size:26px}
   .entry{padding:14px}
   .card{padding:20px}
-  .preview-wrap{padding:16px}
+  .preview-wrap{padding:16px}.preview-wrap>.vc{zoom:1}
   .dv-grid,.dv-amt{grid-template-columns:96px 1fr}
 }
 /* The voucher preview on a phone. Screen only: a Letter page is narrower than 960 px, and print keeps the full form. */
@@ -693,7 +699,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.47';
+const APP_VERSION = '3.48';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -1783,7 +1789,7 @@ function payBillsForm() {
     <div class="tbl-wrap" style="margin-top:14px"><table class="compact"><thead><tr><th style="width:36px"><input type="checkbox" id="pb-all" aria-label="Tick every bill"></th><th>Bill</th><th>Due</th><th class="num">Balance</th><th class="num" style="width:150px">Pay (₱)</th></tr></thead><tbody>
     ${groups.map(g => `<tr class="pb-group"><td colspan="5"><b>${esc(g.name)}</b></td></tr>${g.bills.map(b => { const due = billDue(b); return `<tr data-id="${esc(b.id)}" class="${due && due.lvl === 'red' ? 'att-red' : due && due.lvl === 'yellow' ? 'att-yellow' : ''}">
       <td><input type="checkbox" class="pb-on" aria-label="Pay ${esc(b.ref)}"></td><td>${esc(b.ref)}<span class="sub">${esc(b.particulars || '')}</span></td>
-      <td>${b.dueDate ? fdate(b.dueDate) : '<span style="color:var(--muted)">No due date</span>'}${due ? `<span class="sub">${sPill(due)}</span>` : ''}</td>
+      <td class="dt">${b.dueDate ? fdate(b.dueDate) : '<span style="color:var(--muted)">No due date</span>'}${due ? `<span class="sub">${sPill(due)}</span>` : ''}</td>
       <td class="num">${money(billBalance(b))}</td><td class="num"><input class="pb-amt" type="number" step="0.01" min="0" inputmode="decimal" value="${billBalance(b)}" style="text-align:right" aria-label="Amount to pay on ${esc(b.ref)}"></td></tr>`; }).join('')}`).join('')}
     </tbody></table></div><p class="balcheck" id="pb-sum" style="margin-top:12px"></p>`, () => {
     const bank = val('pb-bank'), how = val('pb-how'), date = val('pb-date'), first = val('pb-chk');
@@ -1827,7 +1833,7 @@ function printChecksForm() {
   openModal('Print Checks', `<p class="lead">Approved checks not cleared yet, newest first. ${fresh.length ? `The ${plural(fresh.length, 'check')} not printed yet ${fresh.length === 1 ? 'is' : 'are'} ticked.` : `Every one has been printed; those dated ${fdate(recent)} are ticked.`}</p>
     <div class="fields" style="margin-bottom:14px">${F('pc-what', 'Print', `<select id="pc-what">${opt('check', 'On the checks (the bank’s check stock)', 'check')}${opt('voucher', 'The vouchers (Letter paper)', 'check')}</select>`, 'span2')}</div>
     <div class="tbl-wrap"><table class="compact"><thead><tr><th style="width:36px"></th><th>CV no.</th><th>Payee</th><th>Check</th><th class="num">Amount</th><th>Printed</th></tr></thead><tbody>
-    ${vs.map(v => `<tr><td><input type="checkbox" class="pc-on" value="${esc(v.id)}" ${tick(v) ? 'checked' : ''} aria-label="Print ${esc(v.cv)}"></td><td><b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span></td><td>${esc(v.payeeName)}</td><td>${esc(v.checkNo)}</td><td class="num">${money(v.checkAmount)}</td><td>${v.printedOn ? fdate(String(v.printedOn).slice(0, 10)) : '<span class="hint">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div>`, () => {
+    ${vs.map(v => `<tr><td><input type="checkbox" class="pc-on" value="${esc(v.id)}" ${tick(v) ? 'checked' : ''} aria-label="Print ${esc(v.cv)}"></td><td><b>${esc(v.cv)}</b><span class="sub">${fdate(v.date)}</span></td><td>${esc(v.payeeName)}</td><td>${esc(v.checkNo)}</td><td class="num">${money(v.checkAmount)}</td><td class="dt">${v.printedOn ? fdate(String(v.printedOn).slice(0, 10)) : '<span class="hint">Not yet</span>'}</td></tr>`).join('')}</tbody></table></div>`, () => {
     const ids = [...document.querySelectorAll('.pc-on:checked')].map(c => c.value);
     if (!ids.length) return 'Tick at least one check.';
     const onCheck = val('pc-what') === 'check';
@@ -1947,7 +1953,8 @@ function toast(msg, err) {
 }
 function table(cols, rows, emptyHtml, foot = '', rowCls = () => '') {
   if (!rows.length) return `<div class="empty">${emptyHtml}</div>`;
-  const tr = r => `<tr class="${rowCls(r)}">${cols.map(c => `<td class="${c.num ? 'num' : ''}">${c.k(r)}</td>`).join('')}</tr>`;
+  const cl = c => c.num ? 'num' : /date|^due|cleared|liquidate by|reconciled|^statement$|^released$/i.test(c.h) ? 'dt' : '';
+  const tr = r => `<tr class="${rowCls(r)}">${cols.map(c => `<td class="${cl(c)}">${c.k(r)}</td>`).join('')}</tr>`;
   return `<div class="tbl-wrap"><table><thead><tr>${cols.map(c => `<th class="${c.num ? 'num' : ''}">${c.h}</th>`).join('')}</tr></thead><tbody>${chunked(rows, tr, cols.length)}</tbody>${foot}</table></div>`;
 }
 /* Long lists draw their first rows at once and the rest as they scroll into view, so a year of vouchers
@@ -2935,10 +2942,10 @@ function viewVoucher(id) {
     return;
   }
   const open = live(v) && !isLocked(entryDate(v)), t = isTransfer(v), P = t ? 'transfers' : 'vouchers';
-  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, !t && live(v) && canBooks('checks.clear') && !(v.clearedOn && lastRecon(vBank(v)) && v.clearedOn <= lastRecon(vBank(v)).date) && (v.clearedOn ? `<button class="btn ghost" data-act="unclear" data-id="${id}">Undo cleared</button>` : `<button class="btn ghost" data-act="clear-one" data-id="${id}">Mark cleared…</button>`), live(v) && !needsApproval(v) && `<button class="btn${canPrintCheck(v) ? ' ghost' : ''}" data-act="print-voucher" data-id="${id}">${t ? 'Print' : 'Print voucher'}</button>`, canPrintCheck(v) && `<button class="btn" data-act="print-on-check" data-id="${id}">${v.printedOn ? 'Print on check again' : 'Print on check'}</button>`].filter(Boolean).join('');
+  const extra = [`<button class="btn link" data-act="history" data-id="${id}">History</button>`, live(v) && own(v) && canVoid() && canBooks(`${P}.void`) && `<button class="btn ghost" data-act="void-voucher" data-id="${id}">Void</button>`, open && canBooks(`${P}.edit`) && `<button class="btn ghost" data-act="edit-voucher" data-id="${id}">Edit</button>`, canApprove(v) && `<button class="btn" data-act="approve-voucher" data-id="${id}">Approve</button>`, canWithdraw(v) && `<button class="btn ghost" data-act="withdraw-approval" data-id="${id}">Withdraw approval</button>`, !t && live(v) && canBooks('checks.clear') && !(v.clearedOn && lastRecon(vBank(v)) && v.clearedOn <= lastRecon(vBank(v)).date) && (v.clearedOn ? `<button class="btn ghost" data-act="unclear" data-id="${id}">Undo cleared</button>` : !needsApproval(v) && `<button class="btn ghost" data-act="clear-one" data-id="${id}">Mark cleared…</button>`), live(v) && !needsApproval(v) && `<button class="btn${canPrintCheck(v) ? ' ghost' : ''}" data-act="print-voucher" data-id="${id}">${t ? 'Print' : 'Print voucher'}</button>`, canPrintCheck(v) && `<button class="btn" data-act="print-on-check" data-id="${id}">${v.printedOn ? 'Print on check again' : 'Print on check'}</button>`].filter(Boolean).join('');
   const appr = v.approvedBy ? `<p class="stamp appr-ok">${sPill({ lvl: 'green', text: 'Approved' })} <span>by ${esc(v.approvedBy)}${v.approvedOn ? ` on ${fdate(String(v.approvedOn).slice(0, 10))}` : ''}${v.printedOn ? `. Check printed on ${fdate(String(v.printedOn).slice(0, 10))} by ${esc(v.printedBy)}` : ''}</span></p>`
     : needsApproval(v) ? `<p class="stamp appr-wait">${approvalPill(v)} <span>${t ? 'Waiting for approval before it’s sent.' : 'Waiting for approval. The check prints once it’s approved.'}${canApprove(v) ? '' : can('payments.approve') ? ' You entered or changed it last, so someone else approves it.' : ' An Approver or Admin approves it.'}</span></p>` : '';
-  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'mid', extra, doc: v });
+  openModal(`${t ? 'Payment' : 'Voucher'} ${esc(v.cv)}`, `${appr}${v.status === 'void' ? `<p class="lead">Voided ${fdate(v.voidedOn)}: ${esc(v.voidReason)}</p>` : ''}${live(v) && isLocked(entryDate(v)) ? `<p class="lead">In a locked month. It can be printed, or voided on an open date, but not changed.</p>` : ''}<div class="preview-wrap">${voucherDoc(v)}</div>${v.notes ? `<p class="hint" style="margin-top:16px">Notes: ${esc(v.notes)}</p>` : ''}`, null, '', { size: 'wide', extra, doc: v });
 }
 /* Void date: in this year's books, on or after the day the document was booked, in an open month. */
 const nextDay = d => { const x = parseD(d); x.setDate(x.getDate() + 1); return iso(x); };
@@ -3203,7 +3210,7 @@ function regPrint(bank) {
       <p class="rpd-meta"><b>${esc(co.name || COMPANY)}</b>${co.tin ? ` · TIN ${esc(co.tin)}` : ''}<br>${esc(regLabel(R))}, in ${cur}</p></div><img class="rpd-tree" src="${TREE}" alt="" width="96" height="45"></header>
     <table class="rp rg-p"><thead><tr><th>Date</th><th>Document</th><th>Payee and particulars</th><th class="num">Out</th><th class="num">In</th><th class="num">Balance</th><th>At the bank</th></tr></thead><tbody>
       <tr class="rp-sub"><td></td><td colspan="4">Balance brought forward</td><td class="num">${money(R.open)}</td><td></td></tr>
-      ${xs.map(x => `<tr><td>${esc(fdate(x.date))}</td><td><b>${esc(x.ref)}</b><br><span class="rg-s">${esc(x.what)}</span></td><td>${esc(x.who)}<br><span class="rg-s">${esc(x.part)}</span></td><td class="num">${x.out === '' ? '' : money(x.out)}</td><td class="num">${x.in === '' ? '' : money(x.in)}</td><td class="num">${money(x.bal)}</td><td>${esc(x.st)}</td></tr>`).join('')}</tbody>
+      ${xs.map(x => `<tr><td class="dt">${esc(fdate(x.date))}</td><td><b>${esc(x.ref)}</b><br><span class="rg-s">${esc(x.what)}</span></td><td>${esc(x.who)}<br><span class="rg-s">${esc(x.part)}</span></td><td class="num">${x.out === '' ? '' : money(x.out)}</td><td class="num">${x.in === '' ? '' : money(x.in)}</td><td class="num">${money(x.bal)}</td><td>${esc(x.st)}</td></tr>`).join('')}</tbody>
       <tfoot><tr class="rp-grand"><td></td><td colspan="2">Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.out)}</td><td class="num">${money(R.in)}</td><td class="num">${money(R.close)}</td><td></td></tr></tfoot></table>
     <table class="rp rg-sum"><tbody><tr><td>Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.book)}</td></tr><tr><td>Add checks not cleared (${R.cs.length})</td><td class="num">${money(R.outC)}</td></tr>
       <tr><td>Less deposits not in the bank yet (${R.ds.length})</td><td class="num">(${money(R.outD)})</td></tr><tr class="rp-grand"><td>The bank should show</td><td class="num">${money(R.bank0)}</td></tr></tbody></table>
@@ -3355,7 +3362,7 @@ function journalList() {
   if (!docs.length) return `<div class="empty"><b>Nothing matches “${esc(q)}”</b>Try part of a ref. or name, an account code, or an amount.</div>`;
   const dr = sum(docs.flatMap(d => d.lines.map(l => l.dr))), cr = sum(docs.flatMap(d => d.lines.map(l => l.cr)));
   const body = chunked(docs.map((d, di) => [d, di]), ([d, di]) => d.lines.map((l, i) => `<tr class="jrow ${i === 0 ? 'jfirst' : ''} ${di % 2 ? 'alt' : ''}">
-      <td>${i === 0 ? fdate(d.date) : ''}</td>
+      <td class="dt">${i === 0 ? fdate(d.date) : ''}</td>
       <td>${i === 0 ? entryRef(d, { link: true, label: false }) : ''}</td>
       <td>${i === 0 ? `${esc(d.contact)}<span class="sub">${esc(d.memo)}</span>` : ''}</td>
       <td class="${l.cr ? 'cr' : ''}">${esc(acctName(l.acct))}${l.memo || l.tag ? `<span class="sub">${esc([l.tag ? tagName(l.tag) : '', l.memo].filter(Boolean).join(' · '))}</span>` : ''}</td>
@@ -3710,7 +3717,7 @@ function reportsPage() {
 function reportBody() {
   const r = rpState();
   if (REP.err) return `<div class="empty"><b>Couldn’t get the figures</b>${esc(REP.err)} ${btn('rp-retry', 'Try again', 'sm')}</div>`;
-  if (REP.d !== D || REP.year !== YEAR) { rpLoad(); return `<div class="skel-table rp-skel">${'<div class="skel-row"></div>'.repeat(8)}</div><p class="hint" style="margin-top:12px">Getting the figures from the Google Sheet…</p>`; }
+  if (REP.d !== D || REP.year !== YEAR) { rpLoad(); return `<div class="rp-wait" role="status" aria-live="polite"><span class="rp-spin" aria-hidden="true"></span><div><b>Loading the report…</b><p>Getting the figures from the Google Sheet. This can take up to a minute, especially the first time. Keep this page open; the report appears here by itself.</p></div></div><div class="skel-table rp-skel">${'<div class="skel-row"></div>'.repeat(8)}</div>`; }
   const R = rpBuild(r), miss = rpMissing(R);
   return `<div class="rp-cap"><span class="rp-eye">${esc(rpTitle(r))}</span><b>${esc(rpLabel(R.cur, R.asOf))}</b>${R.cmp ? `<span>compared with ${esc(rpLabel(R.cmp, R.asOf))}</span>` : ''}</div>
     <div class="tbl-wrap rp-wrap">${rpTable(R)}</div>
@@ -3976,7 +3983,7 @@ function contactsPage() {
       <select id="cr" aria-label="Role"><option value="">All roles</option>${ROLES.map(([k, l]) => opt(k, l, S.cr)).join('')}</select></div>`
     + `<div id="list">${table([
       { h: 'Name', k: p => `<b>${esc(p.name)}</b>${p.address ? `<span class="sub">${esc(p.address)}</span>` : ''}` },
-      { h: 'Role', k: p => p.roles.map(r => `<span class="tag">${esc(roleLabel(r))}</span>`).join('') },
+      { h: 'Role', k: p => p.roles.map(r => `<span class="tag r-${esc(r)}">${esc(roleLabel(r))}</span>`).join('') },
       { h: 'TIN', k: p => esc(p.tin || '') },
       { h: 'Usual account', k: p => p.accountId ? esc(acctName(p.accountId)) : '' },
       { h: 'Usual withholding', k: p => esc(p.atc || '') },
@@ -5932,7 +5939,7 @@ function ownerStrip(kind = 'refill', bare) {
     { h: adv ? 'Advance' : 'Refill', k: x => `<b>${esc(x.j.no)}</b><span class="sub">${fdate(x.j.date)} · ${esc(adv ? x.emp : acctName(x.fund))}</span>` },
     { h: 'Owner', k: x => `${esc(x.owner)}<span class="sub">${esc(acctName(x.due))}</span>` },
     { h: adv ? 'Advanced' : 'Refilled', num: 1, k: x => money(x.amount) },
-    { h: 'Paid back', num: 1, k: x => x.paid ? `${money(x.paid)}${x.by.length ? `<span class="sub">${x.by.map(v => `<button type="button" class="btn link sm" data-act="view-voucher" data-id="${esc(v.id)}">${esc(v.cv)}</button>`).join(' ')}</span>` : ''}` : '' },
+    { h: 'Paid back', num: 1, k: x => x.paid ? `${money(x.paid)}${x.by.length ? `<span class="sub">by ${x.by.map(v => esc(v.cv)).join(', ')}</span>` : ''}` : '' },
     { h: 'Still owed', num: 1, k: x => x.owed > 0 ? `<b>${peso(x.owed)}</b>` : pill('Paid') },
     { h: '', k: x => rowActs([['view-je', x.j.id, 'View']]) }
   ], xs)}</section>`;
@@ -6210,7 +6217,7 @@ function viewShipment(id) {
   openModal(`Shipment ${esc(r.s.no)}`, `<p class="lead">${esc(r.s.desc)}${r.s.notes ? ` · ${esc(r.s.notes)}` : ''}</p>
     <div class="tbl-wrap"><table class="compact"><thead><tr><th>Date</th><th>Document</th><th>For</th><th class="num">In</th><th class="num">Out</th></tr></thead><tbody>
       ${before ? `<tr><td></td><td>Earlier years’ books</td><td>Net, not yet closed</td><td class="num">${before > 0 ? money(before) : ''}</td><td class="num">${before < 0 ? money(-before) : ''}</td></tr>` : ''}
-      ${docs.map(d => d.lines.filter(l => l.tag === id).map(l => `<tr><td>${fdate(d.date)}</td><td><b>${esc(d.ref)}</b><span class="sub">${esc(SOURCES[d.src].label)}</span></td><td>${esc(d.contact || '')}<span class="sub">${esc([acctName(l.acct), l.memo || d.memo || ''].filter(Boolean).join(' · '))}</span></td><td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')).join('')}
+      ${docs.map(d => d.lines.filter(l => l.tag === id).map(l => `<tr><td class="dt">${fdate(d.date)}</td><td><b>${esc(d.ref)}</b><span class="sub">${esc(SOURCES[d.src].label)}</span></td><td>${esc(d.contact || '')}<span class="sub">${esc([acctName(l.acct), l.memo || d.memo || ''].filter(Boolean).join(' · '))}</span></td><td class="num">${l.dr ? money(l.dr) : ''}</td><td class="num">${l.cr ? money(l.cr) : ''}</td></tr>`).join('')).join('')}
     </tbody><tfoot><tr><td colspan="3">In transit now</td><td class="num" colspan="2">${peso(r.left)}</td></tr></tfoot></table></div>
     ${receiptsOf(id).length ? `<p class="dv-sect" style="margin-top:20px">Receipts</p>${table([{ h: 'No.', k: j => `<b>${esc(j.no)}</b><span class="sub">${fdate(j.date)}</span>` }, { h: 'Memo', k: j => esc(j.memo) }, { h: 'Amount', num: 1, k: j => money(j.amount) }, { h: 'Status', k: j => j.status === 'void' ? pill('Void') : '' }, { h: '', k: j => rowActs([['view-receipt', j.id, 'View']]) }], receiptsOf(id), '', '', j => j.status === 'void' ? 'void' : '')}` : ''}`,
     null, '', { size: 'wide', extra });

@@ -76,6 +76,30 @@ tr.bsub td{font-size:13.5px;padding-top:6px;padding-bottom:6px}
 .btn:hover,.btn:focus-visible{background:var(--green7);color:#fff;transform:translateY(-2px);box-shadow:0 8px 20px rgba(26,113,62,.22)}
 .btn.ghost{background:#fff;color:var(--blue);box-shadow:inset 0 0 0 1.5px var(--blue)}
 .btn.ghost:hover,.btn.ghost:focus-visible{background:var(--green7);color:#fff;box-shadow:inset 0 0 0 1.5px var(--green7),0 8px 20px rgba(26,113,62,.22)}
+/* Frozen while scrolling (desktop): once the band scrolls away, a slim copy of it sits at the top with the page's
+   name, its views and its buttons; the page's search and filters stick under it, and each table's column headings
+   under those. Phones keep the plain scroll. */
+#pbmini{display:none}
+@media (min-width:961px){
+  #pbmini{position:fixed;top:0;z-index:40;height:62px;align-items:center;gap:16px;padding:0 18px 0 22px;background:var(--depth);color:#fff;border-radius:0 0 14px 14px;box-shadow:0 10px 26px rgba(16,33,59,.28)}
+  #pbmini.on{display:flex}
+  #pbmini .pm-l{flex:none;min-width:0;max-width:34%}
+  #pbmini .pm-eye{display:block;font:700 10px var(--display);letter-spacing:.18em;text-transform:uppercase;color:var(--green3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #pbmini .pm-l b{display:block;font:800 19px/1.15 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #pbmini .pm-tabs{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+  #pbmini .pm-tab{flex:none;font:700 13px var(--display);color:#fff;background:transparent;border:1.5px solid rgba(168,187,219,.4);border-radius:999px;padding:6px 13px;white-space:nowrap;cursor:pointer}
+  #pbmini .pm-tab.on{background:#fff;color:var(--ink);border-color:#fff;box-shadow:inset 0 -3px 0 var(--green)}
+  #pbmini .pm-tab:hover,#pbmini .pm-tab:focus-visible{background:var(--green7);border-color:var(--green7);color:#fff}
+  #pbmini .pm-acts{display:flex;gap:8px;flex:none;margin-left:auto}
+  #pbmini .btn{padding:8px 14px;font-size:13.5px;background:#fff;color:var(--blue);box-shadow:none}
+  #pbmini .btn.ghost,#pbmini .btn.link{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45)}
+  #pbmini .btn:hover,#pbmini .btn:focus-visible{background:var(--green7);color:#fff;box-shadow:inset 0 0 0 1.5px var(--green7)}
+  .main .toolbar.stuck-bar{position:sticky;top:var(--stk1,62px);z-index:20;box-shadow:0 -12px 0 var(--mist),0 0 0 0 transparent;}
+  .main .toolbar.stuck-bar.is-stuck{border-radius:0!important;clip-path:none!important}
+  .main .toolbar.stuck-bar:not(:has(+ #list > .tbl-wrap:first-child)){background:var(--mist);padding:8px 0;margin-top:-8px}
+  .main .tbl-wrap.fits{overflow:clip;overflow-clip-margin:0}
+  .main .tbl-wrap.fits thead th{position:sticky;top:var(--stk2,62px);z-index:10}
+}
 /* Void, delete and dispose are red, before and under the pointer, so they never look like the green go-ahead. */
 .btn.red{background:#A52A24;color:#fff}.btn.red:hover,.btn.red:focus-visible{background:#7E1F1B;color:#fff;box-shadow:0 8px 20px rgba(165,42,36,.28)}
 .btn[data-act^="void-"],.btn[data-act="delete-contact"],.btn[data-act="dispose-asset"]{background:#fff;color:#A52A24;box-shadow:inset 0 0 0 1.5px #A52A24}
@@ -737,7 +761,7 @@ const CFG = {
   apiUrl: 'https://script.google.com/macros/s/AKfycbyfK7WnQzZWJ7i8o1nf4rfuizX_l4AcSgEMwXetJzQMgwt-Mq8xWqmAkWd60FNAEzfX/exec'
 };
 const APP_NAME = 'Accounting Hub';
-const APP_VERSION = '3.50';
+const APP_VERSION = '3.51';
 /* Shown in the sidebar so anyone can confirm which build they're running. Change with every release. */
 const HUB_BUILD = '2026-11-18';
 /* The oldest Code.gs this hub works with. */
@@ -773,7 +797,7 @@ const PERMISSIONS = [
   ['Budgets', [['budgets.edit', 'Set budgets and departments']]],
   ['Chart of Accounts', [['accounts.add', 'Add and edit accounts']]],
   ['Contacts', [['contacts.edit', 'Add, edit and delete']]],
-  ['Financial Reports', [['reports.view', 'See the reports']]],
+  ['Financial Reports', [['reports.view', 'See, print and download the reports (Financial Reports, All Entries, bank registers, chart of accounts)']]],
   ['Company and Printing', [['company.edit', 'Edit']]],
   ['Users and Roles', [['users.manage', 'Manage users and roles']]]
 ];
@@ -988,6 +1012,9 @@ let USERS = null, ROLE_LIST = null;   // for those who manage users and roles
 const ME = () => (SESSION && SESSION.user) || { name: '', role: '', perms: [] };
 const isAdmin = () => ME().role === 'Admin';
 const can = perm => !!SESSION && (ME().perms || []).includes(perm);
+/* Downloading Excel and printing reports: Admins and Approvers, by the Financial Reports permission. */
+const canExport = () => isAdmin() || can('reports.view');
+const noExport = () => { toast('Downloading and printing reports is for Admins and Approvers.', true); return true; };
 /* Changing the books also needs the year on screen to be open. */
 const canBooks = perm => can(perm) && !yearClosed();
 function saveSession() { try { if (SESSION) localStorage.setItem(SESSION_KEY, JSON.stringify(SESSION)); else localStorage.removeItem(SESSION_KEY); } catch (e) { /* signs in again next time */ } }
@@ -1113,13 +1140,15 @@ const DEV_DB = 'acacia-hub', DEV_STORE = 'books';
 let devDb = null, devTimer = 0;
 function devOpen() {
   if (devDb) return devDb;
-  devDb = new Promise(ok => { try { const q = indexedDB.open(DEV_DB, 1); q.onupgradeneeded = () => q.result.createObjectStore(DEV_STORE); q.onsuccess = () => ok(q.result); q.onerror = () => ok(null); } catch (e) { ok(null); } });
+  // the device copy only speeds things up: if the browser holds it back (another tab closing, a slow disk), go on without it
+  devDb = new Promise(ok => { const t = setTimeout(() => ok(null), 2500); const done = v => { clearTimeout(t); ok(v); };
+    try { const q = indexedDB.open(DEV_DB, 1); q.onupgradeneeded = () => q.result.createObjectStore(DEV_STORE); q.onsuccess = () => done(q.result); q.onerror = () => done(null); q.onblocked = () => done(null); } catch (e) { done(null); } });
   return devDb;
 }
 const devKey = () => SESSION && SESSION.user ? `${CFG.apiUrl}|${SESSION.user.username}|${YEAR}` : '';
 async function devGet() {
   const db = await devOpen(), k = devKey(); if (!db || !k) return null;
-  return new Promise(ok => { try { const q = db.transaction(DEV_STORE).objectStore(DEV_STORE).get(k); q.onsuccess = () => ok(q.result || null); q.onerror = () => ok(null); } catch (e) { ok(null); } });
+  return new Promise(ok => { const t = setTimeout(() => ok(null), 2500); try { const q = db.transaction(DEV_STORE).objectStore(DEV_STORE).get(k); q.onsuccess = () => { clearTimeout(t); ok(q.result || null); }; q.onerror = () => { clearTimeout(t); ok(null); }; } catch (e) { clearTimeout(t); ok(null); } });
 }
 /* Saved a moment after the screen settles, so it never holds up a click. */
 function keepOnDevice() {
@@ -1969,6 +1998,36 @@ const rowActs = list => `<div class="acts">${list.filter(Boolean).map(([a, id, l
    bandUp after drawing) the view cards that follow it, as the band's figures. The page's one-line description is
    in its ? guide, so it isn't repeated here; a page without a guide keeps it, small, in the band. */
 const head = (eyebrow, t, sub, actions = '') => `<header class="pb"><div class="pb-top"><div>${eyebrow ? `<p class="pb-eye">${eyebrow}</p>` : ''}<h1 class="pb-title">${t}</h1>${sub ? `<p class="pb-sub">${sub}</p>` : ''}</div><div class="pb-acts head-acts">${actions}</div></div></header>`;
+/* ---------- Frozen header, filters and column headings (desktop) ---------- */
+let PBM = { pb: null, len: -1 };
+function stickSync() {
+  const root = document.documentElement, mini = document.getElementById('pbmini') || (() => { const d = document.createElement('div'); d.id = 'pbmini'; d.setAttribute('role', 'region'); d.setAttribute('aria-label', 'Page header'); document.body.appendChild(d); return d; })();
+  const main = document.getElementById('main'), pb = main && main.querySelector('.pb');
+  const hide = () => { if (mini.classList.contains('on') || mini.innerHTML) { mini.classList.remove('on'); mini.innerHTML = ''; PBM = { pb: null, len: -1 }; } };
+  if (!pb || innerWidth <= 960 || S0.screen !== 'app') { hide(); return; }
+  const show = pb.getBoundingClientRect().bottom < 62;
+  if (!show) hide();
+  else if (pb !== PBM.pb || pb.innerHTML.length !== PBM.len) {
+    PBM = { pb, len: pb.innerHTML.length };
+    const title = pb.querySelector('.pb-title'), t = title ? [...title.childNodes].filter(n => n.nodeType === 3 || (n.nodeType === 1 && !n.matches('button'))).map(n => n.textContent).join('').trim() : '';
+    const eye = (pb.querySelector('.pb-eye') || {}).textContent || '';
+    const tabs = [...pb.querySelectorAll('.vtab[data-act]')].map(b => `<button type="button" class="pm-tab${b.classList.contains('on') ? ' on' : ''}" data-act="${esc(b.dataset.act)}" data-id="${esc(b.dataset.id || '')}">${esc((b.querySelector('span') || b).textContent.trim())}</button>`).join('');
+    const acts = pb.querySelector('.pb-acts'); 
+    mini.innerHTML = `<div class="pm-l"><span class="pm-eye">${esc(eye)}</span><b>${esc(t)}</b></div><div class="pm-tabs">${tabs}</div><div class="pm-acts">${acts ? acts.innerHTML : ''}</div>`;
+  }
+  const r = main.getBoundingClientRect(), cs = getComputedStyle(main), pl = parseFloat(cs.paddingLeft) || 0, pr = parseFloat(cs.paddingRight) || 0;
+  mini.style.left = `${r.left + pl}px`; mini.style.width = `${r.width - pl - pr}px`;
+  mini.classList.toggle('on', show);
+  const bars = [...main.querySelectorAll('.toolbar')].filter(b => !b.closest('.pb, .modal'));
+  const bar = bars.find(b => b.classList.contains('stick-me')) || bars[0];
+  bars.forEach(b => { b.classList.toggle('stuck-bar', b === bar); b.classList.toggle('is-stuck', b === bar && b.getBoundingClientRect().top <= 63); });
+  root.style.setProperty('--stk1', '62px');
+  root.style.setProperty('--stk2', `${62 + (bar ? bar.offsetHeight : 0)}px`);
+  main.querySelectorAll('.tbl-wrap').forEach(w => { if (!w.closest('.modal')) w.classList.toggle('fits', w.scrollWidth <= w.clientWidth + 1 || w.classList.contains('fits') && w.scrollWidth <= w.clientWidth + 1); });
+}
+{ let q = 0; const later = () => { if (!q) q = requestAnimationFrame(() => { q = 0; stickSync(); }); };
+  addEventListener('scroll', later, { passive: true }); addEventListener('resize', later);
+  new MutationObserver(later).observe(document.body, { childList: true, subtree: true }); }
 function bandUp(root) { (root || document).querySelectorAll('.pb').forEach(pb => { const n = pb.nextElementSibling; if (n && n.classList.contains('vtabs')) pb.appendChild(n); }); }
 /* Account pickers list accounts by code, under their section. The search box laid over them (acctPickers) finds
    an account by any part of its code or name. */
@@ -3211,7 +3270,7 @@ const regName = bank => acctLabel(acct(bank));
 function regView(bank) {
   const R = regData(bank, regPer(bank)), can = canBooks('checks.clear'), lr = lastRecon(bank), m = n => R.usd ? amt(n, 'USD') : peso(n);
   const ms = yearMonths(), sel = `<select id="rgm" aria-label="Month">${ms.map(x => opt(x, monthLabel(x), R.per)).join('')}${opt('year', `All of ${YEAR}`, R.per)}</select>`;
-  const acts = [can && lr && !isLocked(lr.date) && btn('undo-recon', `Undo ${fdate(lr.date)} reconciliation`, 'link sm', lr.id), btn('rg-print', 'Print', 'ghost'), btn('rg-xlsx', 'Download Excel', 'ghost'), can && btn('reconcile', 'Reconcile', '', bank)].filter(Boolean).join('');
+  const acts = [can && lr && !isLocked(lr.date) && btn('undo-recon', `Undo ${fdate(lr.date)} reconciliation`, 'link sm', lr.id), canExport() && btn('rg-print', 'Print', 'ghost'), canExport() && btn('rg-xlsx', 'Download Excel', 'ghost'), can && btn('reconcile', 'Reconcile', '', bank)].filter(Boolean).join('');
   const strip = `<section class="bstrip" aria-label="What the bank should show"><p class="bs-h">${esc(fdate(R.to))}<span>${lr ? `Reconciled through ${fdate(lr.date)}` : 'Not reconciled yet'}</span></p>
     <div class="bs-i"><span class="bs-n">Per the books</span><b>${m(R.book)}</b></div>
     <div class="bs-i"><span class="bs-n">+ Checks not cleared</span><b>${m(R.outC)}</b><small>${R.cs.length ? plural(R.cs.length, 'check') : 'none'}</small></div>
@@ -3232,7 +3291,7 @@ function regView(bank) {
     : `<tfoot><tr><td></td><td>${R.rows.length.toLocaleString('en-US')} entr${R.rows.length === 1 ? 'y' : 'ies'}</td><td>Balance per the books, ${esc(fdate(R.to))}</td><td class="num">${money(R.out)}</td><td class="num">${money(R.in)}</td><td class="num">${money(R.close)}</td><td></td></tr></tfoot>`,
     r => r.open ? 'rg-open' : r.st.k === 'void' ? 'void' : '');
   return `<div class="toolbar"><button type="button" class="btn link" data-act="rg-back">← All bank accounts</button><b class="rg-name">${esc(regName(bank))}${R.usd ? ' <span class="hint">US dollars</span>' : ''}</b>${sel}<span class="grow"></span>${acts}</div>${strip}
-    <div class="toolbar rg-find"><input id="q" type="search" placeholder="Search payee, particulars, document, check no. or amount" value="${esc(S.q)}" aria-label="Search the register">
+    <div class="toolbar rg-find stick-me"><input id="q" type="search" placeholder="Search payee, particulars, document, check no. or amount" value="${esc(S.q)}" aria-label="Search the register">
       <select id="rgf" aria-label="Show">${REG_SHOW.map(([k, l]) => opt(k, l, S.rgf || '')).join('')}</select>
       ${on ? `<span class="hint">${F.rows.length.toLocaleString('en-US')} of ${R.rows.length.toLocaleString('en-US')} shown; the balance is still the running balance of the whole list.</span><button type="button" class="btn link sm" data-act="rg-clear">Clear</button>` : ''}
       <span class="grow"></span>${canBooks('journal.edit') ? btn('rg-extra', 'Interest or bank charge', 'ghost', bank) : ''}</div><div class="rg">${tbl}</div>
@@ -3455,7 +3514,7 @@ function journalPage() {
   const all = journal(), used = [...new Set(all.flatMap(d => d.lines.map(l => l.acct)))].map(acct).filter(Boolean).sort((a, b) => String(a.code || a.name).localeCompare(String(b.code || b.name)));
   const ms = [...new Set(all.map(d => d.date.slice(0, 7)))].filter(m => m.startsWith(String(YEAR))).sort();
   const types = [...new Set(all.map(d => d.src.replace(/Void$/, '')))].filter(k => SOURCES[k]).sort((a, b) => SOURCES[a].label.localeCompare(SOURCES[b].label));
-  return pageHead('journal', '', btn('je-xlsx', 'Download Excel', 'ghost'))
+  return pageHead('journal', '', canExport() ? btn('je-xlsx', 'Download Excel', 'ghost') : '')
     + `<div class="toolbar jf"><input id="q" type="search" placeholder="Search ref., name, particulars or amount" value="${esc(S.q)}" aria-label="Search entries">
       <select id="jm" aria-label="Month">${opt('', `All of ${YEAR}`, S.jm)}${ms.map(m => opt(m, monthLabel(m), S.jm)).join('')}</select>
       <select id="ja" aria-label="Account" class="jf-acct">${opt('', 'All accounts', S.ja)}${used.map(a => opt(a.id, acctLabel(a), S.ja)).join('')}</select>
@@ -3864,7 +3923,7 @@ function reportsPage() {
   const months = Array.from({ length: lastMonth() }, (_, i) => i + 1), mo = (id, v) => `<select id="${id}" aria-label="Month">${months.map(m => opt(String(m), `${MONL[m - 1]} ${YEAR}`, String(v))).join('')}</select>`;
   const pick = r.per === 'month' || r.per === 'ytd' ? mo('rp-m', r.m) : r.per === 'quarter' ? `<select id="rp-q" aria-label="Quarter">${[1, 2, 3, 4].filter(q => q * 3 - 2 <= lastMonth()).map(q => opt(String(q), `Q${q} ${YEAR}`, String(r.q))).join('')}</select>`
     : r.per === 'range' ? `${mo('rp-from', r.from)}<span class="hint">to</span>${mo('rp-to', r.to)}` : '';
-  const acts = REP.d === D && REP.year === YEAR && !REP.err ? `${btn('rp-xlsx', 'Download Excel', 'ghost')}${btn('rp-print', 'Print')}` : '';
+  const acts = canExport() && REP.d === D && REP.year === YEAR && !REP.err ? `${btn('rp-xlsx', 'Download Excel', 'ghost')}${btn('rp-print', 'Print')}` : '';
   return pageHead('reports', `Income statement, balance sheet, cash flows, changes in equity and trial balance, compared with the period before or the same period last year. The Google Sheet also has the ledger, the books of accounts, VAT and aging.`, acts)
     + `<div class="vtabs rp-cards" role="tablist" aria-label="Report">${RP_KINDS.map(([k, l]) => { const [e, q] = RP_ABOUT[k]; return `<button type="button" role="tab" aria-selected="${k === r.kind}" class="vtab${k === r.kind ? ' on' : ''}" data-act="rp-kind" data-id="${k}"><span>${e}</span><b>${l}</b><small>${q}</small></button>`; }).join('')}</div>`
     + `<div class="toolbar rp-bar"><label class="rp-l">${['bs', 'tb'].includes(r.kind) ? 'As of the end of' : 'Period'}</label><select id="rp-per" aria-label="Period">${RP_PERS.map(([k, l]) => opt(k, l, r.per)).join('')}</select>${pick}
@@ -4182,7 +4241,7 @@ function accountsPage() {
   const auto = id => { const k = Object.keys(D.control).find(x => D.control[x] === id); return k ? CONTROL_LABEL[k] : ''; };
   const hidden = D.accounts.filter(a => !a.active).length;
   return pageHead('accounts', `All ${D.accounts.length} accounts, by code${hidden ? `, ${hidden} of them hidden` : ''}. The first digit is the section: 1 assets, 2 liabilities, 3 equity, 4 revenue, 5 cost of sales, 6 selling, 7 general and admin, 8 other income and expenses, 9 income tax.`,
-    btn('download-chart', 'Download chart', 'ghost') + (can('accounts.add') ? btn('new-account', 'Add account') : ''))
+    (canExport() ? btn('download-chart', 'Download chart', 'ghost') : '') + (can('accounts.add') ? btn('new-account', 'Add account') : ''))
     + `<div id="list">${table([
       { h: 'Code', k: a => a.code ? `<b style="white-space:nowrap">${esc(a.code)}</b>` : '' },
       { h: 'Account', k: a => `${esc(a.name)}${!a.active ? ` ${pill('Hidden')}` : ''}${auto(a.id) ? `<span class="sub">Posted automatically: ${esc(auto(a.id).toLowerCase())}</span>` : ''}` },
@@ -7245,7 +7304,7 @@ const GUIDE = {
     steps: [
       ['Record what’s missing first', 'If the statement shows a bank charge, interest, or a transfer the books don’t have, enter it first (Bank Transfers or General Journal).'],
       ['View the account', 'View opens its register: the month’s entries in date order, a running balance, and whether each has reached the bank. The strip on top is what the bank should show at month end; compare it with the passbook.'],
-      ['When it doesn’t tie', 'Go down the register against the passbook, line by line. A line on one and not the other is the difference. Click a document to open it and fix it. Print or download it to Excel for the file.'],
+      ['When it doesn’t tie', 'Go down the register against the passbook, line by line. A line on one and not the other is the difference. Click a document to open it and fix it. Admins and Approvers can print it or download it to Excel for the file.'],
       ['Find a line', 'Search by payee, particulars, document, check no. or amount, and use Show for money out, money in, what isn’t at the bank yet, what cleared, checks or deposit slips. The balance stays the running balance of the whole month.'],
       ['Interest or bank charge', 'When the passbook shows interest (and the tax the bank withheld from it) or a charge the hub doesn’t have yet, press Interest or bank charge in the register. Type it as the passbook shows it; the tax fills in at 20%. It books a journal entry on that date, which counts as at the bank that day.'],
       ['Reconcile', 'From the register. Enter the statement date and its ending balance.'],
@@ -7328,7 +7387,7 @@ const GUIDE = {
   journal: { who: 'everyday',
     what: 'Every entry the books hold, from every page, in date order: the bookkeeper’s journal.',
     when: 'To find an entry, see what a document wrote, or trace an amount.',
-    steps: [['Search', 'By number, name, particulars or amount (with or without commas). Every word you type must match.'], ['Narrow it', 'Pick a month, an account and a type of document. Clear filters starts over.'], ['Trace an account', 'Pick an account and a month. Only that account’s lines show, each with what it was booked against, and a running balance from the balance brought forward. The last balance should match the trial balance for that date.'], ['Open', 'Click a document number to see it whole and fix it there.'], ['Download Excel', 'Saves exactly what’s showing, to work through or send to the accountant.']],
+    steps: [['Search', 'By number, name, particulars or amount (with or without commas). Every word you type must match.'], ['Narrow it', 'Pick a month, an account and a type of document. Clear filters starts over.'], ['Trace an account', 'Pick an account and a month. Only that account’s lines show, each with what it was booked against, and a running balance from the balance brought forward. The last balance should match the trial balance for that date.'], ['Open', 'Click a document number to see it whole and fix it there.'], ['Download Excel', 'Admins and Approvers: saves exactly what’s showing, to work through or send to the accountant.']],
     book: null, shows: ['Everything on the reports adds up from these entries.'], watch: ['Nothing is changed here. Fix a document on its own page.']
   },
   summary: { who: 'close',
@@ -7364,7 +7423,7 @@ const GUIDE = {
     steps: [
       ['Pick a report', 'Income Statement: did the company make money? Balance Sheet: what it owns and owes on a day. Cash Flows: where the cash came from and went. Changes in Equity: what happened to the owners’ share. Trial Balance: every account’s balance, for the accountant.'],
       ['Pick a period, and what to compare with', 'A month, a quarter, the year so far, or a range; against the period before or the same period last year.'],
-      ['Download Excel or Print', 'For the accountant or the owners.']
+      ['Download Excel or Print', 'For the accountant or the owners. Admins and Approvers only.']
     ],
     book: null,
     shows: ['The same figures as the Google Sheet’s report tabs. The Sheet also has the ledger, the books of accounts, VAT and aging.'],
@@ -8233,10 +8292,10 @@ const ACT = {
   'view-recon': id => viewRecon(id),
   'view-bank': id => { S.rb = id; S.rm = ''; S.q = ''; S.rgf = ''; refreshMain(); window.scrollTo(0, 0); },
   'rg-back': () => { S.rb = ''; S.q = ''; S.rgf = ''; refreshMain(); },
-  'rg-print': () => regPrint(S.rb),
+  'rg-print': () => canExport() ? regPrint(S.rb) : noExport(),
   'je-clear': () => { Object.assign(S, { q: '', jm: '', ja: '', jt: '' }); refreshMain(); },
-  'je-xlsx': () => jeXlsx(),
-  'rg-xlsx': () => regXlsx(S.rb),
+  'je-xlsx': () => canExport() ? jeXlsx() : noExport(),
+  'rg-xlsx': () => canExport() ? regXlsx(S.rb) : noExport(),
   'rg-clear': () => { S.q = ''; S.rgf = ''; refreshMain(); },
   'rg-extra': id => regExtraForm(id),
   'undo-recon': id => undoRecon(id),
@@ -8246,8 +8305,8 @@ const ACT = {
   'book-dep': () => bookDepreciation(),
   'pay-owner': id => payOwnerBack(id),
   'rp-kind': id => { rpState().kind = id; refreshMain(); },
-  'rp-xlsx': () => rpXlsx(),
-  'rp-print': () => rpPrint(),
+  'rp-xlsx': () => canExport() ? rpXlsx() : noExport(),
+  'rp-print': () => canExport() ? rpPrint() : noExport(),
   'rp-retry': () => { REP.err = ''; rpLoad(true); refreshMain(); },
   'new-adv': () => releaseForm(),
   'release-adv': id => releaseForm(id),
@@ -8313,7 +8372,7 @@ const ACT = {
   unclear: id => { const v = voucher(id), lr = lastRecon(vBank(v)); if (lr && v.clearedOn <= lr.date) { toast(`Check ${v.checkNo} is on the ${fdate(lr.date)} bank reconciliation. Undo that reconciliation first.`, true); return; } openModal(`Undo cleared on check ${esc(v.checkNo)}?`, `<p class="lead">It goes back to outstanding, as if it hadn’t reached the bank on ${fdate(v.clearedOn)}.</p>`, () => save('clearCheck', () => { voucher(id).clearedOn = ''; }, () => toast('Back to outstanding')), 'Undo cleared'); },
   'new-account': () => accountForm(),
   'edit-account': id => accountEditForm(id),
-  'download-chart': () => downloadChart(),
+  'download-chart': () => canExport() ? downloadChart() : noExport(),
   'new-contact': () => contactForm(),
   'edit-contact': id => contactForm(id),
   'delete-contact': id => { const p = contact(id); openModal(`Delete ${esc(p.name)}?`, `<p class="lead">They’re on no bill, voucher, invoice or collection, so nothing else changes. To get them back, add them again.</p>`, () => save('deleteContact', () => { D.contacts = D.contacts.filter(x => x.id !== id); }, () => toast(`${p.name} deleted`)), 'Delete contact', { danger: true }); },
